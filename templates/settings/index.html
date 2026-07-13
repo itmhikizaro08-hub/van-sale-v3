@@ -116,6 +116,70 @@
           </div>
           {% endif %}
         </form>
+
+        <hr class="my-4">
+
+        <h6 class="mb-3"><i class="fas fa-sms me-2"></i>SMS Provider Setup</h6>
+        <form method="POST" action="{{ url_for('settings.update_sms') }}" class="row g-3">
+          <div class="col-md-6">
+            <label class="form-label">Provider</label>
+            <select name="sms_provider" class="form-select" id="smsProviderSelect" {{ 'disabled' if not current_user.can_write('settings') else '' }}>
+              <option value="arkesel" {{ 'selected' if settings.sms_provider == 'arkesel' or not settings.sms_provider }}>Arkesel (recommended for Ghana)</option>
+              <option value="hubtel" {{ 'selected' if settings.sms_provider == 'hubtel' }}>Hubtel</option>
+            </select>
+          </div>
+          <div class="col-md-6"></div>
+
+          <div class="col-12 arkesel-fields">
+            <div class="row g-3">
+              <div class="col-md-6">
+                <label class="form-label">Arkesel API Key</label>
+                <input type="password" name="arkesel_api_key" class="form-control" autocomplete="off"
+                       placeholder="{{ 'Already set — leave blank to keep it' if settings.arkesel_api_key else 'Paste your API key from arkesel.com' }}"
+                       {{ 'readonly' if not current_user.can_write('settings') else '' }}>
+                <div class="form-text">From your dashboard at <a href="https://arkesel.com" target="_blank" rel="noopener">arkesel.com</a> → API section.</div>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">Sender Name</label>
+                <input type="text" name="arkesel_sender_name" class="form-control" maxlength="20"
+                       value="{{ settings.arkesel_sender_name or 'VanSales' }}"
+                       {{ 'readonly' if not current_user.can_write('settings') else '' }}>
+                <div class="form-text">Shows as the "from" name on the customer's phone — must be pre-registered with Arkesel.</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="col-12 hubtel-fields">
+            <div class="row g-3">
+              <div class="col-md-6">
+                <label class="form-label">Hubtel Client ID</label>
+                <input type="text" name="hubtel_client_id" class="form-control" autocomplete="off"
+                       value="{{ settings.hubtel_client_id or '' }}"
+                       {{ 'readonly' if not current_user.can_write('settings') else '' }}>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">Hubtel Client Secret</label>
+                <input type="password" name="hubtel_client_secret" class="form-control" autocomplete="off"
+                       placeholder="{{ 'Already set — leave blank to keep it' if settings.hubtel_client_secret else '' }}"
+                       {{ 'readonly' if not current_user.can_write('settings') else '' }}>
+              </div>
+            </div>
+          </div>
+
+          {% if current_user.can_write('settings') %}
+          <div class="col-12">
+            <button type="submit" class="btn btn-primary"><i class="fas fa-save me-1"></i>Save SMS Settings</button>
+          </div>
+          {% endif %}
+        </form>
+
+        {% if current_user.can_write('settings') %}
+        <div class="mt-3 d-flex align-items-center gap-2">
+          <input type="tel" id="testSmsPhone" class="form-control" style="max-width:220px" placeholder="e.g. 0244000000">
+          <button type="button" class="btn btn-outline-secondary" id="sendTestSmsBtn"><i class="fas fa-paper-plane me-1"></i>Send Test SMS</button>
+        </div>
+        <div class="form-text">Sends a real test message using whatever is saved above — use this to confirm your API key actually works.</div>
+        {% endif %}
       </div>
 
       <!-- ── Role Permissions ────────────────────────────────────────── -->
@@ -192,6 +256,33 @@
 <script>
 document.getElementById('roleSelect')?.addEventListener('change', function () {
   window.location.href = '{{ url_for("settings.index") }}?tab=permissions&role=' + this.value;
+});
+
+function toggleSmsProviderFields() {
+  const provider = document.getElementById('smsProviderSelect')?.value;
+  document.querySelectorAll('.arkesel-fields').forEach(el => el.style.display = provider === 'hubtel' ? 'none' : '');
+  document.querySelectorAll('.hubtel-fields').forEach(el => el.style.display = provider === 'hubtel' ? '' : 'none');
+}
+document.getElementById('smsProviderSelect')?.addEventListener('change', toggleSmsProviderFields);
+toggleSmsProviderFields();
+
+document.getElementById('sendTestSmsBtn')?.addEventListener('click', async () => {
+  const phone = document.getElementById('testSmsPhone').value.trim();
+  if (!phone) { Toast.show('Enter a phone number first.', 'warning'); return; }
+  const btn = document.getElementById('sendTestSmsBtn');
+  btn.disabled = true;
+  try {
+    const res = await apiCall('{{ url_for("settings.test_sms") }}', 'POST', { phone });
+    if (res.success) {
+      Toast.show(res.message || 'Test SMS sent.', 'success');
+    } else {
+      Toast.show(res.error || 'Test SMS failed.', 'danger');
+    }
+  } catch (err) {
+    Toast.show(err.message || 'Test SMS failed.', 'danger');
+  } finally {
+    btn.disabled = false;
+  }
 });
 </script>
 {% endblock %}

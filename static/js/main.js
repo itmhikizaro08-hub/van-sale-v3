@@ -132,6 +132,11 @@ function getCsrfToken() {
 }
 
 // ── AJAX with JSON ─────────────────────────────────────
+// Routes here return JSON bodies like {success:true,...} or {error:"..."}
+// even on 4xx/5xx status codes — read the body first so callers checking
+// res.error / res.success get the real reason instead of a generic
+// "HTTP 400". Only throw when the response isn't valid JSON at all (a true
+// network failure or an unhandled server error page).
 async function apiCall(url, method = 'GET', data = null) {
   const opts = {
     method,
@@ -139,8 +144,16 @@ async function apiCall(url, method = 'GET', data = null) {
   };
   if (data) opts.body = JSON.stringify(data);
   const res = await fetch(url, opts);
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  return res.json();
+  let body;
+  try {
+    body = await res.json();
+  } catch {
+    throw new Error(`HTTP ${res.status}`);
+  }
+  if (!res.ok && !('error' in body) && !('success' in body)) {
+    throw new Error(`HTTP ${res.status}`);
+  }
+  return body;
 }
 
 // ── Confirm dialog ─────────────────────────────────────

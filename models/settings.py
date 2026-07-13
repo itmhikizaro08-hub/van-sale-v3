@@ -21,6 +21,15 @@ class Settings(db.Model):
     default_payment_terms = db.Column(db.String(100))
     sms_enabled = db.Column(db.Boolean, default=True)
 
+    # SMS provider config — set through Settings so a non-technical admin
+    # never has to edit environment files or restart the server. Falls back
+    # to the SMS_PROVIDER/ARKESEL_*/HUBTEL_* env vars if left blank here.
+    sms_provider = db.Column(db.String(20), default='arkesel')
+    arkesel_api_key = db.Column(db.String(255))
+    arkesel_sender_name = db.Column(db.String(20), default='VanSales')
+    hubtel_client_id = db.Column(db.String(255))
+    hubtel_client_secret = db.Column(db.String(255))
+
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     @classmethod

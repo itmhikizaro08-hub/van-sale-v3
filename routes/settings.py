@@ -22,6 +22,9 @@ FIELD_LABELS = {
     'company_address': 'Address', 'company_logo': 'Logo',
     'default_reorder_level': 'Default Reorder Level', 'invoice_prefix': 'Invoice Prefix',
     'default_payment_terms': 'Default Payment Terms', 'sms_enabled': 'SMS Notifications',
+    'sms_provider': 'SMS Provider', 'arkesel_api_key': 'Arkesel API Key',
+    'arkesel_sender_name': 'Arkesel Sender Name', 'hubtel_client_id': 'Hubtel Client ID',
+    'hubtel_client_secret': 'Hubtel Client Secret',
 }
 
 # Roles editable through the permissions tab — admin is intentionally excluded
@@ -135,6 +138,76 @@ def update_system():
     else:
         flash('No changes to save.', 'info')
     return redirect(url_for('settings.index', tab='system'))
+
+
+@settings_bp.route('/sms', methods=['POST'])
+@login_required
+def update_sms():
+    if not current_user.can_write('settings'):
+        flash('Permission denied.', 'danger')
+        return redirect(url_for('settings.index'))
+
+    s = Settings.get()
+    # Secret fields render blank in the form for security (see the "leave
+    # blank to keep it" placeholder) — an empty submission must preserve the
+    # existing value, not wipe it, since the browser always sends the field.
+    new_arkesel_key = request.form.get('arkesel_api_key', '').strip()
+    new_hubtel_secret = request.form.get('hubtel_client_secret', '').strip()
+    updates = {
+        'sms_provider': request.form.get('sms_provider', s.sms_provider),
+        'arkesel_api_key': new_arkesel_key or s.arkesel_api_key,
+        'arkesel_sender_name': (request.form.get('arkesel_sender_name') or 'VanSales').strip(),
+        'hubtel_client_id': request.form.get('hubtel_client_id', s.hubtel_client_id),
+        'hubtel_client_secret': new_hubtel_secret or s.hubtel_client_secret,
+    }
+
+    # Secret fields never go into the audit trail in plaintext — just note
+    # that they changed, so a key rotation is traceable without leaking it.
+    secret_fields = {'arkesel_api_key', 'hubtel_client_secret'}
+    changes = []
+    for field, new_value in updates.items():
+        old_value = getattr(s, field)
+        if old_value != new_value:
+            if field in secret_fields:
+                changes.append(f'{FIELD_LABELS.get(field, field)}: (changed)')
+            else:
+                label = FIELD_LABELS.get(field, field)
+                changes.append(f'{label}: {old_value or "(empty)"} → {new_value or "(empty)"}')
+            setattr(s, field, new_value)
+
+    db.session.commit()
+
+    if changes:
+        _log_change('system', 'SMS config — ' + '; '.join(changes))
+        db.session.commit()
+        flash('SMS settings updated!', 'success')
+    else:
+        flash('No changes to save.', 'info')
+    return redirect(url_for('settings.index', tab='system'))
+
+
+@settings_bp.route('/sms/test', methods=['POST'])
+@login_required
+def test_sms():
+    if not current_user.can_write('settings'):
+        return {'error': 'Permission denied'}, 403
+
+    data = request.get_json(silent=True) or {}
+    phone = (data.get('phone') or '').strip()
+    if not phone:
+        return {'error': 'Enter a phone number to test with.'}, 400
+
+    from services.sms_service import send_sms
+    success = send_sms(phone, 'Test message from Van Sales V3 — your SMS setup is working!',
+                        sms_type='custom', recipient_name='Test')
+
+    from models.notification import SMSLog
+    last = SMSLog.query.filter_by(phone_number=phone).order_by(SMSLog.id.desc()).first()
+    detail = last.provider_response if last else ''
+
+    if success:
+        return {'success': True, 'message': f'Test SMS sent to {phone}.'}
+    return {'error': f'Failed to send: {detail}'}, 400
 
 
 @settings_bp.route('/permissions', methods=['POST'])

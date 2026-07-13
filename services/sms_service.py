@@ -5,22 +5,31 @@ from datetime import datetime
 from app import db
 from models.notification import SMSLog
 
-PROVIDER = os.getenv('SMS_PROVIDER', 'arkesel')
-ARKESEL_KEY = os.getenv('ARKESEL_API_KEY', '')
-ARKESEL_SENDER = os.getenv('ARKESEL_SMS_NAME', 'VanSales')
-HUBTEL_ID = os.getenv('HUBTEL_CLIENT_ID', '')
-HUBTEL_SECRET = os.getenv('HUBTEL_CLIENT_SECRET', '')
+
+def _config():
+    """SMS provider config — Settings (set via the UI) wins, falling back to
+    env vars so a fresh install with no Settings row yet still works."""
+    from models.settings import Settings
+    s = Settings.get()
+    return {
+        'provider': s.sms_provider or os.getenv('SMS_PROVIDER', 'arkesel'),
+        'arkesel_key': s.arkesel_api_key or os.getenv('ARKESEL_API_KEY', ''),
+        'arkesel_sender': s.arkesel_sender_name or os.getenv('ARKESEL_SMS_NAME', 'VanSales'),
+        'hubtel_id': s.hubtel_client_id or os.getenv('HUBTEL_CLIENT_ID', ''),
+        'hubtel_secret': s.hubtel_client_secret or os.getenv('HUBTEL_CLIENT_SECRET', ''),
+    }
 
 
 def send_sms(phone: str, message: str, sms_type: str = 'custom',
              recipient_name: str = None) -> bool:
     """Send an SMS and log the result."""
+    cfg = _config()
     log = SMSLog(
         recipient_name=recipient_name,
         phone_number=phone,
         message=message,
         sms_type=sms_type,
-        provider=PROVIDER,
+        provider=cfg['provider'],
         status='pending'
     )
     db.session.add(log)
@@ -37,10 +46,14 @@ def send_sms(phone: str, message: str, sms_type: str = 'custom',
     response_text = ''
 
     try:
-        if PROVIDER == 'arkesel':
-            success, response_text = _send_arkesel(phone, message)
-        elif PROVIDER == 'hubtel':
-            success, response_text = _send_hubtel(phone, message)
+        if cfg['provider'] == 'arkesel':
+            if not cfg['arkesel_key']:
+                raise ValueError('No Arkesel API key configured — add one in Settings.')
+            success, response_text = _send_arkesel(phone, message, cfg)
+        elif cfg['provider'] == 'hubtel':
+            if not cfg['hubtel_id'] or not cfg['hubtel_secret']:
+                raise ValueError('Hubtel client ID/secret not configured — add them in Settings.')
+            success, response_text = _send_hubtel(phone, message, cfg)
         else:
             response_text = 'Unknown provider'
     except Exception as e:
@@ -53,13 +66,13 @@ def send_sms(phone: str, message: str, sms_type: str = 'custom',
     return success
 
 
-def _send_arkesel(phone: str, message: str):
+def _send_arkesel(phone: str, message: str, cfg: dict):
     url = 'https://sms.arkesel.com/sms/api'
     params = {
         'action': 'send-sms',
-        'api_key': ARKESEL_KEY,
+        'api_key': cfg['arkesel_key'],
         'to': phone,
-        'from': ARKESEL_SENDER,
+        'from': cfg['arkesel_sender'],
         'sms': message
     }
     r = requests.get(url, params=params, timeout=10)
@@ -68,11 +81,11 @@ def _send_arkesel(phone: str, message: str):
     return success, str(data)
 
 
-def _send_hubtel(phone: str, message: str):
+def _send_hubtel(phone: str, message: str, cfg: dict):
     url = f'https://smsc.hubtel.com/v1/messages/send'
     params = {
-        'clientid': HUBTEL_ID,
-        'clientsecret': HUBTEL_SECRET,
+        'clientid': cfg['hubtel_id'],
+        'clientsecret': cfg['hubtel_secret'],
         'from': 'VanSales',
         'to': phone,
         'content': message
