@@ -25,6 +25,7 @@ FIELD_LABELS = {
     'sms_provider': 'SMS Provider', 'arkesel_api_key': 'Arkesel API Key',
     'arkesel_sender_name': 'Arkesel Sender Name', 'hubtel_client_id': 'Hubtel Client ID',
     'hubtel_client_secret': 'Hubtel Client Secret',
+    'at_username': "Africa's Talking Username", 'at_api_key': "Africa's Talking API Key",
 }
 
 # Roles editable through the permissions tab — admin is intentionally excluded
@@ -153,17 +154,20 @@ def update_sms():
     # existing value, not wipe it, since the browser always sends the field.
     new_arkesel_key = request.form.get('arkesel_api_key', '').strip()
     new_hubtel_secret = request.form.get('hubtel_client_secret', '').strip()
+    new_at_key = request.form.get('at_api_key', '').strip()
     updates = {
         'sms_provider': request.form.get('sms_provider', s.sms_provider),
         'arkesel_api_key': new_arkesel_key or s.arkesel_api_key,
         'arkesel_sender_name': (request.form.get('arkesel_sender_name') or 'VanSales').strip(),
         'hubtel_client_id': request.form.get('hubtel_client_id', s.hubtel_client_id),
         'hubtel_client_secret': new_hubtel_secret or s.hubtel_client_secret,
+        'at_username': (request.form.get('at_username') or 'sandbox').strip(),
+        'at_api_key': new_at_key or s.at_api_key,
     }
 
     # Secret fields never go into the audit trail in plaintext — just note
     # that they changed, so a key rotation is traceable without leaking it.
-    secret_fields = {'arkesel_api_key', 'hubtel_client_secret'}
+    secret_fields = {'arkesel_api_key', 'hubtel_client_secret', 'at_api_key'}
     changes = []
     for field, new_value in updates.items():
         old_value = getattr(s, field)

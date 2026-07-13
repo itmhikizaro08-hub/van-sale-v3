@@ -57,6 +57,8 @@ def run_migrations(db):
         _add_column_if_missing(conn, engine, 'settings', 'arkesel_sender_name', "VARCHAR(20) DEFAULT 'VanSales'")
         _add_column_if_missing(conn, engine, 'settings', 'hubtel_client_id', 'VARCHAR(255)')
         _add_column_if_missing(conn, engine, 'settings', 'hubtel_client_secret', 'VARCHAR(255)')
+        _add_column_if_missing(conn, engine, 'settings', 'at_username', "VARCHAR(100) DEFAULT 'sandbox'")
+        _add_column_if_missing(conn, engine, 'settings', 'at_api_key', 'VARCHAR(255)')
 
         # ── Drop old broken unique constraint on van_stocks and recreate ───
         _fix_van_stocks_constraint(conn, engine)

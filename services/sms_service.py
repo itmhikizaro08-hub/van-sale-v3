@@ -1,4 +1,4 @@
-"""SMS Service - supports Arkesel and Hubtel."""
+"""SMS Service - supports Arkesel, Hubtel, and Africa's Talking."""
 import os
 import requests
 from datetime import datetime
@@ -17,6 +17,8 @@ def _config():
         'arkesel_sender': s.arkesel_sender_name or os.getenv('ARKESEL_SMS_NAME', 'VanSales'),
         'hubtel_id': s.hubtel_client_id or os.getenv('HUBTEL_CLIENT_ID', ''),
         'hubtel_secret': s.hubtel_client_secret or os.getenv('HUBTEL_CLIENT_SECRET', ''),
+        'at_username': s.at_username or os.getenv('AT_USERNAME', 'sandbox'),
+        'at_key': s.at_api_key or os.getenv('AT_API_KEY', ''),
     }
 
 
@@ -54,6 +56,10 @@ def send_sms(phone: str, message: str, sms_type: str = 'custom',
             if not cfg['hubtel_id'] or not cfg['hubtel_secret']:
                 raise ValueError('Hubtel client ID/secret not configured — add them in Settings.')
             success, response_text = _send_hubtel(phone, message, cfg)
+        elif cfg['provider'] == 'africastalking':
+            if not cfg['at_key']:
+                raise ValueError("No Africa's Talking API key configured — add one in Settings.")
+            success, response_text = _send_africastalking(phone, message, cfg)
         else:
             response_text = 'Unknown provider'
     except Exception as e:
@@ -93,6 +99,42 @@ def _send_hubtel(phone: str, message: str, cfg: dict):
     r = requests.get(url, params=params, timeout=10)
     success = r.status_code == 200
     return success, r.text
+
+
+def _to_international(phone: str) -> str:
+    """Africa's Talking requires E.164 (+countrycode...) — unlike Arkesel/Hubtel
+    it rejects local-format numbers outright. Assumes Ghana (0XXXXXXXXX ->
+    +233XXXXXXXXX) since that's the only market this app is configured for;
+    a number already starting with '+' is passed through unchanged."""
+    phone = phone.strip().replace(' ', '')
+    if phone.startswith('+'):
+        return phone
+    if phone.startswith('0'):
+        return '+233' + phone[1:]
+    return '+' + phone
+
+
+def _send_africastalking(phone: str, message: str, cfg: dict):
+    # The 'sandbox' username always talks to the sandbox host regardless of
+    # which app/key generated it — that's how Africa's Talking's own SDKs
+    # decide the base URL too.
+    host = 'api.sandbox.africastalking.com' if cfg['at_username'] == 'sandbox' else 'api.africastalking.com'
+    url = f'https://{host}/version1/messaging'
+    headers = {
+        'apiKey': cfg['at_key'],
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'Accept': 'application/json',
+    }
+    data = {
+        'username': cfg['at_username'],
+        'to': _to_international(phone),
+        'message': message,
+    }
+    r = requests.post(url, headers=headers, data=data, timeout=10)
+    body = r.json()
+    recipients = body.get('SMSMessageData', {}).get('Recipients', [])
+    success = bool(recipients) and all(rec.get('status') == 'Success' for rec in recipients)
+    return success, str(body)
 
 
 def send_invoice_sms(customer, sale):

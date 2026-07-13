@@ -126,6 +126,7 @@
             <select name="sms_provider" class="form-select" id="smsProviderSelect" {{ 'disabled' if not current_user.can_write('settings') else '' }}>
               <option value="arkesel" {{ 'selected' if settings.sms_provider == 'arkesel' or not settings.sms_provider }}>Arkesel (recommended for Ghana)</option>
               <option value="hubtel" {{ 'selected' if settings.sms_provider == 'hubtel' }}>Hubtel</option>
+              <option value="africastalking" {{ 'selected' if settings.sms_provider == 'africastalking' }}>Africa's Talking</option>
             </select>
           </div>
           <div class="col-md-6"></div>
@@ -162,6 +163,25 @@
                 <input type="password" name="hubtel_client_secret" class="form-control" autocomplete="off"
                        placeholder="{{ 'Already set — leave blank to keep it' if settings.hubtel_client_secret else '' }}"
                        {{ 'readonly' if not current_user.can_write('settings') else '' }}>
+              </div>
+            </div>
+          </div>
+
+          <div class="col-12 africastalking-fields">
+            <div class="row g-3">
+              <div class="col-md-6">
+                <label class="form-label">Username</label>
+                <input type="text" name="at_username" class="form-control" autocomplete="off"
+                       value="{{ settings.at_username or 'sandbox' }}"
+                       {{ 'readonly' if not current_user.can_write('settings') else '' }}>
+                <div class="form-text">Use <code>sandbox</code> for testing, or your app's real username once you go live.</div>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">API Key</label>
+                <input type="password" name="at_api_key" class="form-control" autocomplete="off"
+                       placeholder="{{ 'Already set — leave blank to keep it' if settings.at_api_key else 'Paste your API key' }}"
+                       {{ 'readonly' if not current_user.can_write('settings') else '' }}>
+                <div class="form-text">From <a href="https://account.africastalking.com" target="_blank" rel="noopener">account.africastalking.com</a> → Settings → API Key. A Sandbox key only reaches numbers registered in their simulator — create a Live app to message real customers.</div>
               </div>
             </div>
           </div>
@@ -260,8 +280,9 @@ document.getElementById('roleSelect')?.addEventListener('change', function () {
 
 function toggleSmsProviderFields() {
   const provider = document.getElementById('smsProviderSelect')?.value;
-  document.querySelectorAll('.arkesel-fields').forEach(el => el.style.display = provider === 'hubtel' ? 'none' : '');
+  document.querySelectorAll('.arkesel-fields').forEach(el => el.style.display = provider === 'arkesel' ? '' : 'none');
   document.querySelectorAll('.hubtel-fields').forEach(el => el.style.display = provider === 'hubtel' ? '' : 'none');
+  document.querySelectorAll('.africastalking-fields').forEach(el => el.style.display = provider === 'africastalking' ? '' : 'none');
 }
 document.getElementById('smsProviderSelect')?.addEventListener('change', toggleSmsProviderFields);
 toggleSmsProviderFields();

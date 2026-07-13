@@ -29,6 +29,8 @@ class Settings(db.Model):
     arkesel_sender_name = db.Column(db.String(20), default='VanSales')
     hubtel_client_id = db.Column(db.String(255))
     hubtel_client_secret = db.Column(db.String(255))
+    at_username = db.Column(db.String(100), default='sandbox')
+    at_api_key = db.Column(db.String(255))
 
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
