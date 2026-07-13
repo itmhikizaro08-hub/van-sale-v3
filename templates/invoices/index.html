@@ -1,0 +1,47 @@
+{% extends 'base.html' %}
+{% block title %}Invoices{% endblock %}
+{% block breadcrumb %}<li class="breadcrumb-item active">Invoices</li>{% endblock %}
+{% block content %}
+<div class="page-header"><div><h1 class="page-title">Invoices</h1></div></div>
+
+<div class="row g-3 mb-3">
+  <div class="col-6 col-md-4">
+    <div class="stat-card primary"><div class="stat-icon"><i class="fas fa-receipt"></i></div>
+      <div><div class="stat-label">Total Sale</div><div class="stat-value">GHS {{ "%.2f"|format(total_sales_amount) }}</div><div class="stat-trend">{{ sales|length }} invoices</div></div>
+    </div>
+  </div>
+  <div class="col-6 col-md-4">
+    <div class="stat-card {{ 'danger' if total_outstanding > 0 else 'success' }}"><div class="stat-icon"><i class="fas fa-exclamation-circle"></i></div>
+      <div><div class="stat-label">Outstanding</div><div class="stat-value">GHS {{ "%.2f"|format(total_outstanding) }}</div></div>
+    </div>
+  </div>
+</div>
+
+<div class="card mb-3"><div class="card-body py-2">
+  <form method="GET" class="row g-2 align-items-end">
+    <div class="col-md-4"><label class="form-label">From</label><input type="date" name="start" class="form-control" value="{{ start }}"></div>
+    <div class="col-md-4"><label class="form-label">To</label><input type="date" name="end" class="form-control" value="{{ end }}"></div>
+    <div class="col-md-4"><button type="submit" class="btn btn-primary w-100"><i class="fas fa-filter me-1"></i>Filter</button></div>
+  </form>
+</div></div>
+
+<div class="card"><div class="card-body p-0"><div class="table-responsive">
+<table class="table table-hover dt-table mb-0" id="invTable">
+  <thead><tr><th>Invoice #</th><th>Customer</th><th>Date</th><th class="text-end">Total</th><th class="text-end">Balance</th><th>Status</th><th></th></tr></thead>
+  <tbody>
+    {% for s in sales %}
+    <tr>
+      <td><a href="{{ url_for('invoices.view', sale_id=s.id) }}" class="fw-600">{{ s.invoice_number }}</a></td>
+      <td>{{ s.customer.name if s.customer else '—' }}</td>
+      <td class="text-muted fs-12">{{ s.sale_date.strftime('%d %b %Y') if s.sale_date else '' }}</td>
+      <td class="text-end fw-600">GHS {{ "%.2f"|format(s.total_amount) }}</td>
+      <td class="text-end {{ 'text-danger fw-600' if s.balance_due > 0 else 'text-muted' }}">GHS {{ "%.2f"|format(s.balance_due) }}</td>
+      <td><span class="badge {{ s.payment_badge }}">{{ s.payment_status|title }}</span></td>
+      <td><a href="{{ url_for('invoices.view', sale_id=s.id) }}" class="btn btn-icon btn-sm btn-outline-primary"><i class="fas fa-eye"></i></a></td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div></div></div>
+{% endblock %}
+{% block extra_js %}<script>$(document).ready(() => initDataTable('#invTable', {order:[[2,'desc']]}));</script>{% endblock %}

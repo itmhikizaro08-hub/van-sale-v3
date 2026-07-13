@@ -1,0 +1,27 @@
+{% extends 'base.html' %}
+{% block title %}Customer Report{% endblock %}
+{% block breadcrumb %}<li class="breadcrumb-item"><a href="{{ url_for('reports.index') }}">Reports</a></li><li class="breadcrumb-item active">Customers</li>{% endblock %}
+{% block content %}
+<div class="page-header"><div><h1 class="page-title">Customer Report</h1></div><button onclick="window.print()" class="btn btn-outline-secondary btn-sm"><i class="fas fa-print me-1"></i>Print</button></div>
+<div class="card"><div class="card-body p-0"><div class="table-responsive">
+<table class="table table-hover dt-table mb-0" id="custRpt">
+  <thead><tr><th>Code</th><th>Name</th><th>Tier</th><th>Type</th><th class="text-end">Total Sales</th><th class="text-end">Payments</th><th class="text-end">Outstanding</th><th class="text-end">Wallet</th><th>Status</th></tr></thead>
+  <tbody>
+    {% for c in customers %}
+    <tr>
+      <td><code class="fs-12">{{ c.customer_code }}</code></td>
+      <td><a href="{{ url_for('customers.view', customer_id=c.id) }}" class="fw-600">{{ c.name }}</a></td>
+      <td><span class="badge {{ c.tier_badge }}">{{ c.tier|title }}</span></td>
+      <td><span class="badge {{ c.type_badge }}">{{ c.customer_type|replace('_',' ')|title }}</span></td>
+      <td class="text-end fw-600">GHS {{ "%.2f"|format(c.total_sales) }}</td>
+      <td class="text-end text-success">GHS {{ "%.2f"|format(c.total_payments) }}</td>
+      <td class="text-end {{ 'text-danger fw-700' if c.outstanding_balance > 0 else 'text-muted' }}">GHS {{ "%.2f"|format(c.outstanding_balance) }}</td>
+      <td class="text-end {{ 'text-success fw-600' if c.wallet_balance > 0 else 'text-muted' }}">GHS {{ "%.2f"|format(c.wallet_balance) }}</td>
+      <td><span class="badge {{ c.status_badge }}">{{ c.status|title }}</span></td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div></div></div>
+{% endblock %}
+{% block extra_js %}<script>$(document).ready(() => initDataTable('#custRpt', {order:[[6,'desc']]}));</script>{% endblock %}

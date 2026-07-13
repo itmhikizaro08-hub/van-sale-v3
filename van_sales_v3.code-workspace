@@ -1,0 +1,53 @@
+{
+  "folders": [
+    {
+      "path": "."
+    }
+  ],
+  "settings": {
+    "python.defaultInterpreterPath": "${workspaceFolder}/venv/Scripts/python",
+    "python.terminal.activateEnvironment": true,
+    "editor.formatOnSave": true,
+    "editor.tabSize": 4,
+    "files.exclude": {
+      "**/__pycache__": true,
+      "**/*.pyc": true,
+      "**/venv": true,
+      "**/*.db": false
+    },
+    "emmet.includeLanguages": {
+      "jinja-html": "html"
+    },
+    "files.associations": {
+      "*.html": "jinja-html"
+    }
+  },
+  "extensions": {
+    "recommendations": [
+      "ms-python.python",
+      "ms-python.flake8",
+      "samuelcolvin.jinjahtml",
+      "ecmel.vscode-html-css",
+      "formulahendry.auto-close-tag",
+      "esbenp.prettier-vscode"
+    ]
+  },
+  "launch": {
+    "version": "0.2.0",
+    "configurations": [
+      {
+        "name": "Flask: Run Van Sales V3",
+        "type": "debugpy",
+        "request": "launch",
+        "module": "flask",
+        "env": {
+          "FLASK_APP": "app.py",
+          "FLASK_DEBUG": "1"
+        },
+        "args": ["run", "--host=0.0.0.0", "--port=5000"],
+        "jinja": true,
+        "justMyCode": true
+      }
+    ]
+  }
+}

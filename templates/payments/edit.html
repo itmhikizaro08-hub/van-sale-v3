@@ -1,0 +1,57 @@
+{% extends 'base.html' %}
+{% block title %}Edit Payment{% endblock %}
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{{ url_for('payments.index') }}">Payments</a></li>
+<li class="breadcrumb-item active">Edit {{ payment.payment_number }}</li>
+{% endblock %}
+{% block content %}
+<div class="page-header"><h1 class="page-title">Edit Payment {{ payment.payment_number }}</h1></div>
+<div class="row justify-content-center"><div class="col-md-6">
+<form method="POST"><div class="card">
+  <div class="card-header"><i class="fas fa-money-bill me-2"></i>Payment Details</div>
+  <div class="card-body">
+    <div class="mb-3">
+      <label class="form-label">Customer</label>
+      <input type="text" class="form-control" value="{{ payment.customer.name if payment.customer else '—' }}" readonly>
+    </div>
+    <div class="mb-3">
+      <label class="form-label">Invoice</label>
+      <input type="text" class="form-control" value="{{ sale.invoice_number if sale else '—' }}" readonly>
+      {% if sale %}<div class="form-text">Current balance due (excluding this payment): GHS {{ "%.2f"|format(sale.balance_due + payment.amount) }}</div>{% endif %}
+    </div>
+    <div class="mb-3">
+      <label class="form-label">Amount (GHS) <span class="text-danger">*</span></label>
+      <div class="input-group"><span class="input-group-text">GHS</span>
+      <input type="number" name="amount" class="form-control" step="0.01" min="0.01" value="{{ '%.2f'|format(payment.amount) }}" required></div>
+      {% if sale %}<div class="form-text">Will be capped at the invoice's balance due if it exceeds it.</div>{% endif %}
+    </div>
+    <div class="mb-3">
+      <label class="form-label">Payment Method</label>
+      <select name="payment_method" class="form-select">
+        <option value="cash" {{ 'selected' if payment.payment_method == 'cash' else '' }}>Cash</option>
+        <option value="mobile_money" {{ 'selected' if payment.payment_method == 'mobile_money' else '' }}>Mobile Money</option>
+        <option value="bank_transfer" {{ 'selected' if payment.payment_method == 'bank_transfer' else '' }}>Bank Transfer</option>
+        <option value="cheque" {{ 'selected' if payment.payment_method == 'cheque' else '' }}>Cheque</option>
+      </select>
+    </div>
+    <div class="mb-3">
+      <label class="form-label">Reference Number</label>
+      <input type="text" name="reference_number" class="form-control" value="{{ payment.reference_number or '' }}" placeholder="MoMo ref, cheque #, etc.">
+    </div>
+    <div class="mb-3">
+      <label class="form-label"><i class="fas fa-book text-info me-1"></i>Reference Note</label>
+      <input type="text" name="reference_note" class="form-control" value="{{ payment.reference_note or '' }}" placeholder="e.g. Book pg 5, receipt #45">
+      <div class="form-text"><i class="fas fa-info-circle text-info me-1"></i>Cross-check with your physical records.</div>
+    </div>
+    <div class="mb-3">
+      <label class="form-label">Notes</label>
+      <textarea name="notes" class="form-control" rows="2">{{ payment.notes or '' }}</textarea>
+    </div>
+  </div>
+  <div class="card-footer d-flex gap-2">
+    <button type="submit" class="btn btn-success"><i class="fas fa-save me-1"></i>Save Changes</button>
+    <a href="{{ url_for('payments.index') }}" class="btn btn-outline-secondary">Cancel</a>
+  </div>
+</div></form>
+</div></div>
+{% endblock %}

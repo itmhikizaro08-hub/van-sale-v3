@@ -1,0 +1,54 @@
+{% extends 'base.html' %}
+{% block title %}Today's Route{% endblock %}
+{% block breadcrumb %}<li class="breadcrumb-item"><a href="{{ url_for('visits.index') }}">Visits</a></li><li class="breadcrumb-item active">Today's Route</li>{% endblock %}
+{% block content %}
+<div class="page-header"><div><h1 class="page-title">Today's Route</h1><p class="page-subtitle">Tap "Mark Visited" at each customer — GPS captured automatically</p></div></div>
+<div class="card"><div class="card-body p-0">
+{% if customers %}
+<div class="list-group list-group-flush">
+{% for c in customers %}
+<div class="list-group-item d-flex align-items-center justify-content-between py-3">
+  <div>
+    <div class="fw-700">{{ c.name }}</div>
+    <div class="text-muted fs-12">{{ c.address or '' }} {% if c.outstanding_balance > 0 %}<span class="badge bg-danger ms-1">Owes GHS {{ "%.2f"|format(c.outstanding_balance) }}</span>{% endif %}</div>
+  </div>
+  <div class="d-flex gap-2">
+    {% if c.id in visited_ids %}
+    <span class="badge bg-success px-3 py-2"><i class="fas fa-check me-1"></i>Visited</span>
+    {% else %}
+    <button class="btn btn-primary btn-sm mark-visited-btn" data-customer-id="{{ c.id }}" onclick="markVisited({{ c.id }}, this)">
+      <i class="fas fa-map-pin me-1"></i>Mark Visited
+    </button>
+    {% endif %}
+    <a href="{{ url_for('sales.new_sale') }}?customer_id={{ c.id }}" class="btn btn-outline-success btn-sm"><i class="fas fa-bolt"></i></a>
+  </div>
+</div>
+{% endfor %}
+</div>
+{% else %}
+<div class="empty-state py-5"><i class="fas fa-route" style="font-size:2.5rem;color:var(--text-muted)"></i><h5 class="mt-3">No customers on today's route</h5><p class="text-muted">Your route has no customers assigned for today.</p></div>
+{% endif %}
+</div></div>
+{% endblock %}
+{% block extra_js %}
+<script>
+async function markVisited(customerId, btn) {
+  if (!navigator.geolocation) { Toast.show('GPS not available on this device.', 'warning'); return; }
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Locating…';
+  navigator.geolocation.getCurrentPosition(async pos => {
+    try {
+      const res = await apiCall('/visits/mark', 'POST', {
+        customer_id: customerId,
+        latitude: pos.coords.latitude,
+        longitude: pos.coords.longitude
+      });
+      if (res.success) {
+        btn.outerHTML = '<span class="badge bg-success px-3 py-2"><i class="fas fa-check me-1"></i>Visited</span>';
+        Toast.show('Visit recorded with GPS!', 'success');
+      } else { Toast.show(res.error || 'Failed.', 'danger'); btn.disabled = false; btn.innerHTML = '<i class="fas fa-map-pin me-1"></i>Mark Visited'; }
+    } catch { Toast.show('Error recording visit.', 'danger'); btn.disabled = false; btn.innerHTML = '<i class="fas fa-map-pin me-1"></i>Mark Visited'; }
+  }, () => { Toast.show('Could not get GPS location.', 'danger'); btn.disabled = false; btn.innerHTML = '<i class="fas fa-map-pin me-1"></i>Mark Visited'; });
+}
+</script>
+{% endblock %}

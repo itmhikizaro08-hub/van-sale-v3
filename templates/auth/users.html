@@ -1,0 +1,101 @@
+{% extends 'base.html' %}
+{% block title %}User Management{% endblock %}
+{% block breadcrumb %}<li class="breadcrumb-item active">Users</li>{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div><h1 class="page-title">User Management</h1><p class="page-subtitle">Manage all system users — 6 roles</p></div>
+  <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addUserModal">
+    <i class="fas fa-plus me-1"></i>Add User
+  </button>
+</div>
+
+<div class="card"><div class="card-body p-0"><div class="table-responsive">
+<table class="table table-hover dt-table mb-0" id="usersTable">
+  <thead><tr><th>Name</th><th>Username</th><th>Role</th><th>Email</th><th>Phone</th><th>Last Login</th><th>Status</th><th></th></tr></thead>
+  <tbody>
+    {% for u in users %}
+    <tr>
+      <td class="fw-600">{{ u.full_name }}</td>
+      <td class="text-muted fs-12">{{ u.username }}</td>
+      <td><span class="badge {{ u.role_badge_class }}">{{ u.role_label }}</span></td>
+      <td class="fs-12">{{ u.email }}</td>
+      <td class="fs-12">{{ u.phone or '—' }}</td>
+      <td class="text-muted fs-12">{{ u.last_login.strftime('%d %b %Y %H:%M') if u.last_login else 'Never' }}</td>
+      <td>
+        <span class="badge {{ 'bg-success' if u.is_active else 'bg-danger' }}">
+          {{ 'Active' if u.is_active else 'Inactive' }}
+        </span>
+      </td>
+      <td>
+        <div class="d-flex gap-1">
+          {% if u.id != current_user.id %}
+          <button class="btn btn-icon btn-sm btn-outline-{{ 'danger' if u.is_active else 'success' }}"
+            data-action-url="{{ url_for('auth.toggle_user', user_id=u.id) }}"
+            data-confirm="{{ 'Deactivate' if u.is_active else 'Activate' }} {{ u.full_name }}?"
+            data-success-msg="User status updated."
+            title="{{ 'Deactivate' if u.is_active else 'Activate' }}">
+            <i class="fas fa-{{ 'ban' if u.is_active else 'check' }}"></i>
+          </button>
+          {% endif %}
+        </div>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div></div></div>
+
+<!-- Add User Modal -->
+<div class="modal fade" id="addUserModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <form method="POST" action="{{ url_for('auth.add_user') }}">
+        <div class="modal-header">
+          <h5 class="modal-title"><i class="fas fa-user-plus me-2"></i>Add New User</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label">Full Name <span class="text-danger">*</span></label>
+              <input type="text" name="full_name" class="form-control" required>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Username <span class="text-danger">*</span></label>
+              <input type="text" name="username" class="form-control" required>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Email <span class="text-danger">*</span></label>
+              <input type="email" name="email" class="form-control" required>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Phone</label>
+              <input type="text" name="phone" class="form-control">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Role <span class="text-danger">*</span></label>
+              <select name="role" class="form-select" required>
+                <option value="sales_rep">Sales Representative</option>
+                <option value="manager">Manager</option>
+                <option value="supervisor">Supervisor</option>
+                <option value="warehouse_manager">Warehouse Manager</option>
+                <option value="cashier">Cashier</option>
+                <option value="admin">Administrator</option>
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Password <span class="text-danger">*</span></label>
+              <input type="password" name="password" class="form-control" required minlength="6">
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-primary"><i class="fas fa-save me-1"></i>Create User</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block extra_js %}<script>$(document).ready(() => initDataTable('#usersTable', {order:[[2,'asc']]}));</script>{% endblock %}

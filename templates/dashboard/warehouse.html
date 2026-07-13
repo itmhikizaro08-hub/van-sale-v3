@@ -1,0 +1,84 @@
+{% extends 'base.html' %}
+{% block title %}Warehouse Dashboard{% endblock %}
+{% block content %}
+{% with subtitle = 'Here\'s your stock control and inventory overview.', action_url = url_for('vans.loading_new'), action_label = 'New Loading Sheet', action_icon = 'fa-clipboard-list' %}{% include 'dashboard/_hero.html' %}{% endwith %}
+
+<div class="section-title"><i class="fas fa-gauge-high"></i>Key Metrics</div>
+<div class="row g-3 mb-4">
+  <div class="col-6 col-md-3"><div class="stat-card primary"><div class="stat-icon"><i class="fas fa-box"></i></div><div><div class="stat-label">Total Products</div><div class="stat-value">{{ total_products }}</div></div></div></div>
+  <div class="col-6 col-md-3"><div class="stat-card danger"><div class="stat-icon"><i class="fas fa-exclamation-triangle"></i></div><div><div class="stat-label">Low Stock</div><div class="stat-value">{{ low_stock|length }}</div></div></div></div>
+  <div class="col-6 col-md-3"><div class="stat-card warning"><div class="stat-icon"><i class="fas fa-times-circle"></i></div><div><div class="stat-label">Out of Stock</div><div class="stat-value">{{ out_of_stock }}</div></div></div></div>
+  <div class="col-6 col-md-3"><div class="stat-card info"><div class="stat-icon"><i class="fas fa-truck-loading"></i></div><div><div class="stat-label">Van Allocations</div><div class="stat-value">{{ van_allocations }}</div></div></div></div>
+</div>
+<div class="row g-3 mb-4">
+  <div class="col-6 col-md-3"><div class="stat-card warning" onclick="window.location='{{ url_for('vans.offload_index') }}'" style="cursor:pointer"><div class="stat-icon"><i class="fas fa-dolly"></i></div><div><div class="stat-label">Pending Stock Offloads</div><div class="stat-value">{{ pending_offloads }}</div></div></div></div>
+</div>
+
+<div class="row g-3 mb-4">
+  <div class="col-md-4">
+    <div class="card h-100">
+      <div class="card-header"><i class="fas fa-chart-pie me-2"></i>Stock Health</div>
+      <div class="card-body">
+        <div style="height:200px"><canvas id="stockHealthChart"></canvas></div>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-8">
+    {% if low_stock %}
+    <div class="card h-100">
+      <div class="card-header"><i class="fas fa-exclamation-triangle text-warning me-2"></i>Low Stock Alerts</div>
+      <div class="card-body p-0">
+        <table class="table table-hover mb-0">
+          <thead><tr><th>Product</th><th class="text-center">Stock</th><th class="text-center">Reorder Level</th><th></th></tr></thead>
+          <tbody>
+            {% for p in low_stock %}
+            <tr>
+              <td class="fw-600">{{ p.product_name }}</td>
+              <td class="text-center"><span class="badge {{ 'bg-danger' if p.stock_quantity == 0 else 'bg-warning text-dark' }}">{{ p.stock_quantity }}</span></td>
+              <td class="text-center text-muted">{{ p.reorder_level }}</td>
+              <td><a href="{{ url_for('products.view', product_id=p.id) }}" class="btn btn-outline-primary btn-sm">View</a></td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    {% else %}
+    <div class="card h-100"><div class="empty-state py-5"><i class="fas fa-check-circle" style="font-size:2.5rem;color:var(--success)"></i><h6 class="mt-3">All stock levels healthy</h6></div></div>
+    {% endif %}
+  </div>
+</div>
+
+<div class="row g-3">
+  <div class="col-12"><div class="card"><div class="card-body d-flex gap-2 flex-wrap">
+    <a href="{{ url_for('vans.loading_new') }}" class="btn btn-primary"><i class="fas fa-clipboard-list me-1"></i>Loading Sheet</a>
+    <a href="{{ url_for('inventory.index') }}" class="btn btn-outline-primary"><i class="fas fa-warehouse me-1"></i>Inventory</a>
+    <a href="{{ url_for('vans.offload_index') }}" class="btn btn-outline-warning"><i class="fas fa-dolly me-1"></i>Stock Offloads</a>
+    <a href="{{ url_for('returns.index') }}" class="btn btn-outline-warning"><i class="fas fa-undo me-1"></i>Returns</a>
+    <a href="{{ url_for('reports.inventory_report') }}" class="btn btn-outline-info"><i class="fas fa-chart-bar me-1"></i>Stock Report</a>
+  </div></div></div>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script>
+{% set low_only = low_stock|length - out_of_stock %}
+{% set healthy = total_products - (low_stock|length) %}
+new Chart(document.getElementById('stockHealthChart'), {
+  type: 'doughnut',
+  data: {
+    labels: ['Healthy', 'Low Stock', 'Out of Stock'],
+    datasets: [{
+      data: [{{ healthy }}, {{ low_only }}, {{ out_of_stock }}],
+      backgroundColor: ['#10b981', '#f59e0b', '#ef4444'],
+      borderWidth: 0
+    }]
+  },
+  options: {
+    responsive: true,
+    maintainAspectRatio: false,
+    cutout: '65%',
+    plugins: { legend: { position: 'bottom' } }
+  }
+});
+</script>
+{% endblock %}

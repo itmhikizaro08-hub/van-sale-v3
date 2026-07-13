@@ -1,0 +1,73 @@
+{% extends 'base.html' %}
+{% block title %}Price History — {{ product.product_name }}{% endblock %}
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{{ url_for('pricing.index') }}">Pricing Management</a></li>
+<li class="breadcrumb-item active">{{ product.product_name }}</li>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title">{{ product.product_name }}</h1>
+    <p class="page-subtitle"><code>{{ product.product_code }}</code> — Price change history</p>
+  </div>
+  <a href="{{ url_for('pricing.index') }}" class="btn btn-outline-secondary btn-sm"><i class="fas fa-arrow-left me-1"></i>Back</a>
+</div>
+
+<div class="row g-3 mb-4">
+  <div class="col-md-4">
+    <div class="stat-card primary">
+      <div class="stat-icon"><i class="fas fa-tag"></i></div>
+      <div><div class="stat-label">Current Company Price</div><div class="stat-value fs-18">GHS {{ "%.2f"|format(product.selling_price) }}</div></div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="stat-card info">
+      <div class="stat-icon"><i class="fas fa-coins"></i></div>
+      <div><div class="stat-label">Current Cost Price</div><div class="stat-value fs-18">GHS {{ "%.2f"|format(product.cost_price) }}</div></div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="stat-card success">
+      <div class="stat-icon"><i class="fas fa-percentage"></i></div>
+      <div><div class="stat-label">Current Margin</div><div class="stat-value fs-18">{{ product.profit_margin }}%</div></div>
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header"><i class="fas fa-history me-2"></i>Full History ({{ product.price_history|length }})</div>
+  <div class="card-body p-0">
+    {% if product.price_history %}
+    <table class="table mb-0">
+      <thead>
+        <tr><th>Date</th><th class="text-end">Old Company Price</th><th class="text-end">New Company Price</th>
+            <th class="text-end">Old Cost Price</th><th class="text-end">New Cost Price</th>
+            <th>Changed By</th><th>Reason</th></tr>
+      </thead>
+      <tbody>
+        {% for h in product.price_history %}
+        <tr>
+          <td class="text-muted fs-12">{{ h.created_at.strftime('%d %b %Y %H:%M') if h.created_at else '' }}</td>
+          <td class="text-end">GHS {{ "%.2f"|format(h.old_company_price or 0) }}</td>
+          <td class="text-end fw-600 {{ 'text-success' if h.company_price_delta and h.company_price_delta > 0 else 'text-danger' if h.company_price_delta and h.company_price_delta < 0 else '' }}">
+            GHS {{ "%.2f"|format(h.new_company_price or 0) }}
+            {% if h.company_price_delta %}<span class="fs-11">({{ '+' if h.company_price_delta > 0 }}{{ "%.2f"|format(h.company_price_delta) }})</span>{% endif %}
+          </td>
+          <td class="text-end text-muted">GHS {{ "%.2f"|format(h.old_cost_price or 0) }}</td>
+          <td class="text-end text-muted">GHS {{ "%.2f"|format(h.new_cost_price or 0) }}</td>
+          <td>{{ h.changed_by.full_name if h.changed_by else '—' }}</td>
+          <td class="fs-13">{{ h.reason or '—' }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div class="empty-state py-4">
+      <i class="fas fa-history" style="font-size:2rem;color:var(--text-muted)"></i>
+      <h6 class="mt-2 mb-0">No price changes recorded yet</h6>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

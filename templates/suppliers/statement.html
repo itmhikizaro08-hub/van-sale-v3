@@ -1,0 +1,75 @@
+{% extends 'base.html' %}
+{% block title %}Statement — {{ supplier.name }}{% endblock %}
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{{ url_for('suppliers.index') }}">Suppliers</a></li>
+<li class="breadcrumb-item"><a href="{{ url_for('suppliers.view', supplier_id=supplier.id) }}">{{ supplier.name }}</a></li>
+<li class="breadcrumb-item active">Statement</li>
+{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div><h1 class="page-title mb-0">Statement — {{ supplier.name }}</h1>
+    <p class="page-subtitle mb-0"><code class="fs-12">{{ supplier.supplier_code }}</code></p>
+  </div>
+  <a href="{{ url_for('suppliers.statement_pdf', supplier_id=supplier.id, start=start, end=end) }}" class="btn btn-primary btn-sm">
+    <i class="fas fa-file-pdf me-1"></i>Download PDF
+  </a>
+</div>
+
+<div class="row g-3 mb-3">
+  <div class="col-6 col-md-3">
+    <div class="stat-card primary"><div class="stat-icon"><i class="fas fa-door-open"></i></div>
+      <div><div class="stat-label">Opening Balance</div><div class="stat-value" style="font-size:16px">GHS {{ "%.2f"|format(opening_balance) }}</div></div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="stat-card danger"><div class="stat-icon"><i class="fas fa-arrow-up"></i></div>
+      <div><div class="stat-label">Total Debits</div><div class="stat-value" style="font-size:16px">GHS {{ "%.2f"|format(total_debit) }}</div></div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="stat-card success"><div class="stat-icon"><i class="fas fa-arrow-down"></i></div>
+      <div><div class="stat-label">Total Credits</div><div class="stat-value" style="font-size:16px">GHS {{ "%.2f"|format(total_credit) }}</div></div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="stat-card {{ 'danger' if closing_balance > 0 else 'success' }}"><div class="stat-icon"><i class="fas fa-door-closed"></i></div>
+      <div><div class="stat-label">Closing Balance</div><div class="stat-value" style="font-size:16px">GHS {{ "%.2f"|format(closing_balance) }}</div></div>
+    </div>
+  </div>
+</div>
+
+<div class="card mb-3"><div class="card-body py-2">
+  <form method="GET" class="row g-2 align-items-end">
+    <div class="col-md-4"><label class="form-label">From</label><input type="date" name="start" class="form-control" value="{{ start }}"></div>
+    <div class="col-md-4"><label class="form-label">To</label><input type="date" name="end" class="form-control" value="{{ end }}"></div>
+    <div class="col-md-4"><button type="submit" class="btn btn-primary w-100"><i class="fas fa-filter me-1"></i>Filter</button></div>
+  </form>
+</div></div>
+
+<div class="card"><div class="card-body p-0"><div class="table-responsive">
+<table class="table table-hover mb-0">
+  <thead><tr><th>Date</th><th>Description</th><th class="text-end">Debit</th><th class="text-end">Credit</th><th class="text-end">Balance</th></tr></thead>
+  <tbody>
+    <tr class="table-light">
+      <td colspan="4" class="fw-600">Opening Balance</td>
+      <td class="text-end fw-600">GHS {{ "%.2f"|format(opening_balance) }}</td>
+    </tr>
+    {% for r in rows %}
+    <tr>
+      <td class="text-muted fs-12 text-nowrap">{{ r.date[:10] }}</td>
+      <td class="fs-13">{{ r.description }}</td>
+      <td class="text-end {{ 'text-danger fw-600' if r.debit else '' }}">{{ '%.2f'|format(r.debit) if r.debit else '—' }}</td>
+      <td class="text-end {{ 'text-success fw-600' if r.credit else '' }}">{{ '%.2f'|format(r.credit) if r.credit else '—' }}</td>
+      <td class="text-end fw-600">GHS {{ "%.2f"|format(r.balance) }}</td>
+    </tr>
+    {% else %}
+    <tr><td colspan="5" class="text-muted text-center py-4">No transactions in this date range</td></tr>
+    {% endfor %}
+    <tr class="table-light">
+      <td colspan="4" class="fw-700">Closing Balance</td>
+      <td class="text-end fw-700">GHS {{ "%.2f"|format(closing_balance) }}</td>
+    </tr>
+  </tbody>
+</table>
+</div></div></div>
+{% endblock %}

@@ -1,0 +1,307 @@
+{% extends 'base.html' %}
+{% block title %}New Loading Sheet{% endblock %}
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{{ url_for('vans.loading_index') }}">Loading Sheets</a></li>
+<li class="breadcrumb-item active">New</li>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.product-row td { vertical-align: middle; padding: 7px 8px; }
+.stock-wh  { font-weight:600; color: var(--bs-success); }
+.stock-van { font-weight:600; color: var(--bs-info); }
+.stock-total { font-weight:700; color: #2563eb; }
+.custody-badge { font-size:11px; padding:2px 8px; border-radius:4px;
+  background:rgba(6,182,212,.12); color:#0891b2; border:0.5px solid rgba(6,182,212,.3); }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title">New Loading Sheet</h1>
+    <p class="page-subtitle">Issue stock from warehouse to a sales rep's van custody</p>
+  </div>
+  <a href="{{ url_for('vans.loading_index') }}" class="btn btn-outline-secondary btn-sm">
+    <i class="fas fa-arrow-left me-1"></i>Back
+  </a>
+</div>
+
+<form method="POST" id="loadingForm">
+  <div class="row g-3">
+
+    <!-- Header card -->
+    <div class="col-md-8">
+      <div class="card">
+        <div class="card-header"><i class="fas fa-clipboard me-2"></i>Issue Details</div>
+        <div class="card-body">
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label">Van <span class="text-danger">*</span></label>
+              <select name="van_id" id="vanSel" class="form-select" required onchange="onVanRepChange()">
+                <option value="">— Select Van —</option>
+                {% for v in vans %}
+                <option value="{{ v.id }}">{{ v.van_number }}{% if v.registration_number %} ({{ v.registration_number }}){% endif %}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Sales Rep <span class="text-danger">*</span></label>
+              <select name="sales_rep_id" id="repSel" class="form-select" required onchange="onVanRepChange()">
+                <option value="">— Select Rep —</option>
+                {% for r in reps %}
+                <option value="{{ r.id }}">{{ r.full_name }} ({{ r.role_label }})</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-12">
+              <label class="form-label"><i class="fas fa-book text-info me-1"></i>Reference Note <small class="text-muted fw-400">— cross-check with your books</small></label>
+              <input type="text" name="reference_note" class="form-control" placeholder="e.g. Book pg 5, Issue #12 / Delivery note #045">
+            </div>
+            <div class="col-12">
+              <label class="form-label">Notes</label>
+              <textarea name="notes" class="form-control" rows="2" placeholder="Route, trip instructions…"></textarea>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Products table -->
+      <div class="card mt-3">
+        <div class="card-header d-flex align-items-center justify-content-between">
+          <span><i class="fas fa-boxes me-2"></i>Products to Load</span>
+          <button type="button" class="btn btn-sm btn-outline-primary" onclick="addRow()">
+            <i class="fas fa-plus me-1"></i>Add Product
+          </button>
+        </div>
+        <div id="custodyBanner" class="d-none" style="background:rgba(6,182,212,.08);border-bottom:1px solid rgba(6,182,212,.2);padding:8px 16px;font-size:12.5px;color:#0891b2">
+          <i class="fas fa-truck me-1"></i><span id="custodyBannerText">Loading rep's current van stock…</span>
+        </div>
+        <div class="table-responsive">
+          <table class="table mb-0" id="productsTable">
+            <thead>
+              <tr>
+                <th>Product</th>
+                <th class="text-center" style="width:110px">Warehouse<br><small class="text-muted fw-400">Available</small></th>
+                <th class="text-center" style="width:110px">On Van Now<br><small class="text-muted fw-400">Rep Custody</small></th>
+                <th class="text-center" style="width:100px">Load Qty</th>
+                <th class="text-center" style="width:110px">Total After<br><small class="text-muted fw-400">Load</small></th>
+                <th style="width:36px"></th>
+              </tr>
+            </thead>
+            <tbody id="productRows"></tbody>
+          </table>
+        </div>
+        <div class="card-footer">
+          <button type="button" class="btn btn-outline-secondary btn-sm" onclick="addRow()">
+            <i class="fas fa-plus me-1"></i>Add Another Product
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Sidebar -->
+    <div class="col-md-4">
+      <div class="card">
+        <div class="card-header"><i class="fas fa-receipt me-2"></i>Summary</div>
+        <div class="card-body">
+          <div id="summaryRows" class="text-muted fs-12 mb-3">Add products to see summary.</div>
+          <hr>
+          <div class="d-flex justify-content-between fw-700">
+            <span>Total Units</span><span id="totalUnits">0</span>
+          </div>
+          <div class="d-flex justify-content-between fw-700 mt-1">
+            <span>Loading Value</span><span id="totalValue">GHS 0.00</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="card mt-3">
+        <div class="card-header"><i class="fas fa-info-circle text-warning me-2"></i>Important</div>
+        <div class="card-body">
+          <ul class="mb-0 ps-3" style="font-size:12.5px;color:var(--text-muted);line-height:1.8">
+            <li>Stock is <b>deducted from warehouse</b> immediately on issue.</li>
+            <li>The <b>On Van Now</b> column shows existing rep custody.</li>
+            <li>Unsold stock must return via a <b>Van Transfer</b>.</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="d-grid gap-2 mt-3">
+        <button type="submit" class="btn btn-success btn-lg">
+          <i class="fas fa-clipboard-check me-2"></i>Issue Loading Sheet
+        </button>
+        <a href="{{ url_for('vans.loading_index') }}" class="btn btn-outline-secondary">Cancel</a>
+      </div>
+    </div>
+  </div>
+</form>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const ALL_PRODUCTS = [
+  {% for p in products %}
+  { id: {{ p.id }}, name: "{{ p.product_name|replace('"',"'") }}", code: "{{ p.product_code }}",
+    stock: {{ p.stock_quantity }}, cost: {{ p.cost_price }}, sell: {{ p.selling_price }} },
+  {% endfor %}
+];
+
+// Van stock data keyed by: vanId_repId -> { productId: qty }
+const VAN_STOCK_DATA = {{ van_stock_json | tojson }};
+
+let rowCount = 0;
+
+function onVanRepChange() {
+  const vanId  = document.getElementById('vanSel').value;
+  const repId  = document.getElementById('repSel').value;
+  if (!vanId || !repId) return;
+
+  const key = `${vanId}_${repId}`;
+  const custody = VAN_STOCK_DATA[key] || {};
+  const hasStock = Object.keys(custody).length > 0;
+
+  const banner = document.getElementById('custodyBanner');
+  const bannerText = document.getElementById('custodyBannerText');
+  if (hasStock) {
+    let total = Object.values(custody).reduce((a, b) => a + b, 0);
+    bannerText.textContent = `This rep currently has ${Object.keys(custody).length} products (${total} units) in van custody — shown in the "On Van Now" column.`;
+    banner.classList.remove('d-none');
+  } else {
+    bannerText.textContent = 'No existing van stock for this rep/van combination.';
+    banner.classList.remove('d-none');
+  }
+
+  // Update all existing rows
+  document.querySelectorAll('.product-row').forEach(row => {
+    const lid = row.dataset.lid;
+    updateCustodyCell(lid, custody);
+    calcLine(lid, custody);
+  });
+}
+
+function getCustody() {
+  const vanId = document.getElementById('vanSel').value;
+  const repId = document.getElementById('repSel').value;
+  const key = `${vanId}_${repId}`;
+  return VAN_STOCK_DATA[key] || {};
+}
+
+function addRow() {
+  rowCount++;
+  const lid = rowCount;
+  const custody = getCustody();
+  const opts = ALL_PRODUCTS.map(p =>
+    `<option value="${p.id}" data-stock="${p.stock}" data-cost="${p.cost}">${p.name} (${p.code})</option>`
+  ).join('');
+
+  const tr = document.createElement('tr');
+  tr.className = 'product-row';
+  tr.dataset.lid = lid;
+  tr.innerHTML = `
+    <td>
+      <select name="product_id[]" class="form-select form-select-sm prod-sel"
+        onchange="onProductChange(this, ${lid})" required>
+        <option value="">— Select —</option>${opts}
+      </select>
+    </td>
+    <td class="text-center">
+      <span class="badge bg-secondary fs-12" id="wh-${lid}">—</span>
+    </td>
+    <td class="text-center">
+      <span class="custody-badge" id="van-${lid}">—</span>
+    </td>
+    <td class="text-center">
+      <input type="number" name="quantity[]" id="qty-${lid}" class="form-control form-control-sm text-center"
+        min="1" placeholder="0" oninput="calcLine(${lid}, getCustody())">
+    </td>
+    <td class="text-center stock-total" id="tot-${lid}">—</td>
+    <td>
+      <button type="button" class="btn btn-icon btn-sm btn-outline-danger"
+        onclick="this.closest('tr').remove(); updateSummary()">
+        <i class="fas fa-times"></i>
+      </button>
+    </td>`;
+  document.getElementById('productRows').appendChild(tr);
+  updateSummary();
+}
+
+function onProductChange(sel, lid) {
+  const opt = sel.selectedOptions[0];
+  const warehouseQty = parseInt(opt?.dataset?.stock || 0);
+  const custody = getCustody();
+  const pid = parseInt(sel.value);
+
+  // Warehouse stock badge
+  const whBadge = document.getElementById(`wh-${lid}`);
+  if (whBadge) {
+    whBadge.textContent = warehouseQty + ' units';
+    whBadge.className = `badge fs-12 ${warehouseQty === 0 ? 'bg-danger' : warehouseQty <= 10 ? 'bg-warning text-dark' : 'bg-success'}`;
+  }
+
+  updateCustodyCell(lid, custody, pid);
+  calcLine(lid, custody);
+}
+
+function updateCustodyCell(lid, custody, pid) {
+  // Get product id from the selector if not passed
+  if (!pid) {
+    const sel = document.querySelector(`[data-lid="${lid}"] .prod-sel`);
+    pid = parseInt(sel?.value);
+  }
+  const vanQty = pid ? (custody[pid] || 0) : 0;
+  const vanEl = document.getElementById(`van-${lid}`);
+  if (vanEl) {
+    vanEl.textContent = vanQty > 0 ? `${vanQty} units` : '0';
+    vanEl.style.opacity = vanQty > 0 ? '1' : '0.4';
+  }
+}
+
+function calcLine(lid, custody) {
+  const sel = document.querySelector(`[data-lid="${lid}"] .prod-sel`);
+  const pid = parseInt(sel?.value);
+  const loadQty = parseInt(document.getElementById(`qty-${lid}`)?.value || 0);
+  const vanQty = pid ? (custody[pid] || 0) : 0;
+  const total = vanQty + loadQty;
+
+  const totEl = document.getElementById(`tot-${lid}`);
+  if (totEl) {
+    totEl.textContent = loadQty > 0 ? `${total} units` : '—';
+    totEl.className = `text-center fw-700 ${total > 0 ? 'text-primary' : 'text-muted'}`;
+  }
+  updateSummary();
+}
+
+function updateSummary() {
+  const custody = getCustody();
+  let html = '';
+  let totalUnits = 0;
+  let totalValue = 0;
+
+  document.querySelectorAll('.product-row').forEach(row => {
+    const lid = row.dataset.lid;
+    const sel = row.querySelector('.prod-sel');
+    const pid = parseInt(sel?.value);
+    const qty = parseInt(document.getElementById(`qty-${lid}`)?.value || 0);
+    if (!pid || qty <= 0) return;
+    const product = ALL_PRODUCTS.find(p => p.id === pid);
+    if (!product) return;
+    const value = qty * product.cost;
+    totalUnits += qty;
+    totalValue += value;
+    html += `<div class="d-flex justify-content-between mb-1 fs-12">
+      <span class="text-muted">${product.name.split('(')[0].trim()}</span>
+      <span class="fw-600">${qty} units</span>
+    </div>`;
+  });
+
+  document.getElementById('summaryRows').innerHTML = html || '<div class="text-muted fs-12">No products added.</div>';
+  document.getElementById('totalUnits').textContent = totalUnits;
+  document.getElementById('totalValue').textContent = `GHS ${totalValue.toFixed(2)}`;
+}
+
+// Start with one row
+addRow();
+</script>
+{% endblock %}

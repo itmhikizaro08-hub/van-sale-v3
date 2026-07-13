@@ -1,0 +1,66 @@
+{% extends 'base.html' %}
+{% block title %}{{ route.route_name }}{% endblock %}
+{% block extra_css %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="" />
+<style>#routeMap { height: 400px; border-radius: var(--radius-sm); z-index: 0; }</style>
+{% endblock %}
+{% block content %}
+<div class="page-header"><div><h1 class="page-title">{{ route.route_name }}</h1></div></div>
+<div class="row g-3">
+  <div class="col-md-4"><div class="card"><div class="card-header"><i class="fas fa-route me-2"></i>Route Info</div><div class="card-body">
+    <div class="mb-2"><div class="text-muted fs-12">Area</div><div class="fw-600">{{ route.area or '—' }}</div></div>
+    <div class="mb-2"><div class="text-muted fs-12">Status</div><span class="badge {{ 'bg-success' if route.status == 'active' else 'bg-secondary' }}">{{ route.status|title }}</span></div>
+    <div class="mb-2"><div class="text-muted fs-12">Customers</div><div class="fw-700 fs-20">{{ route.customers.count() }}</div></div>
+    <div class="mb-0"><div class="text-muted fs-12">On Map</div><div class="fw-600">{{ customers_geo|length }} with GPS pin</div></div>
+  </div></div></div>
+  <div class="col-md-8"><div class="card"><div class="card-header"><i class="fas fa-users me-2"></i>Customers on this Route</div><div class="card-body p-0">
+    <table class="table table-hover mb-0"><thead><tr><th>Customer</th><th>Phone</th><th class="text-end">Outstanding</th></tr></thead><tbody>
+    {% for c in route.customers %}<tr><td class="fw-600">{{ c.name }}</td><td class="fs-12">{{ c.phone or '—' }}</td><td class="text-end {{ 'text-danger' if c.outstanding_balance > 0 else 'text-muted' }}">GHS {{ "%.2f"|format(c.outstanding_balance) }}</td></tr>
+    {% else %}<tr><td colspan="3" class="text-muted text-center py-3">No customers on this route</td></tr>{% endfor %}
+    </tbody></table>
+  </div></div></div>
+</div>
+
+<div class="card mt-3">
+  <div class="card-header"><i class="fas fa-map-marked-alt me-2"></i>Customer Locations</div>
+  <div class="card-body p-0">
+    {% if customers_geo %}
+    <div id="routeMap"></div>
+    {% else %}
+    <div class="empty-state py-5"><i class="fas fa-map-marked-alt" style="font-size:2.5rem;color:var(--text-muted)"></i><h6 class="mt-3">No GPS pins yet</h6><p class="text-muted">None of the customers on this route have a saved GPS location.</p></div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
+{% block extra_js %}
+{% if customers_geo %}
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+<script>
+(function() {
+  const customers = {{ customers_geo|tojson }};
+  const map = L.map('routeMap');
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '&copy; OpenStreetMap contributors',
+    maxZoom: 19
+  }).addTo(map);
+
+  const markers = customers.map(c => {
+    const marker = L.marker([c.lat, c.lng]).addTo(map);
+    marker.bindPopup(
+      `<strong>${c.name}</strong><br>${c.address || ''}<br>${c.phone || ''}` +
+      `<br>Outstanding: GHS ${c.outstanding.toFixed(2)}` +
+      `<br><a href="${c.url}">View customer</a>`
+    );
+    return marker;
+  });
+
+  if (markers.length === 1) {
+    map.setView([customers[0].lat, customers[0].lng], 14);
+  } else {
+    const group = L.featureGroup(markers);
+    map.fitBounds(group.getBounds().pad(0.15));
+  }
+})();
+</script>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,15 @@
+{% extends 'base.html' %}
+{% block title %}Drivers{% endblock %}
+{% block breadcrumb %}<li class="breadcrumb-item active">Drivers</li>{% endblock %}
+{% block content %}
+<div class="page-header"><div><h1 class="page-title">Drivers</h1></div>{% if current_user.is_admin %}<a href="{{ url_for('drivers.add') }}" class="btn btn-primary"><i class="fas fa-plus me-1"></i>Add Driver</a>{% endif %}</div>
+<div class="card"><div class="card-body p-0"><div class="table-responsive">
+<table class="table table-hover dt-table mb-0" id="driversTable">
+  <thead><tr><th>Name</th><th>Phone</th><th>License</th><th>Van</th><th>Status</th></tr></thead>
+  <tbody>
+    {% for d in drivers %}<tr><td class="fw-600">{{ d.name }}</td><td class="fs-12">{{ d.phone or '—' }}</td><td class="fs-12">{{ d.license_number or '—' }}</td><td class="fs-12">{{ d.van.van_number if d.van else '—' }}</td><td><span class="badge {{ 'bg-success' if d.status == 'active' else 'bg-secondary' }}">{{ d.status|title }}</span></td></tr>{% endfor %}
+  </tbody>
+</table>
+</div></div></div>
+{% endblock %}
+{% block extra_js %}<script>$(document).ready(() => initDataTable('#driversTable'));</script>{% endblock %}

@@ -1,0 +1,17 @@
+{% extends 'base.html' %}
+{% block title %}Returns Analysis{% endblock %}
+{% block breadcrumb %}<li class="breadcrumb-item"><a href="{{ url_for('reports.index') }}">Reports</a></li><li class="breadcrumb-item active">Returns Analysis</li>{% endblock %}
+{% block content %}
+<div class="page-header"><div><h1 class="page-title">Returns Analysis</h1><p class="page-subtitle">{{ start }} to {{ end }}</p></div>
+<form class="d-flex gap-2" method="GET"><input type="date" name="start" class="form-control form-control-sm" value="{{ start }}"><input type="date" name="end" class="form-control form-control-sm" value="{{ end }}"><button class="btn btn-primary btn-sm"><i class="fas fa-filter"></i></button></form>
+</div>
+<div class="row g-3 mb-4">
+  <div class="col-6 col-md-3"><div class="stat-card warning"><div class="stat-icon"><i class="fas fa-undo-alt"></i></div><div><div class="stat-label">Total Returns</div><div class="stat-value">{{ orders|length }}</div></div></div></div>
+  <div class="col-6 col-md-3"><div class="stat-card danger"><div class="stat-icon"><i class="fas fa-coins"></i></div><div><div class="stat-label">Total Refund</div><div class="stat-value" style="font-size:16px">GHS {{ "%.2f"|format(total_refund) }}</div></div></div></div>
+</div>
+<div class="row g-3">
+  <div class="col-md-4"><div class="card"><div class="card-header"><i class="fas fa-chart-pie me-2"></i>By Reason</div><div class="card-body p-0"><table class="table mb-0"><thead><tr><th>Reason</th><th class="text-end">Value</th></tr></thead><tbody>{% for reason, total in by_reason %}<tr><td><span class="badge bg-secondary">{{ reason|replace('_',' ')|title }}</span></td><td class="text-end fw-700">GHS {{ "%.2f"|format(total) }}</td></tr>{% else %}<tr><td colspan="2" class="text-muted text-center py-3">No data</td></tr>{% endfor %}</tbody></table></div></div></div>
+  <div class="col-md-4"><div class="card"><div class="card-header"><i class="fas fa-box me-2"></i>Top Products</div><div class="card-body p-0"><table class="table mb-0"><thead><tr><th>Product</th><th class="text-end">Qty</th></tr></thead><tbody>{% for name, qty in by_product %}<tr><td class="fw-600 fs-13">{{ name }}</td><td class="text-end fw-700">{{ qty }}</td></tr>{% else %}<tr><td colspan="2" class="text-muted text-center py-3">No data</td></tr>{% endfor %}</tbody></table></div></div></div>
+  <div class="col-md-4"><div class="card"><div class="card-header"><i class="fas fa-id-badge me-2"></i>By Rep</div><div class="card-body p-0"><table class="table mb-0"><thead><tr><th>Rep</th><th class="text-end">Value</th></tr></thead><tbody>{% for name, total in by_rep %}<tr><td class="fw-600 fs-13">{{ name }}</td><td class="text-end fw-700">GHS {{ "%.2f"|format(total) }}</td></tr>{% else %}<tr><td colspan="2" class="text-muted text-center py-3">No data</td></tr>{% endfor %}</tbody></table></div></div></div>
+</div>
+{% endblock %}

@@ -1,0 +1,18 @@
+{% extends 'base.html' %}
+{% block title %}New Debit Note{% endblock %}
+{% block breadcrumb %}<li class="breadcrumb-item"><a href="{{ url_for('notes.index') }}">Notes</a></li><li class="breadcrumb-item active">New Debit Note</li>{% endblock %}
+{% block content %}
+<div class="page-header"><h1 class="page-title">New Debit Note</h1></div>
+<div class="row justify-content-center"><div class="col-md-6">
+<form method="POST"><div class="card">
+  <div class="card-header"><i class="fas fa-receipt text-warning me-2"></i>Debit Note Details</div>
+  <div class="card-body">
+    <div class="mb-3"><label class="form-label">Customer <span class="text-danger">*</span></label><select name="customer_id" class="form-select" required><option value="">— Select —</option>{% for c in customers %}<option value="{{ c.id }}">{{ c.name }}</option>{% endfor %}</select></div>
+    <div class="mb-3"><label class="form-label">Amount (GHS) <span class="text-danger">*</span></label><div class="input-group"><span class="input-group-text">GHS</span><input type="number" name="amount" class="form-control" step="0.01" min="0.01" required></div></div>
+    <div class="mb-3"><label class="form-label">Reason <span class="text-danger">*</span></label><textarea name="reason" class="form-control" rows="2" required></textarea></div>
+    <div class="mb-3"><label class="form-label"><i class="fas fa-book text-info me-1"></i>Reference Note</label><input type="text" name="reference_note" class="form-control" placeholder="e.g. Book pg 8, entry 3"><div class="form-text"><i class="fas fa-info-circle text-info me-1"></i>Cross-reference with your physical books.</div></div>
+  </div>
+  <div class="card-footer d-flex gap-2"><button type="submit" class="btn btn-warning text-dark"><i class="fas fa-save me-1"></i>Create Debit Note</button><a href="{{ url_for('notes.index') }}" class="btn btn-outline-secondary">Cancel</a></div>
+</div></form>
+</div></div>
+{% endblock %}

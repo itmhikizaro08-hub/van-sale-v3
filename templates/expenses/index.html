@@ -1,0 +1,56 @@
+{% extends 'base.html' %}
+{% block title %}Expenses{% endblock %}
+{% block breadcrumb %}<li class="breadcrumb-item active">Expenses</li>{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div><h1 class="page-title">Expenses</h1></div>
+  {% if current_user.can_write('expenses') %}<a href="{{ url_for('expenses.add') }}" class="btn btn-primary"><i class="fas fa-plus me-1"></i>Add Expense</a>{% endif %}
+</div>
+
+<div class="row g-3 mb-3">
+  <div class="col-6 col-md-4">
+    <div class="stat-card success"><div class="stat-icon"><i class="fas fa-receipt"></i></div>
+      <div><div class="stat-label">Total Approved</div><div class="stat-value">GHS {{ "%.2f"|format(total) }}</div></div>
+    </div>
+  </div>
+  <div class="col-6 col-md-4">
+    <div class="stat-card {{ 'warning' if pending_count > 0 else 'success' }}"><div class="stat-icon"><i class="fas fa-clock"></i></div>
+      <div><div class="stat-label">Pending Approval</div><div class="stat-value">{{ pending_count }}</div></div>
+    </div>
+  </div>
+</div>
+
+<div class="card mb-3"><div class="card-body py-2">
+  <form method="GET" class="row g-2 align-items-end">
+    <div class="col-md-4"><label class="form-label">From</label><input type="date" name="start" class="form-control" value="{{ start }}"></div>
+    <div class="col-md-4"><label class="form-label">To</label><input type="date" name="end" class="form-control" value="{{ end }}"></div>
+    <div class="col-md-4"><button type="submit" class="btn btn-primary w-100"><i class="fas fa-filter me-1"></i>Filter</button></div>
+  </form>
+</div></div>
+
+<div class="card"><div class="card-body p-0"><div class="table-responsive">
+<table class="table table-hover dt-table mb-0" id="expTable">
+  <thead><tr><th>Expense #</th><th>Category</th><th>Description</th><th>Van</th><th>Date</th><th class="text-end">Amount</th><th>Ref Note</th><th>Status</th><th></th></tr></thead>
+  <tbody>
+    {% for e in expenses %}
+    <tr>
+      <td class="fw-600">{{ e.expense_number }}</td>
+      <td><span class="badge bg-secondary"><i class="fas {{ e.category_icon }} me-1"></i>{{ e.category|replace('_',' ')|title }}</span></td>
+      <td class="fs-13">{{ e.description or '—' }}</td>
+      <td class="fs-12">{{ e.van.van_number if e.van else '—' }}</td>
+      <td class="text-muted fs-12">{{ e.created_at.strftime('%d %b %Y') if e.created_at else '' }}</td>
+      <td class="text-end fw-600">GHS {{ "%.2f"|format(e.amount) }}</td>
+      <td>{% if e.reference_note %}<span class="ref-note-badge"><i class="fas fa-book me-1"></i>{{ e.reference_note[:20] }}</span>{% else %}<span class="text-muted fs-12">—</span>{% endif %}</td>
+      <td><span class="badge {{ e.status_badge }}">{{ e.status|title }}</span></td>
+      <td>
+        {% if e.status == 'pending' and current_user.can_approve_module('expenses') %}
+        <button class="btn btn-icon btn-sm btn-outline-success" data-action-url="{{ url_for('expenses.approve', expense_id=e.id) }}" data-confirm="Approve this expense?" data-success-msg="Expense approved."><i class="fas fa-check"></i></button>
+        {% endif %}
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div></div></div>
+{% endblock %}
+{% block extra_js %}<script>$(document).ready(() => initDataTable('#expTable', {order:[[4,'desc']]}));</script>{% endblock %}

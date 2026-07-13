@@ -1,0 +1,27 @@
+{% extends 'base.html' %}
+{% block title %}Stock Adjustment{% endblock %}
+{% block breadcrumb %}<li class="breadcrumb-item"><a href="{{ url_for('inventory.index') }}">Inventory</a></li><li class="breadcrumb-item active">Adjustment</li>{% endblock %}
+{% block content %}
+<div class="page-header"><h1 class="page-title">Stock Adjustment</h1><p class="page-subtitle">Correct stock quantity after a physical count</p></div>
+<div class="row justify-content-center"><div class="col-md-6">
+<form method="POST"><div class="card">
+  <div class="card-body">
+    <div class="mb-3"><label class="form-label">Product <span class="text-danger">*</span></label><select name="product_id" class="form-select" required id="prodSel" onchange="showCurrent(this)">{% for p in products %}<option value="{{ p.id }}" data-stock="{{ p.stock_quantity }}">{{ p.product_name }} (Current: {{ p.stock_quantity }})</option>{% endfor %}</select></div>
+    <div class="alert alert-info fs-13" id="currentStockMsg">Select a product to see current stock.</div>
+    <div class="mb-3"><label class="form-label">New Quantity (actual count) <span class="text-danger">*</span></label><input type="number" name="new_quantity" id="newQty" class="form-control" min="0" required></div>
+    <div class="mb-3"><label class="form-label"><i class="fas fa-book text-info me-1"></i>Reference Note</label><input type="text" name="reference_note" class="form-control" placeholder="e.g. Physical count 14 Jun, Book pg 8"></div>
+    <div class="mb-3"><label class="form-label">Notes</label><textarea name="notes" class="form-control" rows="2"></textarea></div>
+  </div>
+  <div class="card-footer d-flex gap-2"><button type="submit" class="btn btn-warning text-dark"><i class="fas fa-sliders-h me-1"></i>Apply Adjustment</button><a href="{{ url_for('inventory.index') }}" class="btn btn-outline-secondary">Cancel</a></div>
+</div></form>
+</div></div>
+{% endblock %}
+{% block extra_js %}
+<script>
+function showCurrent(sel) {
+  const stock = sel.selectedOptions[0]?.dataset?.stock || '?';
+  document.getElementById('currentStockMsg').textContent = `Current warehouse stock: ${stock} units`;
+}
+showCurrent(document.getElementById('prodSel'));
+</script>
+{% endblock %}

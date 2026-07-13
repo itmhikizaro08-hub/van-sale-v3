@@ -1,0 +1,378 @@
+{% extends 'base.html' %}
+{% block title %}Tips Report (Admin){% endblock %}
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{{ url_for('reports.index') }}">Reports</a></li>
+<li class="breadcrumb-item active">Tips Report</li>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title">Tips Report</h1>
+    <p class="page-subtitle">Sales rep markup analysis — admin & manager only</p>
+  </div>
+  <div class="d-flex gap-2">
+    <button onclick="window.print()" class="btn btn-outline-secondary btn-sm no-print">
+      <i class="fas fa-print me-1"></i>Print
+    </button>
+  </div>
+</div>
+
+<!-- Filters -->
+<div class="card mb-3 no-print">
+  <div class="card-body">
+    <form method="GET" class="row g-2 align-items-end">
+      <div class="col-md-2">
+        <label class="form-label">From</label>
+        <input type="date" name="start" class="form-control" value="{{ start }}">
+      </div>
+      <div class="col-md-2">
+        <label class="form-label">To</label>
+        <input type="date" name="end" class="form-control" value="{{ end }}">
+      </div>
+      <div class="col-md-2">
+        <label class="form-label">Sales Rep</label>
+        <select name="rep_id" class="form-select">
+          <option value="">All Reps</option>
+          {% for r in reps %}
+          <option value="{{ r.id }}" {{ 'selected' if sel_rep == r.id }}>{{ r.full_name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-2">
+        <label class="form-label">Product</label>
+        <select name="product_id" class="form-select">
+          <option value="">All Products</option>
+          {% for p in products %}
+          <option value="{{ p.id }}" {{ 'selected' if sel_product == p.id }}>{{ p.product_name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-2">
+        <label class="form-label">Customer</label>
+        <select name="customer_id" class="form-select">
+          <option value="">All Customers</option>
+          {% for c in customers %}
+          <option value="{{ c.id }}" {{ 'selected' if sel_customer == c.id }}>{{ c.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-2">
+        <button type="submit" class="btn btn-primary w-100">
+          <i class="fas fa-filter me-1"></i>Filter
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- KPI cards -->
+<div class="row g-3 mb-4">
+  <div class="col-6 col-md-3">
+    <div class="stat-card primary">
+      <div class="stat-icon"><i class="fas fa-chart-line"></i></div>
+      <div>
+        <div class="stat-label">Company Sales</div>
+        <div class="stat-value">GHS {{ "%.2f"|format(company_sales_total) }}</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="stat-card success">
+      <div class="stat-icon"><i class="fas fa-coins"></i></div>
+      <div>
+        <div class="stat-label">Total Tips</div>
+        <div class="stat-value">GHS {{ "%.2f"|format(total_tip) }}</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="stat-card info">
+      <div class="stat-icon"><i class="fas fa-receipt"></i></div>
+      <div>
+        <div class="stat-label">Grand Total Collected</div>
+        <div class="stat-value">GHS {{ "%.2f"|format(grand_total_collected) }}</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="stat-card warning">
+      <div class="stat-icon"><i class="fas fa-id-badge"></i></div>
+      <div>
+        <div class="stat-label">Reps with Tips</div>
+        <div class="stat-value">{{ by_rep|length }}</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="row g-3 mb-4">
+  <!-- By Rep -->
+  <div class="col-md-6">
+    <div class="card h-100">
+      <div class="card-header"><i class="fas fa-id-badge me-2"></i>Tips by Sales Rep</div>
+      <div class="card-body p-0">
+        <table class="table table-hover mb-0">
+          <thead>
+            <tr><th>Rep</th><th class="text-end">Units</th><th class="text-end">Tips Earned</th><th class="text-end">% of Sales</th></tr>
+          </thead>
+          <tbody>
+            {% for row in by_rep %}
+            <tr>
+              <td class="fw-600">{{ row.rep.full_name if row.rep else 'Unknown' }}</td>
+              <td class="text-end">{{ row.count }}</td>
+              <td class="text-end fw-700 text-success">GHS {{ "%.2f"|format(row.tip_total) }}</td>
+              <td class="text-end text-muted">
+                {% if row.sales_value > 0 %}
+                {{ "%.1f"|format(row.tip_total / row.sales_value * 100) }}%
+                {% else %}—{% endif %}
+              </td>
+            </tr>
+            {% else %}
+            <tr><td colspan="4" class="text-muted text-center py-3">No data</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- By Product -->
+  <div class="col-md-6">
+    <div class="card h-100">
+      <div class="card-header"><i class="fas fa-box me-2"></i>Top 10 Tipped Products</div>
+      <div class="card-body p-0">
+        <table class="table table-hover mb-0">
+          <thead>
+            <tr><th>Product</th><th class="text-end">Qty</th><th class="text-end">Tips Total</th></tr>
+          </thead>
+          <tbody>
+            {% for row in by_product %}
+            <tr>
+              <td class="fw-600 fs-13">{{ row.product.product_name if row.product else '—' }}</td>
+              <td class="text-end">{{ row.count }}</td>
+              <td class="text-end fw-700 text-success">GHS {{ "%.2f"|format(row.tip_total) }}</td>
+            </tr>
+            {% else %}
+            <tr><td colspan="3" class="text-muted text-center py-3">No data</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="row g-3 mb-4">
+  <!-- Daily Summary -->
+  <div class="col-md-6">
+    <div class="card h-100">
+      <div class="card-header"><i class="fas fa-calendar-day me-2"></i>Daily Tip Summary</div>
+      <div class="card-body p-0">
+        <div class="table-responsive" style="max-height:320px">
+        <table class="table table-hover mb-0">
+          <thead><tr><th>Date</th><th class="text-end">Units</th><th class="text-end">Tips</th></tr></thead>
+          <tbody>
+            {% for row in daily_summary %}
+            <tr>
+              <td class="fs-13">{{ row.date }}</td>
+              <td class="text-end">{{ row.count }}</td>
+              <td class="text-end fw-700 text-success">GHS {{ "%.2f"|format(row.tip_total) }}</td>
+            </tr>
+            {% else %}
+            <tr><td colspan="3" class="text-muted text-center py-3">No data</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Monthly Summary -->
+  <div class="col-md-6">
+    <div class="card h-100">
+      <div class="card-header"><i class="fas fa-calendar-alt me-2"></i>Monthly Tip Summary</div>
+      <div class="card-body p-0">
+        <div class="table-responsive" style="max-height:320px">
+        <table class="table table-hover mb-0">
+          <thead><tr><th>Month</th><th class="text-end">Units</th><th class="text-end">Tips</th></tr></thead>
+          <tbody>
+            {% for row in monthly_summary %}
+            <tr>
+              <td class="fs-13">{{ row.month }}</td>
+              <td class="text-end">{{ row.count }}</td>
+              <td class="text-end fw-700 text-success">GHS {{ "%.2f"|format(row.tip_total) }}</td>
+            </tr>
+            {% else %}
+            <tr><td colspan="3" class="text-muted text-center py-3">No data</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Full detail table -->
+<div class="card">
+  <div class="card-header d-flex align-items-center justify-content-between">
+    <span><i class="fas fa-table me-2"></i>All Tip Lines ({{ items|length }})</span>
+  </div>
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-hover dt-table mb-0" id="tipsDetailTable">
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Invoice</th>
+            <th>Rep</th>
+            <th>Customer</th>
+            <th>Product</th>
+            <th class="text-end">Official Price</th>
+            <th class="text-end">Tip/Unit</th>
+            <th class="text-end">Final Price</th>
+            <th class="text-end">Qty</th>
+            <th class="text-end">Tip Total</th>
+            {% if current_user.role == 'admin' %}<th>Actions</th>{% endif %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for item in items %}
+          <tr id="tip-row-{{ item.id }}">
+            <td class="text-muted fs-12">
+              {{ item.sale.sale_date.strftime('%d %b %Y') if item.sale.sale_date else '' }}
+            </td>
+            <td>
+              <a href="{{ url_for('invoices.view', sale_id=item.sale_id) }}" class="fw-600">
+                {{ item.sale.invoice_number }}
+              </a>
+            </td>
+            <td>{{ item.sale.sales_rep.full_name if item.sale.sales_rep else '—' }}</td>
+            <td>{{ item.sale.customer.name if item.sale.customer else '—' }}</td>
+            <td class="fw-600">{{ item.product.product_name if item.product else '—' }}</td>
+            <td class="text-end text-muted">GHS {{ "%.2f"|format(item.official_price) }}</td>
+            <td class="text-end">
+              <span class="badge bg-success" id="tip-badge-{{ item.id }}">
+                + GHS {{ "%.2f"|format(item.tip_amount) }}
+              </span>
+            </td>
+            <td class="text-end fw-600" id="final-price-{{ item.id }}">
+              GHS {{ "%.2f"|format(item.unit_price) }}
+            </td>
+            <td class="text-end">{{ item.quantity }}</td>
+            <td class="text-end fw-700 text-success" id="tip-total-{{ item.id }}">
+              GHS {{ "%.2f"|format(item.tip_line_total) }}
+            </td>
+            {% if current_user.role == 'admin' %}
+            <td>
+              <div class="d-flex gap-1">
+                <button class="btn btn-icon btn-sm btn-outline-primary"
+                  onclick="editTip({{ item.id }}, {{ item.tip_amount }}, '{{ item.product.product_name if item.product else '' }}', {{ item.quantity }})"
+                  title="Edit tip">
+                  <i class="fas fa-edit"></i>
+                </button>
+                <button class="btn btn-icon btn-sm btn-outline-danger"
+                  onclick="deleteTip({{ item.id }})"
+                  title="Remove tip">
+                  <i class="fas fa-times"></i>
+                </button>
+              </div>
+            </td>
+            {% endif %}
+          </tr>
+          {% endfor %}
+        </tbody>
+        <tfoot>
+          <tr class="fw-700">
+            <td colspan="9" class="text-end">Total Tips</td>
+            <td class="text-end fw-800 text-success">GHS {{ "%.2f"|format(total_tip) }}</td>
+            {% if current_user.role == 'admin' %}<td></td>{% endif %}
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- Edit Tip Modal -->
+{% if current_user.role == 'admin' %}
+<div class="modal fade" id="editTipModal" tabindex="-1">
+  <div class="modal-dialog modal-sm">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="fas fa-edit me-2"></i>Edit Tip</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <p class="text-muted fs-13 mb-3" id="editTipProduct"></p>
+        <label class="form-label">Tip Amount per Unit (GHS)</label>
+        <div class="input-group">
+          <span class="input-group-text">GHS</span>
+          <input type="number" id="editTipAmount" class="form-control" step="0.01" min="0" placeholder="0.00">
+        </div>
+        <div class="form-text">Enter 0 to remove the tip entirely.</div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-primary" onclick="saveTipEdit()">
+          <i class="fas fa-save me-1"></i>Save
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+$(document).ready(() => initDataTable('#tipsDetailTable', {order: [[0, 'desc']]}));
+
+let editingItemId = null;
+let editingItemQty = 1;
+
+function editTip(itemId, currentTip, productName, quantity) {
+  editingItemId = itemId;
+  editingItemQty = quantity;
+  document.getElementById('editTipProduct').textContent = 'Product: ' + productName;
+  document.getElementById('editTipAmount').value = currentTip.toFixed(2);
+  new bootstrap.Modal(document.getElementById('editTipModal')).show();
+}
+
+async function saveTipEdit() {
+  if (!editingItemId) return;
+  const amount = parseFloat(document.getElementById('editTipAmount').value || 0);
+  if (isNaN(amount) || amount < 0) {
+    Toast.show('Enter a valid tip amount (0 or more).', 'danger'); return;
+  }
+  try {
+    const res = await apiCall(`/tips/edit/${editingItemId}`, 'POST', { tip_amount: amount });
+    if (res.success) {
+      document.getElementById(`tip-badge-${editingItemId}`).textContent = `+ GHS ${res.tip_amount.toFixed(2)}`;
+      document.getElementById(`final-price-${editingItemId}`).textContent = `GHS ${res.unit_price.toFixed(2)}`;
+      document.getElementById(`tip-total-${editingItemId}`).textContent = `GHS ${(res.tip_amount * editingItemQty).toFixed(2)}`;
+      bootstrap.Modal.getInstance(document.getElementById('editTipModal')).hide();
+      Toast.show('Tip updated successfully.', 'success');
+      setTimeout(() => location.reload(), 1200);
+    } else {
+      Toast.show(res.error || 'Failed to update.', 'danger');
+    }
+  } catch { Toast.show('Error updating tip.', 'danger'); }
+}
+
+async function deleteTip(itemId) {
+  if (!confirm('Remove this tip? The unit price will revert to the official selling price.')) return;
+  try {
+    const res = await apiCall(`/tips/delete/${itemId}`, 'POST');
+    if (res.success) {
+      Toast.show(res.message, 'success');
+      setTimeout(() => location.reload(), 900);
+    } else {
+      Toast.show(res.error || 'Failed.', 'danger');
+    }
+  } catch { Toast.show('Error.', 'danger'); }
+}
+</script>
+{% endblock %}

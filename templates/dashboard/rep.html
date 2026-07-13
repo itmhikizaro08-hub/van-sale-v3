@@ -1,0 +1,158 @@
+{% extends 'base.html' %}
+{% block title %}My Dashboard{% endblock %}
+{% block content %}
+{% with subtitle = 'Here\'s your personal performance snapshot.', action_url = url_for('sales.new_sale'), action_label = 'New Sale', action_icon = 'fa-bolt' %}{% include 'dashboard/_hero.html' %}{% endwith %}
+
+<!-- KPI Row -->
+<div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
+  <div class="section-title mb-0"><i class="fas fa-gauge-high"></i>Key Metrics{% if not is_today %} <span class="badge bg-warning text-dark ms-2">Historical</span>{% endif %}</div>
+  {% include 'dashboard/_date_filter.html' %}
+</div>
+<div class="row g-3 mb-4">
+  <div class="col-6 col-md-3">
+    <div class="stat-card primary">
+      <div class="stat-icon"><i class="fas fa-shopping-cart"></i></div>
+      <div>
+        <div class="stat-label">My Sales Today</div>
+        <div class="stat-value">GHS {{ "%.2f"|format(my_sales_today) }}</div>
+        <div class="stat-trend">{{ my_invoice_count }} invoices</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="stat-card success">
+      <div class="stat-icon"><i class="fas fa-money-bill-wave"></i></div>
+      <div>
+        <div class="stat-label">Collected Today</div>
+        <div class="stat-value">GHS {{ "%.2f"|format(my_collections_today) }}</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="stat-card info" onclick="window.location='{{ url_for('vans.offload_index') }}'" style="cursor:pointer">
+      <div class="stat-icon"><i class="fas fa-truck"></i></div>
+      <div>
+        <div class="stat-label">Van Stock Value</div>
+        <div class="stat-value">GHS {{ "%.2f"|format(my_van_stock_value) }}</div>
+        <div class="stat-trend">{{ my_van_stock|length }} products</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="stat-card {{ 'danger' if my_cash_balance > 0 else 'success' }}" onclick="window.location='{{ url_for('cash_decl.index') }}'" style="cursor:pointer">
+      <div class="stat-icon"><i class="fas fa-cash-register"></i></div>
+      <div>
+        <div class="stat-label">Cash to Declare</div>
+        <div class="stat-value">GHS {{ "%.2f"|format(my_cash_balance) }}</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="row g-3 mb-4">
+  <div class="col-md-7">
+    <div class="card h-100">
+      <div class="card-header"><i class="fas fa-chart-area me-2"></i>My Sales Trend — Last 7 Days</div>
+      <div class="card-body">
+        <div style="height:220px"><canvas id="salesTrendChart"></canvas></div>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-5">
+    <div class="card h-100">
+      <div class="card-header"><i class="fas fa-truck me-2"></i>My Van Stock</div>
+      <div class="card-body p-0">
+        {% if my_van_stock %}
+        <table class="table table-hover mb-0">
+          <thead><tr><th>Product</th><th class="text-end">Qty</th></tr></thead>
+          <tbody>
+            {% for vs in my_van_stock %}
+            <tr>
+              <td class="fw-600 fs-13">{{ vs.product.product_name if vs.product else '—' }}</td>
+              <td class="text-end">
+                <span class="badge {{ 'bg-danger' if vs.quantity <= 5 else 'bg-success' }}">{{ vs.quantity }}</span>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        {% else %}
+        <div class="empty-state py-4"><i class="fas fa-truck" style="font-size:2rem;color:var(--text-muted)"></i><p class="mt-2 text-muted">No van stock loaded yet</p></div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header d-flex align-items-center justify-content-between">
+    <span><i class="fas fa-receipt me-2"></i>My Recent Sales</span>
+    <a href="{{ url_for('sales.index') }}" class="btn btn-outline-secondary btn-sm">View All</a>
+  </div>
+  <div class="card-body p-0">
+    <table class="table table-hover mb-0">
+      <thead><tr><th>Invoice</th><th>Customer</th><th class="text-end">Total</th><th>Status</th></tr></thead>
+      <tbody>
+        {% for s in recent_sales %}
+        <tr>
+          <td><a href="{{ url_for('invoices.view', sale_id=s.id) }}" class="fw-600">{{ s.invoice_number }}</a></td>
+          <td class="fs-13">{{ s.customer.name if s.customer else '—' }}</td>
+          <td class="text-end fw-600">GHS {{ "%.2f"|format(s.total_amount) }}</td>
+          <td><span class="badge {{ s.payment_badge }}">{{ s.payment_status|title }}</span></td>
+        </tr>
+        {% else %}
+        <tr><td colspan="4" class="text-muted text-center py-3">No sales today</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Quick actions -->
+<div class="row g-3 mt-1">
+  <div class="col-12">
+    <div class="card">
+      <div class="card-body">
+        <div class="d-flex gap-2 flex-wrap">
+          <a href="{{ url_for('sales.new_sale') }}" class="btn btn-success"><i class="fas fa-bolt me-1"></i>Quick Sale</a>
+          <a href="{{ url_for('visits.today') }}" class="btn btn-primary"><i class="fas fa-map-pin me-1"></i>Today's Route</a>
+          <a href="{{ url_for('payments.add') }}" class="btn btn-info text-white"><i class="fas fa-money-bill me-1"></i>Record Payment</a>
+          <a href="{{ url_for('returns.new') }}" class="btn btn-warning text-dark"><i class="fas fa-undo me-1"></i>Return</a>
+          <a href="{{ url_for('cash_decl.index') }}" class="btn btn-outline-danger"><i class="fas fa-cash-register me-1"></i>Declare Cash</a>
+          <a href="{{ url_for('vans.offload_index') }}" class="btn btn-outline-info"><i class="fas fa-dolly me-1"></i>Offload Stock</a>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script>
+new Chart(document.getElementById('salesTrendChart'), {
+  type: 'line',
+  data: {
+    labels: {{ trend_labels|tojson }},
+    datasets: [{
+      label: 'Sales',
+      data: {{ trend_values|tojson }},
+      borderColor: '#2563EB',
+      backgroundColor: 'rgba(37,99,235,.12)',
+      borderWidth: 2,
+      tension: 0.4,
+      fill: true,
+      pointRadius: 3,
+      pointHoverRadius: 5
+    }]
+  },
+  options: {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: { display: false },
+      tooltip: { callbacks: { label: ctx => 'GHS ' + ctx.raw.toLocaleString() } }
+    },
+    scales: { y: { beginAtZero: true, ticks: { callback: v => 'GHS ' + v.toLocaleString() } } }
+  }
+});
+</script>
+{% endblock %}

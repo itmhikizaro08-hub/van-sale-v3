@@ -1,0 +1,82 @@
+{% extends 'base.html' %}
+{% block title %}Audit Trail{% endblock %}
+{% block breadcrumb %}<li class="breadcrumb-item active">Audit Trail</li>{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title">Pricing Audit Trail</h1>
+    <p class="page-subtitle">Every pricing decision made at the point of sale — admin only</p>
+  </div>
+</div>
+
+<!-- Filters -->
+<div class="card mb-3 no-print">
+  <div class="card-body">
+    <form method="GET" class="row g-2 align-items-end">
+      <div class="col-md-3">
+        <label class="form-label">From</label>
+        <input type="date" name="start" class="form-control" value="{{ start }}">
+      </div>
+      <div class="col-md-3">
+        <label class="form-label">To</label>
+        <input type="date" name="end" class="form-control" value="{{ end }}">
+      </div>
+      <div class="col-md-3">
+        <label class="form-label">Sales Rep</label>
+        <select name="rep_id" class="form-select">
+          <option value="">All Reps</option>
+          {% for r in reps %}
+          <option value="{{ r.id }}" {{ 'selected' if sel_rep == r.id }}>{{ r.full_name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-3">
+        <button type="submit" class="btn btn-primary w-100"><i class="fas fa-filter me-1"></i>Filter</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header"><i class="fas fa-shield-alt me-2"></i>Audit Log ({{ logs|length }})</div>
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-hover dt-table mb-0" id="auditTable">
+        <thead>
+          <tr>
+            <th>Date &amp; Time</th>
+            <th>User</th>
+            <th>Invoice #</th>
+            <th>Product</th>
+            <th class="text-end">Company Price</th>
+            <th class="text-end">Price Entered</th>
+            <th class="text-end">Tip</th>
+            <th class="text-end">Qty</th>
+            <th class="text-end">Total</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for log in logs %}
+          <tr>
+            <td class="text-muted fs-12">{{ log.created_at.strftime('%d %b %Y %H:%M') if log.created_at else '' }}</td>
+            <td class="fw-600 fs-13">{{ log.user.full_name if log.user else '—' }}</td>
+            <td><a href="{{ url_for('invoices.view', sale_id=log.sale_id) }}" class="fw-600">{{ log.invoice_number }}</a></td>
+            <td class="fs-13">{{ log.product.product_name if log.product else '—' }}</td>
+            <td class="text-end text-muted">GHS {{ "%.2f"|format(log.company_selling_price) }}</td>
+            <td class="text-end fw-600">GHS {{ "%.2f"|format(log.selling_price_entered) }}</td>
+            <td class="text-end {{ 'text-success fw-600' if log.tip_calculated > 0 else 'text-muted' }}">
+              {{ "+ GHS %.2f"|format(log.tip_calculated) if log.tip_calculated > 0 else '—' }}
+            </td>
+            <td class="text-end">{{ log.quantity }}</td>
+            <td class="text-end fw-700">GHS {{ "%.2f"|format(log.total_amount) }}</td>
+            <td><span class="badge {{ 'bg-primary' if log.action == 'sale' else 'bg-warning text-dark' }}">{{ log.action|replace('_',' ')|title }}</span></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block extra_js %}<script>$(document).ready(() => initDataTable('#auditTable', {order:[[0,'desc']]}));</script>{% endblock %}

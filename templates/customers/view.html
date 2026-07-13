@@ -1,0 +1,264 @@
+{% extends 'base.html' %}
+{% block title %}{{ customer.name }}{% endblock %}
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{{ url_for('customers.index') }}">Customers</a></li>
+<li class="breadcrumb-item active">{{ customer.name }}</li>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="d-flex align-items-center gap-3">
+    <div class="user-avatar" style="width:52px;height:52px;font-size:22px">{{ customer.name[0].upper() }}</div>
+    <div>
+      <h1 class="page-title mb-0">{{ customer.name }}</h1>
+      <div class="d-flex align-items-center gap-2 mt-1">
+        <code class="fs-12">{{ customer.customer_code }}</code>
+        <span class="badge {{ customer.type_badge }}">{{ customer.customer_type|title }}</span>
+        <span class="badge {{ customer.status_badge }}">{{ customer.status|title }}</span>
+      </div>
+    </div>
+  </div>
+  <div class="d-flex gap-2">
+    <a href="{{ url_for('customers.statement', customer_id=customer.id) }}" class="btn btn-outline-primary btn-sm">
+      <i class="fas fa-file-invoice-dollar me-1"></i>Statement
+    </a>
+    {% if current_user.can_edit %}
+    <a href="{{ url_for('customers.edit', customer_id=customer.id) }}" class="btn btn-outline-secondary btn-sm">
+      <i class="fas fa-edit me-1"></i>Edit
+    </a>
+    {% endif %}
+    <a href="{{ url_for('sales.new_sale') }}?customer_id={{ customer.id }}" class="btn btn-primary btn-sm">
+      <i class="fas fa-plus me-1"></i>New Sale
+    </a>
+  </div>
+</div>
+
+<!-- KPI Row -->
+<div class="row g-3 mb-4">
+  <div class="col-6 col-md-3">
+    <div class="stat-card danger">
+      <div class="stat-icon"><i class="fas fa-exclamation-circle"></i></div>
+      <div>
+        <div class="stat-label">Outstanding</div>
+        <div class="stat-value">GHS {{ "%.2f"|format(customer.outstanding_balance) }}</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="stat-card success">
+      <div class="stat-icon"><i class="fas fa-credit-card"></i></div>
+      <div>
+        <div class="stat-label">Credit Available</div>
+        <div class="stat-value">GHS {{ "%.2f"|format(customer.credit_available) }}</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="stat-card primary">
+      <div class="stat-icon"><i class="fas fa-shopping-cart"></i></div>
+      <div>
+        <div class="stat-label">Total Orders</div>
+        <div class="stat-value">{{ recent_sales|length }}</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="stat-card warning">
+      <div class="stat-icon"><i class="fas fa-calendar-check"></i></div>
+      <div>
+        <div class="stat-label">Last Visit</div>
+        <div class="stat-value" style="font-size:14px">
+          {{ customer.last_visit_date.strftime('%d %b') if customer.last_visit_date else 'Never' }}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="row g-3">
+  <!-- Contact info -->
+  <div class="col-md-4">
+    <div class="card">
+      <div class="card-header"><i class="fas fa-address-card me-2"></i>Contact Details</div>
+      <div class="card-body">
+        <div class="mb-3">
+          <div class="text-muted fs-12 mb-1">Phone</div>
+          <div class="fw-600">{{ customer.phone or '—' }}</div>
+        </div>
+        <div class="mb-3">
+          <div class="text-muted fs-12 mb-1">Email</div>
+          <div class="fw-600">{{ customer.email or '—' }}</div>
+        </div>
+        <div class="mb-3">
+          <div class="text-muted fs-12 mb-1">Address</div>
+          <div>{{ customer.address or '—' }}</div>
+        </div>
+        <div class="mb-3">
+          <div class="text-muted fs-12 mb-1">Location</div>
+          <div>{{ customer.location or '—' }}</div>
+        </div>
+        {% if customer.gps_latitude %}
+        <div>
+          <div class="text-muted fs-12 mb-1">GPS Coordinates</div>
+          <a href="https://maps.google.com?q={{ customer.gps_latitude }},{{ customer.gps_longitude }}"
+             target="_blank" class="btn btn-outline-info btn-sm">
+            <i class="fas fa-map-marker-alt me-1"></i>View on Map
+          </a>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="card mt-3">
+      <div class="card-header"><i class="fas fa-cog me-2"></i>Account Info</div>
+      <div class="card-body">
+        <div class="mb-2 d-flex justify-content-between">
+          <span class="text-muted fs-12">Credit Limit</span>
+          <span class="fw-600">GHS {{ "%.2f"|format(customer.credit_limit) }}</span>
+        </div>
+        <div class="mb-2">
+          <div class="d-flex justify-content-between fs-12 mb-1">
+            <span class="text-muted">Credit Used</span>
+            <span>{{ customer.credit_utilization_pct }}%</span>
+          </div>
+          <div class="progress" style="height:6px">
+            <div class="progress-bar {{ 'bg-danger' if customer.credit_utilization_pct > 80 else 'bg-warning' if customer.credit_utilization_pct > 50 else 'bg-success' }}"
+                 style="width:{{ customer.credit_utilization_pct }}%"></div>
+          </div>
+        </div>
+        {% if customer.route %}<div class="mb-2 d-flex justify-content-between"><span class="text-muted fs-12">Route</span><span class="fw-600">{{ customer.route.route_name }}</span></div>{% endif %}
+        <div class="mb-2 d-flex justify-content-between">
+          <span class="text-muted fs-12">Sales Rep</span>
+          <span class="fw-600">{{ customer.sales_rep.full_name if customer.sales_rep else '—' }}</span>
+        </div>
+        <div class="mb-2 d-flex justify-content-between">
+          <span class="text-muted fs-12">Member Since</span>
+          <span>{{ customer.created_at.strftime('%d %b %Y') }}</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tabs -->
+  <div class="col-md-8">
+    <div class="card">
+      <div class="card-header p-0">
+        <ul class="nav nav-tabs border-0 px-3 pt-2" id="customerTabs">
+          <li class="nav-item">
+            <a class="nav-link active" data-bs-toggle="tab" href="#salesTab">
+              <i class="fas fa-shopping-cart me-1"></i>Sales ({{ recent_sales|length }})
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" data-bs-toggle="tab" href="#paymentsTab">
+              <i class="fas fa-money-bill me-1"></i>Payments ({{ recent_payments|length }})
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" data-bs-toggle="tab" href="#visitsTab">
+              <i class="fas fa-map-marker me-1"></i>Visits ({{ recent_visits|length }})
+            </a>
+          </li>
+        </ul>
+      </div>
+      <div class="card-body p-0">
+        <div class="tab-content">
+          <div class="tab-pane fade show active p-0" id="salesTab">
+            {% if recent_sales %}
+            <div class="p-3 pb-0">
+              <input type="text" class="form-control form-control-sm tab-search" data-target="salesTableBody" placeholder="Search invoice, date, status...">
+            </div>
+            <div class="table-responsive">
+              <table class="table table-hover mb-0">
+                <thead><tr><th>Invoice</th><th>Date</th><th>Amount</th><th>Balance</th><th>Status</th><th></th></tr></thead>
+                <tbody id="salesTableBody">
+                  {% for s in recent_sales %}
+                  <tr>
+                    <td><a href="{{ url_for('invoices.view', sale_id=s.id) }}" class="fw-600">{{ s.invoice_number }}</a></td>
+                    <td class="text-muted fs-12">{{ s.sale_date.strftime('%d %b %Y') if s.sale_date else '' }}</td>
+                    <td class="fw-600">GHS {{ "%.2f"|format(s.total_amount) }}</td>
+                    <td class="{{ 'text-danger' if s.balance_due > 0 else 'text-success' }}">GHS {{ "%.2f"|format(s.balance_due) }}</td>
+                    <td><span class="badge {{ s.payment_badge }}">{{ s.payment_status|title }}</span></td>
+                    <td><a href="{{ url_for('invoices.view', sale_id=s.id) }}" class="btn btn-icon btn-sm btn-outline-primary"><i class="fas fa-eye"></i></a></td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+            {% else %}
+            <div class="empty-state"><i class="fas fa-shopping-cart"></i><h5>No sales yet</h5></div>
+            {% endif %}
+          </div>
+
+          <div class="tab-pane fade" id="paymentsTab">
+            {% if recent_payments %}
+            <div class="p-3 pb-0">
+              <input type="text" class="form-control form-control-sm tab-search" data-target="paymentsTableBody" placeholder="Search reference, date, method...">
+            </div>
+            <div class="table-responsive">
+              <table class="table table-hover mb-0">
+                <thead><tr><th>Ref</th><th>Date</th><th>Amount</th><th>Method</th><th>Status</th></tr></thead>
+                <tbody id="paymentsTableBody">
+                  {% for p in recent_payments %}
+                  <tr class="{{ 'opacity-50' if p.status == 'void' else '' }}">
+                    <td><code class="fs-12">{{ p.payment_number }}</code></td>
+                    <td class="text-muted fs-12">{{ p.payment_date.strftime('%d %b %Y') if p.payment_date else '' }}</td>
+                    <td class="fw-600 {{ 'text-success' if p.status != 'void' else 'text-muted text-decoration-line-through' }}">GHS {{ "%.2f"|format(p.amount) }}</td>
+                    <td><span class="badge {{ p.method_badge }}"><i class="fas {{ p.method_icon }} me-1"></i>{{ p.payment_method|replace('_',' ')|title }}</span></td>
+                    <td><span class="badge {{ p.status_badge }}">{{ p.status|title }}</span></td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+            {% else %}
+            <div class="empty-state"><i class="fas fa-money-bill-wave"></i><h5>No payments yet</h5></div>
+            {% endif %}
+          </div>
+
+          <div class="tab-pane fade" id="visitsTab">
+            {% if recent_visits %}
+            <div class="p-3 pb-0">
+              <input type="text" class="form-control form-control-sm tab-search" data-target="visitsTableBody" placeholder="Search date, rep, status, outcome...">
+            </div>
+            <div class="table-responsive">
+              <table class="table table-hover mb-0">
+                <thead><tr><th>Date</th><th>Rep</th><th>Check-In</th><th>Duration</th><th>Status</th><th>Outcome</th></tr></thead>
+                <tbody id="visitsTableBody">
+                  {% for v in recent_visits %}
+                  <tr>
+                    <td class="fs-12">{{ v.visit_date.strftime('%d %b %Y') if v.visit_date else '' }}</td>
+                    <td>{{ v.sales_rep.full_name if v.sales_rep else '—' }}</td>
+                    <td class="text-muted fs-12">{{ v.check_in_time.strftime('%H:%M') if v.check_in_time else '—' }}</td>
+                    <td class="fs-12">{{ v.duration_minutes ~ ' min' if v.duration_minutes else '—' }}</td>
+                    <td><span class="badge {{ v.status_badge }}">{{ v.status|title }}</span></td>
+                    <td class="text-muted fs-12">{{ v.outcome|replace('_',' ')|title if v.outcome else '—' }}</td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+            {% else %}
+            <div class="empty-state"><i class="fas fa-map-marker-alt"></i><h5>No visits recorded</h5></div>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script>
+document.querySelectorAll('.tab-search').forEach(input => {
+  input.addEventListener('input', function () {
+    const q = this.value.trim().toLowerCase();
+    const tbody = document.getElementById(this.dataset.target);
+    if (!tbody) return;
+    tbody.querySelectorAll('tr').forEach(row => {
+      row.style.display = !q || row.textContent.toLowerCase().includes(q) ? '' : 'none';
+    });
+  });
+});
+</script>
+{% endblock %}

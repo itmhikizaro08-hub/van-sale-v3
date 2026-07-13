@@ -1,0 +1,51 @@
+{% extends 'base.html' %}
+{% block title %}Sales Report{% endblock %}
+{% block breadcrumb %}<li class="breadcrumb-item"><a href="{{ url_for('reports.index') }}">Reports</a></li><li class="breadcrumb-item active">Sales</li>{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div><h1 class="page-title">Sales Report</h1><p class="page-subtitle">{{ start }} to {{ end }}</p></div>
+  <div class="d-flex gap-2">
+    <a href="{{ url_for('reports.sales_excel') }}?start={{ start }}&end={{ end }}" class="btn btn-success btn-sm"><i class="fas fa-file-excel me-1"></i>Excel</a>
+    <button onclick="window.print()" class="btn btn-outline-secondary btn-sm"><i class="fas fa-print me-1"></i>Print</button>
+  </div>
+</div>
+<div class="card mb-3"><div class="card-body">
+  <form method="GET" class="row g-2 align-items-end">
+    <div class="col-md-4"><label class="form-label">From</label><input type="date" name="start" class="form-control" value="{{ start }}"></div>
+    <div class="col-md-4"><label class="form-label">To</label><input type="date" name="end" class="form-control" value="{{ end }}"></div>
+    <div class="col-md-4"><button type="submit" class="btn btn-primary w-100"><i class="fas fa-filter me-1"></i>Filter</button></div>
+  </form>
+</div></div>
+<div class="row g-3 mb-4">
+  <div class="col-6 col-md-2"><div class="stat-card primary"><div class="stat-icon"><i class="fas fa-file-invoice"></i></div><div><div class="stat-label">Invoices</div><div class="stat-value">{{ sales|length }}</div></div></div></div>
+  <div class="col-6 col-md-2"><div class="stat-card success"><div class="stat-icon"><i class="fas fa-coins"></i></div><div><div class="stat-label">Gross Sales</div><div class="stat-value" style="font-size:13px">GHS {{ "%.0f"|format(total) }}</div></div></div></div>
+  <div class="col-6 col-md-2"><div class="stat-card danger"><div class="stat-icon"><i class="fas fa-receipt"></i></div><div><div class="stat-label">Credit Notes</div><div class="stat-value" style="font-size:13px">GHS {{ "%.0f"|format(total_credits) }}</div></div></div></div>
+  <div class="col-6 col-md-2"><div class="stat-card info"><div class="stat-icon"><i class="fas fa-chart-line"></i></div><div><div class="stat-label">Net Sales</div><div class="stat-value" style="font-size:13px">GHS {{ "%.0f"|format(net_total) }}</div></div></div></div>
+  <div class="col-6 col-md-2"><div class="stat-card warning"><div class="stat-icon"><i class="fas fa-check-circle"></i></div><div><div class="stat-label">Collected</div><div class="stat-value" style="font-size:13px">GHS {{ "%.0f"|format(total_paid) }}</div></div></div></div>
+  <div class="col-6 col-md-2"><div class="stat-card" style="--card-accent:#7c3aed;--card-accent-bg:#f5f3ff"><div class="stat-icon" style="background:#f5f3ff;color:#7c3aed"><i class="fas fa-exclamation-circle"></i></div><div><div class="stat-label">Outstanding</div><div class="stat-value" style="font-size:13px">GHS {{ "%.0f"|format(total_outstanding) }}</div></div></div></div>
+</div>
+<div class="card"><div class="card-body p-0"><div class="table-responsive">
+<table class="table table-hover dt-table mb-0" id="salesRpt">
+  <thead><tr><th>Invoice</th><th>Customer</th><th>Date</th><th>Van</th><th class="text-end">Total</th><th class="text-end">Credit Notes</th><th class="text-end">Net</th><th class="text-end">Paid</th><th class="text-end">Balance</th><th>Ref Note</th><th>Status</th></tr></thead>
+  <tbody>
+    {% for s in sales %}
+    <tr>
+      <td><a href="{{ url_for('invoices.view', sale_id=s.id) }}" class="fw-600">{{ s.invoice_number }}</a></td>
+      <td>{{ s.customer.name if s.customer else '—' }}</td>
+      <td class="text-muted fs-12">{{ s.sale_date.strftime('%d %b %Y') if s.sale_date else '' }}</td>
+      <td class="fs-12">{{ s.van.van_number if s.van else 'WH' }}</td>
+      <td class="text-end">GHS {{ "%.2f"|format(s.total_amount) }}</td>
+      <td class="text-end {{ 'text-danger' if s.credit_note_total > 0 else 'text-muted' }}">{% if s.credit_note_total > 0 %}- GHS {{ "%.2f"|format(s.credit_note_total) }}{% else %}—{% endif %}</td>
+      <td class="text-end fw-700">GHS {{ "%.2f"|format(s.net_total) }}</td>
+      <td class="text-end text-success">GHS {{ "%.2f"|format(s.amount_paid) }}</td>
+      <td class="text-end {{ 'text-danger fw-600' if s.balance_due > 0 else 'text-muted' }}">GHS {{ "%.2f"|format(s.balance_due) }}</td>
+      <td>{% if s.reference_note %}<span class="ref-note-badge"><i class="fas fa-book"></i>{{ s.reference_note[:18] }}</span>{% else %}<span class="text-muted fs-12">—</span>{% endif %}</td>
+      <td><span class="badge {{ s.payment_badge }}">{{ s.payment_status|title }}</span></td>
+    </tr>
+    {% endfor %}
+  </tbody>
+  <tfoot><tr class="fw-700"><td colspan="4">TOTALS</td><td class="text-end">GHS {{ "%.2f"|format(total) }}</td><td class="text-end text-danger">- GHS {{ "%.2f"|format(total_credits) }}</td><td class="text-end fw-800">GHS {{ "%.2f"|format(net_total) }}</td><td class="text-end text-success">GHS {{ "%.2f"|format(total_paid) }}</td><td class="text-end text-danger">GHS {{ "%.2f"|format(total_outstanding) }}</td><td colspan="2"></td></tr></tfoot>
+</table>
+</div></div></div>
+{% endblock %}
+{% block extra_js %}<script>$(document).ready(() => initDataTable('#salesRpt', {order:[[2,'desc']]}));</script>{% endblock %}

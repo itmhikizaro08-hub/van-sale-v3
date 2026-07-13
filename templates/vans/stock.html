@@ -1,0 +1,23 @@
+{% extends 'base.html' %}
+{% block title %}Van Stock{% endblock %}
+{% block breadcrumb %}<li class="breadcrumb-item active">Van Stock</li>{% endblock %}
+{% block content %}
+<div class="page-header"><div><h1 class="page-title">{{ 'My Van Stock' if current_user.scope('van_stock') == 'own' else 'Van Stock — All Reps' }}</h1><p class="page-subtitle">Current field custody</p></div></div>
+<div class="card"><div class="card-body p-0"><div class="table-responsive">
+<table class="table table-hover dt-table mb-0" id="vanStockTable">
+  <thead><tr><th>Van</th>{% if current_user.scope('van_stock') != 'own' %}<th>Rep</th>{% endif %}<th>Product</th><th class="text-end">Qty</th><th class="text-end">Value</th></tr></thead>
+  <tbody>
+    {% for vs in stocks %}
+    <tr>
+      <td class="fw-600">{{ vs.van.van_number if vs.van else '—' }}</td>
+      {% if current_user.scope('van_stock') != 'own' %}<td>{{ vs.sales_rep.full_name if vs.sales_rep else '—' }}</td>{% endif %}
+      <td class="fw-600">{{ vs.product.product_name if vs.product else '—' }}</td>
+      <td class="text-end"><span class="badge {{ 'bg-warning text-dark' if vs.quantity <= 5 else 'bg-success' }}">{{ vs.quantity }}</span></td>
+      <td class="text-end fw-600">GHS {{ "%.2f"|format(vs.quantity * (vs.product.cost_price if vs.product else 0)) }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div></div></div>
+{% endblock %}
+{% block extra_js %}<script>$(document).ready(() => initDataTable('#vanStockTable'));</script>{% endblock %}

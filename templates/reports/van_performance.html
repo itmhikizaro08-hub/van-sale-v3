@@ -1,0 +1,27 @@
+{% extends 'base.html' %}
+{% block title %}Van Performance{% endblock %}
+{% block breadcrumb %}<li class="breadcrumb-item"><a href="{{ url_for('reports.index') }}">Reports</a></li><li class="breadcrumb-item active">Van Performance</li>{% endblock %}
+{% block content %}
+<div class="page-header"><div><h1 class="page-title">Van Performance</h1><p class="page-subtitle">{{ start }} to {{ end }}</p></div>
+<form class="d-flex gap-2" method="GET"><input type="date" name="start" class="form-control form-control-sm" value="{{ start }}"><input type="date" name="end" class="form-control form-control-sm" value="{{ end }}"><button class="btn btn-primary btn-sm"><i class="fas fa-filter"></i></button></form>
+</div>
+<div class="card"><div class="card-body p-0"><div class="table-responsive">
+<table class="table table-hover dt-table mb-0" id="vanPerfTable">
+  <thead><tr><th>Van</th><th>Reg No.</th><th>Driver</th><th>Route</th><th class="text-end">Sales</th><th class="text-end">Total</th><th>Status</th></tr></thead>
+  <tbody>
+    {% for van in vans %}
+    <tr>
+      <td class="fw-700">{{ van.van_number }}</td>
+      <td class="fs-12">{{ van.registration_number or '—' }}</td>
+      <td class="fs-12">{{ van.driver.name if van.driver else '—' }}</td>
+      <td class="fs-12 text-muted">{{ van.route.route_name if van.route else '—' }}</td>
+      <td class="text-end">{{ van.sale_count }}</td>
+      <td class="text-end fw-700 text-primary">GHS {{ "%.2f"|format(van.total_sales) }}</td>
+      <td><span class="badge {{ 'bg-success' if van.status == 'active' else 'bg-secondary' }}">{{ van.status|title }}</span></td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div></div></div>
+{% endblock %}
+{% block extra_js %}<script>$(document).ready(() => initDataTable('#vanPerfTable', {order:[[5,'desc']]}));</script>{% endblock %}

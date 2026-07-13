@@ -1,0 +1,19 @@
+{% set hour = now.hour if now else 12 %}
+{% set greeting = 'Good morning' if hour < 12 else ('Good afternoon' if hour < 17 else 'Good evening') %}
+{% set first_name = current_user.full_name.split(' ')[0] if current_user.full_name else current_user.username %}
+<div class="dash-hero">
+  <div class="dash-hero-left">
+    <div class="dash-hero-avatar">{{ first_name[0]|upper }}</div>
+    <div>
+      <div class="dash-hero-greeting">{{ greeting }}, {{ first_name }}</div>
+      <div class="dash-hero-sub">{{ subtitle }}</div>
+    </div>
+  </div>
+  <div class="dash-hero-meta">
+    <span class="dash-hero-role"><i class="fas fa-shield-alt me-1"></i>{{ current_user.role_label }}</span>
+    <span class="dash-hero-date"><i class="far fa-calendar me-1"></i>{{ now.strftime('%A, %d %B %Y') if now else '' }}</span>
+    {% if action_url %}
+    <a href="{{ action_url }}" class="btn btn-light btn-sm fw-600"><i class="fas {{ action_icon or 'fa-bolt' }} me-1"></i>{{ action_label }}</a>
+    {% endif %}
+  </div>
+</div>

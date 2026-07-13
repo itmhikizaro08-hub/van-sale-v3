@@ -1,0 +1,8 @@
+{% extends 'base.html' %}{% block title %}Send SMS{% endblock %}{% block content %}
+<div class="page-header"><h1 class="page-title">Send SMS</h1></div>
+<div class="row justify-content-center"><div class="col-md-6">
+<form method="POST"><div class="card"><div class="card-body">
+  <div class="mb-3"><label class="form-label">Phone Number *</label><input type="text" name="phone" class="form-control" required placeholder="+233XXXXXXXXX"></div>
+  <div class="mb-3"><label class="form-label">Message *</label><textarea name="message" class="form-control" rows="4" required maxlength="160"></textarea><div class="form-text">Max 160 characters for 1 credit.</div></div>
+</div><div class="card-footer d-flex gap-2"><button type="submit" class="btn btn-primary"><i class="fas fa-paper-plane me-1"></i>Send</button><a href="{{ url_for('sms.index') }}" class="btn btn-outline-secondary">Cancel</a></div></div></form>
+</div></div>{% endblock %}

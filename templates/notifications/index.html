@@ -1,0 +1,109 @@
+{% extends 'base.html' %}
+{% block title %}Notifications{% endblock %}
+{% block breadcrumb %}<li class="breadcrumb-item active">Notifications</li>{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div><h1 class="page-title">Notifications</h1></div>
+  <div class="d-flex gap-2">
+    <button class="btn btn-outline-secondary btn-sm" id="refreshBtn"><i class="fas fa-sync-alt me-1"></i>Refresh</button>
+    {% if unread_count > 0 %}
+    <button class="btn btn-primary btn-sm" id="markAllBtn"><i class="fas fa-check-double me-1"></i>Mark All Read</button>
+    {% endif %}
+  </div>
+</div>
+
+<div class="row g-3 mb-3">
+  <div class="col-6 col-md-4">
+    <div class="stat-card primary"><div class="stat-icon"><i class="fas fa-bell"></i></div>
+      <div><div class="stat-label">Total</div><div class="stat-value">{{ total_count }}</div></div>
+    </div>
+  </div>
+  <div class="col-6 col-md-4">
+    <div class="stat-card {{ 'danger' if unread_count > 0 else 'success' }}"><div class="stat-icon"><i class="fas fa-envelope"></i></div>
+      <div><div class="stat-label">Unread (Mine)</div><div class="stat-value">{{ unread_count }}</div></div>
+    </div>
+  </div>
+  <div class="col-6 col-md-4">
+    <div class="stat-card success"><div class="stat-icon"><i class="fas fa-check-circle"></i></div>
+      <div><div class="stat-label">Resolved</div><div class="stat-value">{{ resolved_count }}</div></div>
+    </div>
+  </div>
+</div>
+
+<div class="card mb-3"><div class="card-body py-2">
+  <form method="GET" class="row g-2 align-items-end">
+    <div class="col-md-4"><label class="form-label">From</label><input type="date" name="start" class="form-control" value="{{ start }}"></div>
+    <div class="col-md-4"><label class="form-label">To</label><input type="date" name="end" class="form-control" value="{{ end }}"></div>
+    <div class="col-md-4"><button type="submit" class="btn btn-primary w-100"><i class="fas fa-filter me-1"></i>Filter</button></div>
+  </form>
+</div></div>
+
+<div class="card"><div class="card-body p-0"><div class="table-responsive">
+<table class="table table-hover mb-0">
+  <thead><tr><th>Date</th><th></th><th>Title</th><th>Message</th><th>Type</th><th>Status</th><th></th></tr></thead>
+  <tbody>
+    {% for n in notifications %}
+    {% set mine_read = n.id in read_ids %}
+    <tr class="{{ '' if mine_read else 'fw-600' }}">
+      <td class="text-muted fs-12 text-nowrap">{{ n.created_at.strftime('%d %b %Y %H:%M') if n.created_at else '' }}</td>
+      <td><i class="fas {{ n.icon or 'fa-bell' }} text-{{ n.type_class }}"></i></td>
+      <td>{{ n.title }}</td>
+      <td class="fs-13">{{ n.message }}</td>
+      <td><span class="badge bg-{{ n.type_class }}{{ ' text-dark' if n.type_class in ('warning','info') else '' }}">{{ (n.notification_type or 'info')|replace('_',' ')|title }}</span></td>
+      <td>
+        {% if not mine_read %}<span class="badge bg-danger">Unread</span>{% else %}<i class="fas fa-check text-success" title="Read"></i>{% endif %}
+        {% if n.is_read %}<span class="badge bg-success ms-1">Resolved</span>{% endif %}
+      </td>
+      <td class="text-nowrap">
+        <div class="d-flex gap-1 justify-content-end">
+          {% if not mine_read %}
+          <button class="btn btn-icon btn-sm btn-outline-primary mark-read-btn" data-id="{{ n.id }}" title="Mark read"><i class="fas fa-check"></i></button>
+          {% endif %}
+          {% if current_user.can_approve_module('notifications') and not n.is_read %}
+          <button class="btn btn-icon btn-sm btn-outline-success" data-action-url="{{ url_for('notifications.resolve', notif_id=n.id) }}"
+                  data-confirm="Mark this alert as resolved? It won't be regenerated unless the underlying issue happens again." data-success-msg="Marked resolved." title="Resolve">
+            <i class="fas fa-flag-checkered"></i>
+          </button>
+          {% endif %}
+          {% if n.link %}<a href="{{ n.link }}" class="btn btn-icon btn-sm btn-outline-secondary" title="View"><i class="fas fa-arrow-right"></i></a>{% endif %}
+        </div>
+      </td>
+    </tr>
+    {% else %}
+    <tr><td colspan="7" class="text-muted text-center py-4">No notifications in this date range</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div></div></div>
+{% endblock %}
+{% block extra_js %}
+<script>
+document.getElementById('refreshBtn')?.addEventListener('click', async function () {
+  this.disabled = true;
+  try {
+    const res = await apiCall('/notifications/generate', 'POST');
+    Toast.show(`Generated ${res.generated} new notification(s).`, 'info');
+    setTimeout(() => location.reload(), 1000);
+  } catch { Toast.show('Refresh failed.', 'danger'); this.disabled = false; }
+});
+
+document.getElementById('markAllBtn')?.addEventListener('click', async function () {
+  this.disabled = true;
+  try {
+    await apiCall('/notifications/mark-all-read', 'POST');
+    Toast.show('All caught up!', 'success');
+    setTimeout(() => location.reload(), 600);
+  } catch { Toast.show('Failed.', 'danger'); this.disabled = false; }
+});
+
+document.querySelectorAll('.mark-read-btn').forEach(btn => {
+  btn.addEventListener('click', async function () {
+    this.disabled = true;
+    try {
+      await apiCall(`/notifications/${this.dataset.id}/read`, 'POST');
+      location.reload();
+    } catch { Toast.show('Failed.', 'danger'); this.disabled = false; }
+  });
+});
+</script>
+{% endblock %}

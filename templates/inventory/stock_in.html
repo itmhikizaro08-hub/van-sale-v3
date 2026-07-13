@@ -1,0 +1,186 @@
+{% extends 'base.html' %}
+{% block title %}Stock In{% endblock %}
+{% block breadcrumb %}<li class="breadcrumb-item"><a href="{{ url_for('inventory.index') }}">Inventory</a></li><li class="breadcrumb-item active">Stock In</li>{% endblock %}
+{% block extra_css %}
+<style>
+.product-row td { vertical-align: middle; padding: 7px 8px; }
+.stock-badge { font-weight: 600; }
+</style>
+{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title">Stock In</h1>
+    <p class="page-subtitle">Receive a delivery of stock into the warehouse from a supplier</p>
+  </div>
+  <a href="{{ url_for('inventory.index') }}" class="btn btn-outline-secondary btn-sm"><i class="fas fa-arrow-left me-1"></i>Back</a>
+</div>
+
+{% if suppliers %}
+<form method="POST" id="stockInForm">
+  <div class="row g-3">
+    <div class="col-md-8">
+      <div class="card">
+        <div class="card-header"><i class="fas fa-truck-loading me-2"></i>Delivery Details</div>
+        <div class="card-body">
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label">Supplier <span class="text-danger">*</span></label>
+              <select name="supplier_id" class="form-select" required>
+                <option value="">— Select Supplier —</option>
+                {% for s in suppliers %}<option value="{{ s.id }}">{{ s.name }} ({{ s.supplier_code }})</option>{% endfor %}
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label"><i class="fas fa-book text-info me-1"></i>Reference Note</label>
+              <input type="text" name="reference_note" class="form-control" placeholder="e.g. Delivery note #12, Invoice #45">
+            </div>
+            <div class="col-12">
+              <label class="form-label">Notes</label>
+              <textarea name="notes" class="form-control" rows="2" placeholder="Optional — condition on arrival, etc."></textarea>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card mt-3">
+        <div class="card-header d-flex align-items-center justify-content-between">
+          <span><i class="fas fa-boxes me-2"></i>Products Received</span>
+          <button type="button" class="btn btn-sm btn-outline-primary" onclick="addRow()"><i class="fas fa-plus me-1"></i>Add Product</button>
+        </div>
+        <div class="table-responsive">
+          <table class="table mb-0" id="productsTable">
+            <thead>
+              <tr>
+                <th>Product</th>
+                <th class="text-center" style="width:110px">Current Stock</th>
+                <th class="text-center" style="width:100px">Qty Received</th>
+                <th class="text-end" style="width:120px">Line Value</th>
+                <th style="width:36px"></th>
+              </tr>
+            </thead>
+            <tbody id="productRows"></tbody>
+          </table>
+        </div>
+        <div class="card-footer">
+          <button type="button" class="btn btn-outline-secondary btn-sm" onclick="addRow()"><i class="fas fa-plus me-1"></i>Add Another Product</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-md-4">
+      <div class="card">
+        <div class="card-header"><i class="fas fa-receipt me-2"></i>Summary</div>
+        <div class="card-body">
+          <div id="summaryRows" class="text-muted fs-12 mb-3">Add products to see summary.</div>
+          <hr>
+          <div class="d-flex justify-content-between fw-700"><span>Total Units</span><span id="totalUnits">0</span></div>
+          <div class="d-flex justify-content-between fw-700 mt-1"><span>Total Value</span><span id="totalValue">GHS 0.00</span></div>
+        </div>
+      </div>
+      <div class="d-grid gap-2 mt-3">
+        <button type="submit" class="btn btn-success btn-lg"><i class="fas fa-check me-2"></i>Record Stock In</button>
+        <a href="{{ url_for('inventory.index') }}" class="btn btn-outline-secondary">Cancel</a>
+      </div>
+    </div>
+  </div>
+</form>
+{% else %}
+<div class="card"><div class="card-body text-center py-5">
+  <i class="fas fa-industry" style="font-size:3rem;color:var(--text-muted);margin-bottom:16px"></i>
+  <h5>No suppliers yet</h5>
+  <p class="text-muted">Stock in must be attributed to a supplier. Add one first.</p>
+  {% if current_user.can_write('suppliers') %}<a href="{{ url_for('suppliers.add') }}" class="btn btn-primary"><i class="fas fa-plus me-1"></i>Add Supplier</a>{% endif %}
+</div></div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const ALL_PRODUCTS = [
+  {% for p in products %}
+  { id: {{ p.id }}, name: {{ p.product_name|tojson }}, code: {{ p.product_code|tojson }},
+    stock: {{ p.stock_quantity }}, cost: {{ p.cost_price }} },
+  {% endfor %}
+];
+
+let rowCount = 0;
+
+function addRow() {
+  rowCount++;
+  const lid = rowCount;
+  const opts = ALL_PRODUCTS.map(p =>
+    `<option value="${p.id}" data-stock="${p.stock}" data-cost="${p.cost}">${p.name} (${p.code})</option>`
+  ).join('');
+
+  const tr = document.createElement('tr');
+  tr.className = 'product-row';
+  tr.dataset.lid = lid;
+  tr.innerHTML = `
+    <td>
+      <select name="product_id[]" class="form-select form-select-sm prod-sel" onchange="onProductChange(${lid})" required>
+        <option value="">— Select —</option>${opts}
+      </select>
+    </td>
+    <td class="text-center"><span class="badge bg-secondary stock-badge" id="stock-${lid}">—</span></td>
+    <td class="text-center">
+      <input type="number" name="quantity[]" id="qty-${lid}" class="form-control form-control-sm text-center"
+        min="1" placeholder="0" oninput="calcLine(${lid})">
+    </td>
+    <td class="text-end fw-600" id="val-${lid}">—</td>
+    <td><button type="button" class="btn btn-icon btn-sm btn-outline-danger" onclick="this.closest('tr').remove(); updateSummary()"><i class="fas fa-times"></i></button></td>`;
+  document.getElementById('productRows').appendChild(tr);
+  updateSummary();
+}
+
+function onProductChange(lid) {
+  const sel = document.querySelector(`[data-lid="${lid}"] .prod-sel`);
+  const opt = sel.selectedOptions[0];
+  const stock = parseInt(opt?.dataset?.stock || 0);
+  const stockBadge = document.getElementById(`stock-${lid}`);
+  if (stockBadge) {
+    stockBadge.textContent = stock + ' units';
+    stockBadge.className = `badge stock-badge ${stock === 0 ? 'bg-danger' : stock <= 10 ? 'bg-warning text-dark' : 'bg-success'}`;
+  }
+  calcLine(lid);
+}
+
+function calcLine(lid) {
+  const sel = document.querySelector(`[data-lid="${lid}"] .prod-sel`);
+  const opt = sel.selectedOptions[0];
+  const cost = parseFloat(opt?.dataset?.cost || 0);
+  const qty = parseInt(document.getElementById(`qty-${lid}`)?.value || 0);
+  const value = qty * cost;
+  const valEl = document.getElementById(`val-${lid}`);
+  if (valEl) valEl.textContent = qty > 0 ? formatGHS(value) : '—';
+  updateSummary();
+}
+
+function updateSummary() {
+  let html = '';
+  let totalUnits = 0;
+  let totalValue = 0;
+
+  document.querySelectorAll('.product-row').forEach(row => {
+    const lid = row.dataset.lid;
+    const sel = row.querySelector('.prod-sel');
+    const pid = parseInt(sel?.value);
+    const qty = parseInt(document.getElementById(`qty-${lid}`)?.value || 0);
+    if (!pid || qty <= 0) return;
+    const product = ALL_PRODUCTS.find(p => p.id === pid);
+    if (!product) return;
+    totalUnits += qty;
+    totalValue += qty * product.cost;
+    html += `<div class="d-flex justify-content-between mb-1 fs-12">
+      <span class="text-muted">${product.name}</span><span class="fw-600">${qty} units</span>
+    </div>`;
+  });
+
+  document.getElementById('summaryRows').innerHTML = html || '<div class="text-muted fs-12">No products added.</div>';
+  document.getElementById('totalUnits').textContent = totalUnits;
+  document.getElementById('totalValue').textContent = formatGHS(totalValue);
+}
+
+if (document.getElementById('productRows')) addRow();
+</script>
+{% endblock %}

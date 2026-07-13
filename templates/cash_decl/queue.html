@@ -1,0 +1,248 @@
+{% extends 'base.html' %}
+{% block title %}Cash Declarations{% endblock %}
+{% block breadcrumb %}<li class="breadcrumb-item active">Cash Declarations</li>{% endblock %}
+{% block content %}
+<div class="page-header"><div><h1 class="page-title">Cash Declarations</h1><p class="page-subtitle">Rep cash balances and pending handovers</p></div></div>
+
+<div class="row g-3">
+  <div class="col-md-6">
+    <div class="card h-100">
+      <div class="card-header"><i class="fas fa-users me-2"></i>Rep Cash Balances</div>
+      <div class="card-body p-0">
+        <table class="table table-hover mb-0">
+          <thead><tr><th>Rep</th><th class="text-end">Collected</th><th class="text-end">Declared</th><th class="text-end">Balance</th><th></th></tr></thead>
+          <tbody>
+            {% for b in balances %}
+            <tr>
+              <td class="fw-600 fs-13">{{ b.rep.full_name }}</td>
+              <td class="text-end fs-13">GHS {{ "%.2f"|format(b.collected) }}</td>
+              <td class="text-end fs-13">GHS {{ "%.2f"|format(b.declared) }}</td>
+              <td class="text-end fw-700 {{ 'text-danger' if b.balance > 0 else 'text-success' }}">GHS {{ "%.2f"|format(b.balance) }}</td>
+              <td>
+                <button class="btn btn-icon btn-sm btn-outline-secondary" type="button" data-bs-toggle="modal" data-bs-target="#monthlyBreakdownModal"
+                  data-rep-id="{{ b.rep.id }}" data-rep-name="{{ b.rep.full_name }}" title="Monthly breakdown">
+                  <i class="fas fa-chart-bar"></i>
+                </button>
+              </td>
+            </tr>
+            {% else %}
+            <tr><td colspan="5" class="text-muted text-center py-3">No sales reps found</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Hidden per-rep monthly breakdown, copied into the shared modal below on open -->
+  <div class="d-none">
+    {% for b in balances %}
+    <div id="monthly-content-{{ b.rep.id }}">
+      <table class="table table-sm mb-0">
+        <thead><tr><th>Month</th><th class="text-end">Collected</th><th class="text-end">Declared</th><th class="text-end">Net</th></tr></thead>
+        <tbody>
+          {% for m in b.monthly %}
+          <tr>
+            <td class="fs-12">{{ m.month }}</td>
+            <td class="text-end fs-12">GHS {{ "%.2f"|format(m.collected) }}</td>
+            <td class="text-end fs-12">GHS {{ "%.2f"|format(m.declared) }}</td>
+            <td class="text-end fs-12 {{ 'text-danger' if m.net > 0 else 'text-success' }}">GHS {{ "%.2f"|format(m.net) }}</td>
+          </tr>
+          {% else %}
+          <tr><td colspan="4" class="text-muted text-center py-3">No history yet</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% endfor %}
+  </div>
+
+  <!-- Monthly Breakdown Modal -->
+  <div class="modal fade" id="monthlyBreakdownModal" tabindex="-1">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title"><i class="fas fa-chart-bar me-2"></i>Monthly Breakdown <span id="mbRepName"></span></h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body" id="mbModalBody"></div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-6">
+    <div class="card h-100">
+      <div class="card-header"><i class="fas fa-hourglass-half me-2"></i>Pending Declarations</div>
+      <div class="card-body p-0">
+        <table class="table table-hover mb-0">
+          <thead><tr><th>#</th><th>Rep</th><th class="text-end">Declared</th><th></th></tr></thead>
+          <tbody>
+            {% for d in pending %}
+            <tr>
+              <td class="fw-600 fs-13">{{ d.declaration_number }}</td>
+              <td class="fs-13">{{ d.sales_rep.full_name if d.sales_rep else '—' }}</td>
+              <td class="text-end fw-600">GHS {{ "%.2f"|format(d.declared_amount) }}</td>
+              <td>
+                <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#verifyModal"
+                  data-decl-id="{{ d.id }}" data-decl-number="{{ d.declaration_number }}"
+                  data-decl-rep="{{ d.sales_rep.full_name if d.sales_rep else '—' }}"
+                  data-decl-amount="{{ d.declared_amount }}">
+                  <i class="fas fa-check me-1"></i>Verify
+                </button>
+              </td>
+            </tr>
+            {% else %}
+            <tr><td colspan="4" class="text-muted text-center py-3">No pending declarations</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="card mt-3">
+  <div class="card-header"><i class="fas fa-history me-2"></i>Recent Verifications</div>
+  <div class="card-body p-0">
+    <form method="GET" class="row g-2 align-items-end p-3 border-bottom">
+      <div class="col-auto"><label class="form-label mb-1 fs-12">From</label><input type="date" name="start" class="form-control form-control-sm" value="{{ start }}"></div>
+      <div class="col-auto"><label class="form-label mb-1 fs-12">To</label><input type="date" name="end" class="form-control form-control-sm" value="{{ end }}"></div>
+      <div class="col-auto"><button type="submit" class="btn btn-primary btn-sm"><i class="fas fa-filter me-1"></i>Filter</button></div>
+    </form>
+    <table class="table table-hover mb-0">
+      <thead><tr><th>#</th><th>Date</th><th>Rep</th><th class="text-end">Declared</th><th class="text-end">Counted</th><th class="text-end">Discrepancy</th><th>Status</th><th>Verified By</th><th></th></tr></thead>
+      <tbody>
+        {% for d in recent %}
+        <tr>
+          <td class="fw-600 fs-13">{{ d.declaration_number }}</td>
+          <td class="text-muted fs-12">{{ d.created_at.strftime('%d %b %Y') if d.created_at else '' }}</td>
+          <td class="fs-13">{{ d.sales_rep.full_name if d.sales_rep else '—' }}</td>
+          <td class="text-end">GHS {{ "%.2f"|format(d.declared_amount) }}</td>
+          <td class="text-end">GHS {{ "%.2f"|format(d.counted_amount) if d.counted_amount is not none else '—' }}</td>
+          <td class="text-end {{ 'text-danger fw-600' if d.discrepancy_amount and d.discrepancy_amount != 0 else 'text-muted' }}">
+            {{ "GHS %.2f"|format(d.discrepancy_amount) if d.discrepancy_amount is not none else '—' }}
+          </td>
+          <td><span class="badge {{ d.status_badge }}">{{ d.status|title }}</span></td>
+          <td class="fs-12 text-muted">{{ d.verified_by.full_name if d.verified_by else '—' }}</td>
+          <td>
+            {% if d.lines or d.notes %}
+            <button class="btn btn-icon btn-sm btn-outline-secondary" type="button" data-bs-toggle="modal" data-bs-target="#cashBreakdownModal"
+              data-decl-id="{{ d.id }}" data-decl-number="{{ d.declaration_number }}" title="Cash breakdown">
+              <i class="fas fa-coins"></i>
+            </button>
+            {% endif %}
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="9" class="text-muted text-center py-3">No verifications in this date range</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Hidden per-declaration content, copied into the shared modal below on open -->
+<div class="d-none">
+  {% for d in recent %}
+  {% if d.lines or d.notes %}
+  <div id="cash-detail-content-{{ d.id }}">
+    {% if d.lines %}
+    <div class="fw-600 fs-12 text-muted mb-2"><i class="fas fa-coins me-1"></i>Denomination Breakdown</div>
+    <table class="table table-sm mb-3">
+      <thead><tr><th>Denomination</th><th class="text-end">Count</th><th class="text-end">Subtotal</th></tr></thead>
+      <tbody>
+        {% for line in d.lines|sort(attribute='denomination', reverse=True) %}
+        <tr>
+          <td class="fs-12">GHS {{ "%.2f"|format(line.denomination) }}</td>
+          <td class="text-end fs-12">{{ line.count }}</td>
+          <td class="text-end fs-12">GHS {{ "%.2f"|format(line.subtotal) }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% endif %}
+    {% if d.notes %}
+    <div class="fw-600 fs-12 text-muted mb-1"><i class="fas fa-sticky-note me-1"></i>Notes</div>
+    <div class="fs-13" style="white-space:pre-wrap">{{ d.notes }}</div>
+    {% endif %}
+  </div>
+  {% endif %}
+  {% endfor %}
+</div>
+
+<!-- Cash Breakdown Modal -->
+<div class="modal fade" id="cashBreakdownModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="fas fa-coins me-2"></i>Cash Breakdown <span id="cbDeclNumber"></span></h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body" id="cbModalBody"></div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Verify Modal -->
+<div class="modal fade" id="verifyModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <form method="POST" id="verifyForm">
+        <div class="modal-header">
+          <h5 class="modal-title"><i class="fas fa-check-circle me-2"></i>Verify Declaration <span id="vDeclNumber"></span></h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <p class="mb-2">Rep: <strong id="vDeclRep"></strong></p>
+          <p class="mb-3">Declared: <strong id="vDeclAmount"></strong></p>
+          <div class="mb-3">
+            <label class="form-label">Amount Actually Counted (GHS) <span class="text-danger">*</span></label>
+            <input type="number" name="counted_amount" id="vCountedAmount" class="form-control" step="0.01" min="0" required>
+          </div>
+          <div class="mb-2">
+            <label class="form-label">Notes</label>
+            <textarea name="notes" class="form-control" rows="2" placeholder="Optional — explain any discrepancy"></textarea>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-primary"><i class="fas fa-save me-1"></i>Verify</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script>
+document.getElementById('cashBreakdownModal').addEventListener('show.bs.modal', e => {
+  const btn = e.relatedTarget;
+  document.getElementById('cbDeclNumber').textContent = btn.dataset.declNumber;
+  const content = document.getElementById('cash-detail-content-' + btn.dataset.declId);
+  document.getElementById('cbModalBody').innerHTML = content ? content.innerHTML : '';
+});
+
+document.getElementById('monthlyBreakdownModal').addEventListener('show.bs.modal', e => {
+  const btn = e.relatedTarget;
+  document.getElementById('mbRepName').textContent = btn.dataset.repName;
+  const content = document.getElementById('monthly-content-' + btn.dataset.repId);
+  document.getElementById('mbModalBody').innerHTML = content ? content.innerHTML : '';
+});
+
+document.getElementById('verifyModal').addEventListener('show.bs.modal', e => {
+  const btn = e.relatedTarget;
+  const declId = btn.dataset.declId;
+  document.getElementById('vDeclNumber').textContent = btn.dataset.declNumber;
+  document.getElementById('vDeclRep').textContent = btn.dataset.declRep;
+  document.getElementById('vDeclAmount').textContent = formatGHS(btn.dataset.declAmount);
+  document.getElementById('vCountedAmount').value = btn.dataset.declAmount;
+  document.getElementById('verifyForm').action = '/cash-decl/' + declId + '/verify';
+});
+</script>
+{% endblock %}

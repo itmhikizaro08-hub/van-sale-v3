@@ -1,0 +1,39 @@
+{% extends 'base.html' %}
+{% block title %}Loading Sheets{% endblock %}
+{% block breadcrumb %}<li class="breadcrumb-item active">Loading Sheets</li>{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div><h1 class="page-title">Loading Sheets</h1><p class="page-subtitle">Van custody — warehouse to sales rep</p></div>
+  {% if current_user.can_write('loading') %}
+  <a href="{{ url_for('vans.loading_new') }}" class="btn btn-primary"><i class="fas fa-plus me-1"></i>New Loading Sheet</a>
+  {% endif %}
+</div>
+
+<div class="row g-3 mb-4">
+  <div class="col-6 col-md-3"><div class="stat-card primary"><div class="stat-icon"><i class="fas fa-clipboard-list"></i></div><div><div class="stat-label">Total</div><div class="stat-value">{{ sheets|length }}</div></div></div></div>
+  <div class="col-6 col-md-3"><div class="stat-card warning"><div class="stat-icon"><i class="fas fa-clock"></i></div><div><div class="stat-label">Issued</div><div class="stat-value">{{ sheets|selectattr('status','eq','issued')|list|length }}</div></div></div></div>
+  <div class="col-6 col-md-3"><div class="stat-card success"><div class="stat-icon"><i class="fas fa-check-circle"></i></div><div><div class="stat-label">Acknowledged</div><div class="stat-value">{{ sheets|selectattr('status','eq','acknowledged')|list|length }}</div></div></div></div>
+  <div class="col-6 col-md-3"><div class="stat-card info"><div class="stat-icon"><i class="fas fa-undo"></i></div><div><div class="stat-label">Returned</div><div class="stat-value">{{ sheets|selectattr('status','eq','returned')|list|length }}</div></div></div></div>
+</div>
+
+<div class="card"><div class="card-body p-0"><div class="table-responsive">
+<table class="table table-hover dt-table mb-0" id="loadingTable">
+  <thead><tr><th>Sheet #</th><th>Date</th><th>Van</th><th>Sales Rep</th><th>Items</th><th>Ref Note</th><th>Status</th><th></th></tr></thead>
+  <tbody>
+    {% for s in sheets %}
+    <tr>
+      <td><a href="{{ url_for('vans.loading_view', sheet_id=s.id) }}" class="fw-600">{{ s.sheet_number }}</a></td>
+      <td class="text-muted fs-12">{{ s.loading_date.strftime('%d %b %Y') if s.loading_date else '' }}</td>
+      <td>{{ s.van.van_number if s.van else '—' }}</td>
+      <td class="fw-600">{{ s.sales_rep.full_name if s.sales_rep else '—' }}</td>
+      <td><span class="badge bg-secondary">{{ s.items|length }} products</span></td>
+      <td>{% if s.reference_note %}<span class="ref-note-badge"><i class="fas fa-book me-1"></i>{{ s.reference_note[:22] }}</span>{% else %}<span class="text-muted fs-12">—</span>{% endif %}</td>
+      <td><span class="badge {{ s.status_badge }}">{{ s.status|title }}</span></td>
+      <td><a href="{{ url_for('vans.loading_view', sheet_id=s.id) }}" class="btn btn-icon btn-sm btn-outline-primary"><i class="fas fa-eye"></i></a></td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div></div></div>
+{% endblock %}
+{% block extra_js %}<script>$(document).ready(() => initDataTable('#loadingTable', {order:[[1,'desc']]}));</script>{% endblock %}

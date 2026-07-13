@@ -1,0 +1,595 @@
+{% extends 'base.html' %}
+{% block title %}New Sale{% endblock %}
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{{ url_for('sales.index') }}">Sales</a></li>
+<li class="breadcrumb-item active">New Sale</li>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.pos-layout { display: grid; grid-template-columns: 1fr 380px; gap: 20px; align-items: start; }
+@media(max-width:991px) { .pos-layout { grid-template-columns: 1fr; } }
+
+.product-search-results {
+  position: absolute; top: 100%; left: 0; right: 0; z-index: 500;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 0 0 var(--radius-sm) var(--radius-sm);
+  max-height: 320px; overflow-y: auto;
+  box-shadow: var(--shadow);
+}
+.product-result-item {
+  padding: 10px 14px; cursor: pointer;
+  border-bottom: 1px solid var(--border-light);
+  transition: background .1s;
+}
+.product-result-item:hover { background: var(--bg); }
+
+.cart-section { position: sticky; top: 80px; }
+.cart-item-row td { padding: 8px 6px !important; vertical-align: middle; font-size: 13px; }
+.qty-input { width: 60px; text-align: center; }
+.price-input { width: 100px; text-align: right; }
+.price-input.price-valid { border-color: #28a745 !important; background: rgba(40,167,69,0.06); }
+.price-input.price-invalid { border-color: #dc3545 !important; background: rgba(220,53,69,0.06); }
+.price-status-icon { font-size: 12px; margin-left: 4px; }
+.price-status-icon.valid { color: #28a745; }
+.price-status-icon.invalid { color: #dc3545; }
+.price-warning-text { font-size: 11px; color: #dc3545; }
+
+.total-section { background: var(--bg); border-radius: var(--radius-sm); padding: 16px; }
+.total-row { display: flex; justify-content: space-between; padding: 5px 0; font-size: 14px; }
+.total-row.grand { font-weight: 800; font-size: 18px; color: var(--brand); border-top: 2px solid var(--border); padding-top: 10px; margin-top: 5px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title">New Sale</h1>
+    <p class="page-subtitle">Create a new sales invoice</p>
+  </div>
+  <a href="{{ url_for('sales.index') }}" class="btn btn-outline-secondary btn-sm">
+    <i class="fas fa-list me-1"></i>View All Sales
+  </a>
+</div>
+
+<div class="pos-layout">
+  <!-- Left: Product selection -->
+  <div>
+    <!-- Customer select -->
+    <div class="card mb-3">
+      <div class="card-header"><i class="fas fa-user me-2"></i>Customer</div>
+      <div class="card-body">
+        <div class="row g-3">
+          <div class="col-md-6">
+            <label class="form-label">Select Customer <span class="text-danger">*</span></label>
+            <select id="customerSelect" class="form-select" required>
+              <option value="">— Choose Customer —</option>
+              {% for c in customers %}
+              <option value="{{ c.id }}" data-balance="{{ c.outstanding_balance }}" data-credit="{{ c.credit_available }}"
+                {{ 'selected' if request.args.get('customer_id')|int == c.id }}>
+                {{ c.name }} ({{ c.customer_code }})
+              </option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-md-3">
+            <label class="form-label">Van</label>
+            <select id="vanSelect" class="form-select">
+              <option value="">— None —</option>
+              {% for v in vans %}
+              <option value="{{ v.id }}">{{ v.van_number }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-md-3">
+            <label class="form-label">Payment Method</label>
+            <select id="paymentMethod" class="form-select">
+              <option value="cash">Cash</option>
+              <option value="mobile_money">Mobile Money</option>
+              <option value="bank_transfer">Bank Transfer</option>
+              <option value="cheque">Cheque</option>
+            </select>
+          </div>
+        </div>
+        <div id="customerInfo" class="mt-2 d-none">
+          <div class="d-flex gap-3 fs-12">
+            <span class="text-muted">Outstanding: <b class="text-danger" id="customerBalance"></b></span>
+            <span class="text-muted">Credit Available: <b class="text-success" id="customerCredit"></b></span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Product search -->
+    <div class="card mb-3">
+      <div class="card-header"><i class="fas fa-search me-2"></i>Add Products</div>
+      <div class="card-body">
+        <div class="position-relative mb-3">
+          <input type="text" id="productSearch" class="form-control"
+                 placeholder="Search product by name, code, or barcode..."
+                 autocomplete="off">
+          <div id="productSearchResults" class="product-search-results d-none"></div>
+        </div>
+        <p class="text-muted fs-12 mb-0"><i class="fas fa-info-circle me-1"></i>
+          Type to search or scan a barcode. Click a product to add it to the cart.
+        </p>
+      </div>
+    </div>
+
+    <!-- Cart table -->
+    <div class="card">
+      <div class="card-header d-flex align-items-center justify-content-between">
+        <span><i class="fas fa-shopping-cart me-2"></i>Cart Items <span class="badge bg-primary" id="cartCount">0</span></span>
+        <button class="btn btn-outline-danger btn-sm" onclick="clearCart()">
+          <i class="fas fa-trash me-1"></i>Clear
+        </button>
+      </div>
+      <div class="card-body p-0">
+        <div class="table-responsive">
+          <table class="table mb-0" id="cartTable">
+            <thead>
+              <tr>
+                <th>Product</th>
+                <th style="width:80px">Qty</th>
+                <th style="width:130px">Unit Price</th>
+                <th style="width:70px">Disc%</th>
+                <th style="width:100px">Total</th>
+                <th style="width:40px"></th>
+              </tr>
+            </thead>
+            <tbody id="cartBody">
+              <tr id="emptyCartRow">
+                <td colspan="6" class="text-center text-muted py-5">
+                  <i class="fas fa-shopping-cart fa-2x mb-2 d-block opacity-25"></i>
+                  Cart is empty — search for products above
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Notes -->
+    <div class="card mt-3">
+      <div class="card-body">
+        <label class="form-label">Notes</label>
+        <textarea id="saleNotes" class="form-control" rows="2" placeholder="Optional notes..."></textarea>
+      </div>
+    </div>
+  </div>
+
+  <!-- Right: Cart summary & checkout -->
+  <div class="cart-section">
+    <div class="card">
+      <div class="card-header fw-700"><i class="fas fa-receipt me-2"></i>Order Summary</div>
+      <div class="card-body">
+        <div class="total-section mb-3">
+          <div class="total-row">
+            <span>Subtotal</span>
+            <span id="subtotalDisplay">GHS 0.00</span>
+          </div>
+
+          <div class="total-row">
+            <span>
+              Discount
+              <input type="number" id="discountPct" min="0" max="100" step="0.5"
+                     class="form-control form-control-sm d-inline-block ms-1" style="width:55px"
+                     placeholder="%" value="0" oninput="recalculate()">%
+            </span>
+            <span id="discountDisplay" class="text-danger">- GHS 0.00</span>
+          </div>
+
+          <div class="total-row">
+            <span>
+              Tax
+              <input type="number" id="taxPct" min="0" max="30" step="0.5"
+                     class="form-control form-control-sm d-inline-block ms-1" style="width:55px"
+                     placeholder="%" value="0" oninput="recalculate()">%
+            </span>
+            <span id="taxDisplay">GHS 0.00</span>
+          </div>
+
+          <div class="total-row grand">
+            <span>TOTAL</span>
+            <span id="totalDisplay">GHS 0.00</span>
+          </div>
+        </div>
+
+        <div id="priceWarningBanner" class="alert alert-danger py-2 px-3 fs-13 d-none mb-3">
+          <i class="fas fa-exclamation-triangle me-1"></i>
+          One or more items are priced below the minimum allowed. Fix the highlighted price(s) before completing the sale.
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label fw-600">Amount Paid (GHS)</label>
+          <input type="number" id="amountPaid" class="form-control" min="0" step="0.01"
+                 placeholder="0.00" oninput="recalculate()">
+          <div class="mt-2 d-flex justify-content-between fs-12">
+            <span class="text-muted">Balance Due:</span>
+            <span class="fw-700 text-danger" id="balanceDue">GHS 0.00</span>
+          </div>
+        </div>
+
+        <div class="d-grid gap-2">
+          <button class="btn btn-success btn-lg" id="completeSaleBtn" onclick="completeSale()">
+            <i class="fas fa-check-circle me-2"></i>Complete Sale
+          </button>
+          <button class="btn btn-outline-secondary" id="saveDraftBtn" onclick="saveDraft()">
+            <i class="fas fa-save me-1"></i>Save as Draft
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Success Modal -->
+<div class="modal fade" id="successModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-body text-center py-4">
+        <div class="mb-3" style="font-size:56px">🎉</div>
+        <h4 class="fw-700 mb-1">Sale Completed!</h4>
+        <p class="text-muted" id="successMsg"></p>
+        <div class="d-flex gap-2 justify-content-center mt-3">
+          <a id="viewInvoiceBtn" href="#" class="btn btn-primary">
+            <i class="fas fa-file-invoice me-1"></i>View Invoice
+          </a>
+          <button class="btn btn-outline-secondary" onclick="newSale()">
+            <i class="fas fa-plus me-1"></i>New Sale
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+/* ── Fallbacks (self-contained — this page keeps working even if
+   shared helpers in main.js are ever missing or broken) ─────── */
+if (typeof Toast === 'undefined') {
+  window.Toast = {
+    show: function(message, type, duration) {
+      const el = document.createElement('div');
+      el.className = `toast align-items-center text-white bg-${type||'info'} border-0 show position-fixed`;
+      el.style.cssText = 'bottom:20px;right:20px;z-index:9999;min-width:250px;';
+      el.innerHTML = `<div class="d-flex"><div class="toast-body">${message}</div>
+        <button type="button" class="btn-close btn-close-white me-2 m-auto" onclick="this.closest('.toast').remove()"></button></div>`;
+      document.body.appendChild(el);
+      setTimeout(() => el.remove(), duration || 3000);
+    }
+  };
+}
+if (typeof formatGHS === 'undefined') {
+  window.formatGHS = function(amount) { return 'GHS ' + Number(amount || 0).toFixed(2); };
+}
+if (typeof confirmAction === 'undefined') {
+  window.confirmAction = function(message) { return confirm(message); };
+}
+
+function localDebounce(fn, wait) {
+  let t;
+  return function(...args) {
+    clearTimeout(t);
+    t = setTimeout(() => fn.apply(this, args), wait);
+  };
+}
+
+async function localApiCall(endpoint, method = 'GET', data = null) {
+  const options = { method, headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin' };
+  if (data) options.body = JSON.stringify(data);
+  const res = await fetch(endpoint, options);
+  const contentType = res.headers.get('content-type') || '';
+  if (!contentType.includes('application/json')) {
+    const text = await res.text();
+    console.error(`Non-JSON response from ${endpoint} (status ${res.status}):`, text.slice(0, 300));
+    throw new Error(`Server returned ${res.status} ${res.statusText}`);
+  }
+  const json = await res.json();
+  if (!res.ok) throw new Error(json.error || json.message || `Request failed with status ${res.status}`);
+  return json;
+}
+
+function extractProductArray(json) {
+  if (Array.isArray(json)) return json;
+  if (Array.isArray(json.products)) return json.products;
+  if (Array.isArray(json.data)) return json.data;
+  if (Array.isArray(json.results)) return json.results;
+  return null;
+}
+
+/* ── Cart state ───────────────────────────────────────────── */
+let cart = [];
+
+/* ── Customer info ────────────────────────────────────────── */
+document.getElementById('customerSelect').addEventListener('change', function() {
+  const opt = this.selectedOptions[0];
+  if (opt.value) {
+    document.getElementById('customerInfo').classList.remove('d-none');
+    document.getElementById('customerBalance').textContent = 'GHS ' + parseFloat(opt.dataset.balance||0).toFixed(2);
+    document.getElementById('customerCredit').textContent = 'GHS ' + parseFloat(opt.dataset.credit||0).toFixed(2);
+  } else {
+    document.getElementById('customerInfo').classList.add('d-none');
+  }
+});
+
+/* ── Product search ───────────────────────────────────────── */
+const searchInput = document.getElementById('productSearch');
+const resultsBox  = document.getElementById('productSearchResults');
+
+searchInput.addEventListener('input', localDebounce(async function() {
+  const q = this.value.trim();
+  if (q.length < 2) { resultsBox.classList.add('d-none'); return; }
+
+  resultsBox.innerHTML = '<div class="product-result-item text-muted">Searching...</div>';
+  resultsBox.classList.remove('d-none');
+
+  try {
+    const json = await localApiCall('/api/products/search?q=' + encodeURIComponent(q));
+    const products = extractProductArray(json);
+
+    if (products === null) {
+      resultsBox.innerHTML = '<div class="product-result-item text-danger">Unexpected response shape from server. See console.</div>';
+      return;
+    }
+
+    if (!products.length) {
+      resultsBox.innerHTML = '<div class="product-result-item text-muted">No products found</div>';
+    } else {
+      // selling_price IS the company (floor) price in this system — there is
+      // no separate company_price field, so it's passed as both price and floor.
+      resultsBox.innerHTML = products.map(p => `
+        <div class="product-result-item" onclick='addToCart(${p.id}, ${JSON.stringify(p.product_name)}, ${Number(p.selling_price)}, ${Number(p.stock_quantity)}, ${Number(p.selling_price)})'>
+          <div class="d-flex justify-content-between align-items-center">
+            <div>
+              <span class="fw-600">${p.product_name}</span>
+              <span class="text-muted ms-2 fs-12">${p.product_code || ''}</span>
+            </div>
+            <div class="text-end">
+              <div class="fw-700 text-primary">GHS ${Number(p.selling_price).toFixed(2)}</div>
+              <div class="fs-12 ${p.stock_quantity <= 5 ? 'text-danger' : 'text-muted'}">
+                Stock: ${p.stock_quantity} ${p.unit||''}
+              </div>
+            </div>
+          </div>
+        </div>`).join('');
+    }
+  } catch (err) {
+    console.error('Product search failed:', err);
+    resultsBox.innerHTML = `<div class="product-result-item text-danger">
+      Search failed: ${err.message || 'Unknown error'}. Check console for details.
+    </div>`;
+  }
+}, 300));
+
+document.addEventListener('click', e => {
+  if (!searchInput.contains(e.target) && !resultsBox.contains(e.target)) {
+    resultsBox.classList.add('d-none');
+  }
+});
+
+/* ── Cart operations ──────────────────────────────────────── */
+function addToCart(id, name, price, stock, companyPrice = 0) {
+  const existing = cart.find(i => i.id === id);
+  if (existing) {
+    if (existing.qty < stock) {
+      existing.qty++;
+    } else {
+      Toast.show(`Max stock reached (${stock})`, 'warning');
+      return;
+    }
+  } else {
+    // Prefill price with the company price (never labeled as such in the UI —
+    // the rep just sees a normal pre-filled Unit Price field they can raise).
+    const startingPrice = companyPrice > 0 ? companyPrice : price;
+    cart.push({ id, name, price: startingPrice, stock, qty: 1, disc: 0, companyPrice });
+  }
+  searchInput.value = '';
+  resultsBox.classList.add('d-none');
+  renderCart();
+  Toast.show(`${name} added to cart`, 'success', 1500);
+}
+
+function removeFromCart(id) {
+  cart = cart.filter(i => i.id !== id);
+  renderCart();
+}
+
+function clearCart() {
+  if (cart.length && !confirmAction('Clear all items from cart?')) return;
+  cart = [];
+  renderCart();
+}
+
+function renderCart() {
+  const tbody = document.getElementById('cartBody');
+  document.getElementById('cartCount').textContent = cart.length;
+
+  if (!cart.length) {
+    tbody.innerHTML = `<tr id="emptyCartRow"><td colspan="6" class="text-center text-muted py-5">
+      <i class="fas fa-shopping-cart fa-2x mb-2 d-block opacity-25"></i>Cart is empty</td></tr>`;
+    recalculate();
+    return;
+  }
+
+  tbody.innerHTML = cart.map((item, idx) => `
+    <tr class="cart-item-row">
+      <td>
+        <div class="fw-600 fs-13">${item.name}</div>
+        <div class="fs-12 text-muted">Stock: ${item.stock}</div>
+      </td>
+      <td>
+        <input type="number" class="form-control qty-input" min="1" max="${item.stock}"
+               value="${item.qty}" oninput="updateQty(${idx}, this.value)">
+      </td>
+      <td>
+        <input type="number" class="form-control price-input" step="0.01" min="0"
+               id="price-input-${idx}"
+               value="${item.price.toFixed(2)}" oninput="updatePrice(${idx}, this.value)">
+        <span class="price-status-icon" id="price-icon-${idx}"></span>
+        <div class="price-warning-text d-none" id="price-warn-${idx}">Below minimum price</div>
+      </td>
+      <td>
+        <input type="number" class="form-control qty-input" min="0" max="100" step="1"
+               value="${item.disc}" oninput="updateDisc(${idx}, this.value)">
+      </td>
+      <td class="fw-600 text-end" id="lineTotal-${idx}">GHS ${lineTotal(item).toFixed(2)}</td>
+      <td>
+        <button class="btn btn-icon btn-sm btn-outline-danger" onclick="removeFromCart(${item.id})">
+          <i class="fas fa-times"></i>
+        </button>
+      </td>
+    </tr>`).join('');
+
+  cart.forEach((item, idx) => validatePriceField(idx));
+  recalculate();
+}
+
+function lineTotal(item) {
+  const disc = item.price * (item.disc / 100);
+  return (item.price - disc) * item.qty;
+}
+
+/* ── Live price validation (instant, no page refresh) ──────── */
+function validatePriceField(idx) {
+  const item = cart[idx];
+  const input = document.getElementById(`price-input-${idx}`);
+  const icon = document.getElementById(`price-icon-${idx}`);
+  const warn = document.getElementById(`price-warn-${idx}`);
+  if (!input) return true;
+
+  const floor = item.companyPrice || 0;
+  const isValid = floor === 0 || item.price >= floor;
+
+  input.classList.toggle('price-valid', isValid);
+  input.classList.toggle('price-invalid', !isValid);
+  if (icon) {
+    icon.className = `price-status-icon fas ${isValid ? 'fa-check-circle valid' : 'fa-exclamation-triangle invalid'}`;
+  }
+  if (warn) warn.classList.toggle('d-none', isValid);
+
+  return isValid;
+}
+
+function allPricesValid() {
+  return cart.every((item, idx) => (item.companyPrice || 0) === 0 || item.price >= item.companyPrice);
+}
+
+function updateSubmitButtons() {
+  const valid = allPricesValid();
+  const banner = document.getElementById('priceWarningBanner');
+  banner.classList.toggle('d-none', valid);
+  document.getElementById('completeSaleBtn').disabled = !valid;
+  document.getElementById('saveDraftBtn').disabled = !valid;
+}
+
+function updateQty(idx, val) {
+  const qty = parseInt(val) || 1;
+  cart[idx].qty = Math.min(qty, cart[idx].stock);
+  document.getElementById(`lineTotal-${idx}`).textContent = 'GHS ' + lineTotal(cart[idx]).toFixed(2);
+  recalculate();
+}
+function updatePrice(idx, val) {
+  cart[idx].price = parseFloat(val) || 0;
+  validatePriceField(idx);
+  document.getElementById(`lineTotal-${idx}`).textContent = 'GHS ' + lineTotal(cart[idx]).toFixed(2);
+  recalculate();
+}
+function updateDisc(idx, val) {
+  cart[idx].disc = parseFloat(val) || 0;
+  document.getElementById(`lineTotal-${idx}`).textContent = 'GHS ' + lineTotal(cart[idx]).toFixed(2);
+  recalculate();
+}
+
+/* ── Recalculate totals ───────────────────────────────────── */
+function recalculate() {
+  const subtotal = cart.reduce((s, i) => s + lineTotal(i), 0);
+  const discPct  = parseFloat(document.getElementById('discountPct').value) || 0;
+  const taxPct   = parseFloat(document.getElementById('taxPct').value) || 0;
+  const discount = subtotal * discPct / 100;
+  const tax      = (subtotal - discount) * taxPct / 100;
+  const total    = subtotal - discount + tax;
+  const paid     = parseFloat(document.getElementById('amountPaid').value) || 0;
+  const balance  = Math.max(0, total - paid);
+
+  document.getElementById('subtotalDisplay').textContent = formatGHS(subtotal);
+  document.getElementById('discountDisplay').textContent = '- ' + formatGHS(discount);
+  document.getElementById('taxDisplay').textContent      = formatGHS(tax);
+  document.getElementById('totalDisplay').textContent     = formatGHS(total);
+  document.getElementById('balanceDue').textContent       = formatGHS(balance);
+
+  document.getElementById('amountPaid').max = total;
+  updateSubmitButtons();
+}
+
+/* ── Submit sale ──────────────────────────────────────────── */
+async function completeSale(status = 'completed') {
+  const customerId = document.getElementById('customerSelect').value;
+  if (!customerId) { Toast.show('Please select a customer.', 'warning'); return; }
+  if (!cart.length) { Toast.show('Cart is empty.', 'warning'); return; }
+  if (!allPricesValid()) { Toast.show('Fix prices below the minimum before completing the sale.', 'danger'); return; }
+
+  const payload = {
+    customer_id: parseInt(customerId),
+    van_id: parseInt(document.getElementById('vanSelect').value) || null,
+    payment_method: document.getElementById('paymentMethod').value,
+    discount_percent: parseFloat(document.getElementById('discountPct').value) || 0,
+    tax_percent: parseFloat(document.getElementById('taxPct').value) || 0,
+    amount_paid: parseFloat(document.getElementById('amountPaid').value) || 0,
+    notes: document.getElementById('saleNotes').value,
+    status,
+    items: cart.map(i => ({
+      product_id: i.id,
+      quantity: i.qty,
+      unit_price: i.price,
+      discount_percent: i.disc
+    }))
+  };
+
+  const btn = document.getElementById('completeSaleBtn');
+  try {
+    if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Processing...'; }
+    const res = await localApiCall('/sales/create', 'POST', payload);
+    if (res.success) {
+      document.getElementById('successMsg').textContent = `Invoice ${res.invoice_number} created successfully.`;
+      document.getElementById('viewInvoiceBtn').href = `/invoices/${res.sale_id}`;
+      new bootstrap.Modal(document.getElementById('successModal')).show();
+      if (res.credit_warning) {
+        Toast.show('⚠️ ' + res.credit_warning, 'warning', 6000);
+      }
+      cart = [];
+      renderCart();
+    } else {
+      Toast.show(res.error || 'Sale failed.', 'danger');
+    }
+  } catch(e) {
+    // The server re-validates price floors independently of the client —
+    // this surfaces that error clearly if it's ever hit (e.g. stale cart data).
+    Toast.show(e.message || 'Network error.', 'danger');
+  } finally {
+    if (btn) { btn.disabled = !allPricesValid(); btn.innerHTML = '<i class="fas fa-check-circle me-2"></i>Complete Sale'; }
+  }
+}
+
+function saveDraft() { completeSale('draft'); }
+
+function newSale() {
+  bootstrap.Modal.getInstance(document.getElementById('successModal'))?.hide();
+  document.getElementById('customerSelect').selectedIndex = 0;
+  document.getElementById('customerInfo').classList.add('d-none');
+  document.getElementById('discountPct').value = 0;
+  document.getElementById('taxPct').value = 0;
+  document.getElementById('amountPaid').value = '';
+  document.getElementById('saleNotes').value = '';
+  cart = [];
+  renderCart();
+}
+
+// Init
+renderCart();
+</script>
+{% endblock %}

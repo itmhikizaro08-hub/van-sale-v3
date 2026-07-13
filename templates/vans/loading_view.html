@@ -1,0 +1,63 @@
+{% extends 'base.html' %}
+{% block title %}{{ sheet.sheet_number }}{% endblock %}
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{{ url_for('vans.loading_index') }}">Loading Sheets</a></li>
+<li class="breadcrumb-item active">{{ sheet.sheet_number }}</li>
+{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title">{{ sheet.sheet_number }}</h1>
+    <div class="d-flex align-items-center gap-2 mt-1">
+      <span class="badge {{ sheet.status_badge }}">{{ sheet.status|title }}</span>
+      <span class="text-muted fs-12">{{ sheet.loading_date.strftime('%d %B %Y') if sheet.loading_date else '' }}</span>
+    </div>
+  </div>
+  <button onclick="window.print()" class="btn btn-outline-secondary btn-sm no-print"><i class="fas fa-print me-1"></i>Print</button>
+</div>
+
+<div class="row g-3">
+  <div class="col-md-8">
+    <div class="card">
+      <div class="card-header"><i class="fas fa-boxes me-2"></i>Products Loaded ({{ sheet.items|length }})</div>
+      <div class="card-body p-0">
+        <table class="table mb-0">
+          <thead><tr><th>#</th><th>Product</th><th>Code</th><th class="text-end">Qty Loaded</th></tr></thead>
+          <tbody>
+            {% for item in sheet.items %}
+            <tr>
+              <td class="text-muted fs-12">{{ loop.index }}</td>
+              <td class="fw-600">{{ item.product.product_name if item.product else '—' }}</td>
+              <td><code class="fs-12">{{ item.product.product_code if item.product else '' }}</code></td>
+              <td class="text-end fw-700 text-primary">{{ item.quantity }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card">
+      <div class="card-header"><i class="fas fa-info-circle me-2"></i>Custody Details</div>
+      <div class="card-body">
+        <div class="mb-3"><div class="text-muted fs-12">Sales Rep</div><div class="fw-700">{{ sheet.sales_rep.full_name if sheet.sales_rep else '—' }}</div></div>
+        <div class="mb-3"><div class="text-muted fs-12">Van</div><div class="fw-600">{{ sheet.van.van_number if sheet.van else '—' }}</div></div>
+        <div class="mb-3"><div class="text-muted fs-12">Issued By</div><div class="fw-600">{{ sheet.issued_by.full_name if sheet.issued_by else '—' }}</div></div>
+        <div class="mb-3"><div class="text-muted fs-12">Date</div><div class="fw-600">{{ sheet.loading_date.strftime('%d %B %Y') if sheet.loading_date else '—' }}</div></div>
+        {% if sheet.reference_note %}
+        <div class="mb-3"><div class="text-muted fs-12"><i class="fas fa-book text-info me-1"></i>Reference Note</div><div class="fw-600 text-info">{{ sheet.reference_note }}</div></div>
+        {% endif %}
+        {% if sheet.notes %}<div><div class="text-muted fs-12">Notes</div><div class="fs-13">{{ sheet.notes }}</div></div>{% endif %}
+      </div>
+    </div>
+    <div class="card mt-3 d-none d-print-block">
+      <div class="card-body">
+        <div style="margin-top:40px;border-top:1px solid #ccc;padding-top:8px;font-size:12px;color:#666">Rep Signature: ___________________________</div>
+        <div style="margin-top:30px;border-top:1px solid #ccc;padding-top:8px;font-size:12px;color:#666">Warehouse Signature: ______________________</div>
+        <div style="margin-top:30px;font-size:12px;color:#666">Date: _____________________________________</div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

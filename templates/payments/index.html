@@ -1,0 +1,128 @@
+{% extends 'base.html' %}
+{% block title %}Payments{% endblock %}
+{% block breadcrumb %}<li class="breadcrumb-item active">Payments</li>{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div><h1 class="page-title">Payments</h1></div>
+  {% if current_user.can_write('payments') %}
+  <a href="{{ url_for('payments.add') }}" class="btn btn-primary"><i class="fas fa-plus me-1"></i>Record Payment</a>
+  {% endif %}
+</div>
+
+<div class="row g-3 mb-3">
+  <div class="col-6 col-md-4">
+    <div class="stat-card success"><div class="stat-icon"><i class="fas fa-money-bill-wave"></i></div>
+      <div><div class="stat-label">Collected from Customers</div><div class="stat-value">GHS {{ "%.2f"|format(total_collected) }}</div><div class="stat-trend">{{ payments|length }} payments</div></div>
+    </div>
+  </div>
+  {% if supplier_payments is defined and supplier_payments is not none and current_user.scope('payments') != 'own' %}
+  <div class="col-6 col-md-4">
+    <div class="stat-card danger"><div class="stat-icon"><i class="fas fa-hand-holding-usd"></i></div>
+      <div><div class="stat-label">Paid to Suppliers</div><div class="stat-value">GHS {{ "%.2f"|format(total_paid_out) }}</div>
+        {% if pending_approval_count > 0 %}<div class="stat-trend">{{ pending_approval_count }} pending approval</div>{% endif %}
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-md-4">
+    <div class="stat-card {{ 'success' if net_cash_flow >= 0 else 'danger' }}"><div class="stat-icon"><i class="fas fa-balance-scale"></i></div>
+      <div><div class="stat-label">Net Cash Flow</div><div class="stat-value">GHS {{ "%.2f"|format(net_cash_flow) }}</div></div>
+    </div>
+  </div>
+  {% endif %}
+</div>
+
+<div class="card mb-3"><div class="card-body py-2">
+  <form method="GET" class="row g-2 align-items-end">
+    <div class="col-md-4"><label class="form-label">From</label><input type="date" name="start" class="form-control" value="{{ start }}"></div>
+    <div class="col-md-4"><label class="form-label">To</label><input type="date" name="end" class="form-control" value="{{ end }}"></div>
+    <div class="col-md-4"><button type="submit" class="btn btn-primary w-100"><i class="fas fa-filter me-1"></i>Filter</button></div>
+  </form>
+</div></div>
+
+<div class="card mb-3">
+  <div class="card-header"><i class="fas fa-arrow-down text-success me-2"></i>Collected from Customers</div>
+  <div class="card-body p-0"><div class="table-responsive">
+<table class="table table-hover dt-table mb-0" id="payTable">
+  <thead><tr><th>Payment #</th><th>Customer</th><th>Invoice</th><th>Date</th><th>Method</th><th class="text-end">Amount</th><th>Ref Note</th><th>Received By</th><th>Status</th><th></th></tr></thead>
+  <tbody>
+    {% for p in payments %}
+    {% set can_manage = current_user.can_write('payments') and (current_user.scope('payments') != 'own' or p.received_by_id == current_user.id) %}
+    <tr class="{{ 'opacity-50' if p.status == 'void' else '' }}">
+      <td class="fw-600">{{ p.payment_number }}</td>
+      <td>{{ p.customer.name if p.customer else '—' }}</td>
+      <td>
+        {% if p.sale %}
+        <a href="{{ url_for('invoices.view', sale_id=p.sale.id) }}" class="fs-12">{{ p.sale.invoice_number }}</a>
+        <span class="badge {{ p.sale.payment_badge }} ms-1">{{ p.sale.payment_status|title }}</span>
+        {% else %}<span class="text-muted fs-12">—</span>{% endif %}
+      </td>
+      <td class="text-muted fs-12">{{ p.payment_date.strftime('%d %b %Y') if p.payment_date else '' }}</td>
+      <td><span class="badge bg-info text-dark">{{ p.payment_method|replace('_',' ')|title }}</span></td>
+      <td class="text-end fw-700 {{ 'text-success' if p.status != 'void' else 'text-muted text-decoration-line-through' }}">GHS {{ "%.2f"|format(p.amount) }}</td>
+      <td>{% if p.reference_note %}<span class="ref-note-badge"><i class="fas fa-book me-1"></i>{{ p.reference_note[:20] }}</span>{% else %}<span class="text-muted fs-12">—</span>{% endif %}</td>
+      <td class="fs-12">{{ p.received_by.full_name if p.received_by else '—' }}</td>
+      <td><span class="badge {{ p.status_badge }}">{{ p.status|title }}</span></td>
+      <td class="text-nowrap">
+        <div class="d-flex gap-1">
+          {% if p.status != 'void' and can_manage %}
+          <a href="{{ url_for('payments.edit', payment_id=p.id) }}" class="btn btn-icon btn-sm btn-outline-secondary" title="Edit"><i class="fas fa-edit"></i></a>
+          <button class="btn btn-icon btn-sm btn-outline-warning" title="Void"
+                  data-action-url="{{ url_for('payments.void', payment_id=p.id) }}"
+                  data-confirm="Void payment {{ p.payment_number }} (GHS {{ '%.2f'|format(p.amount) }})? This reverses it and restores the customer's balance."
+                  data-success-msg="Payment voided."><i class="fas fa-ban"></i></button>
+          {% elif p.status == 'void' and current_user.is_admin %}
+          <button class="btn btn-icon btn-sm btn-outline-danger" title="Delete permanently"
+                  data-action-url="{{ url_for('payments.delete', payment_id=p.id) }}"
+                  data-confirm="Permanently delete voided payment {{ p.payment_number }}? This cannot be undone."
+                  data-success-msg="Payment deleted."><i class="fas fa-trash"></i></button>
+          {% endif %}
+        </div>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div></div></div>
+
+{% if supplier_payments is defined and supplier_payments is not none and current_user.scope('payments') != 'own' %}
+<div class="card">
+  <div class="card-header"><i class="fas fa-arrow-up text-danger me-2"></i>Paid to Suppliers</div>
+  <div class="card-body p-0"><div class="table-responsive">
+<table class="table table-hover dt-table mb-0" id="suppPayTable">
+  <thead><tr><th>Payment #</th><th>Supplier</th><th>Date</th><th>Method</th><th class="text-end">Amount</th><th>Ref Note</th><th>Paid By</th><th>Status</th>{% if current_user.can_approve_module('suppliers') %}<th></th>{% endif %}</tr></thead>
+  <tbody>
+    {% for p in supplier_payments %}
+    <tr>
+      <td class="fw-600">{{ p.payment_number }}</td>
+      <td><a href="{{ url_for('suppliers.view', supplier_id=p.supplier_id) }}">{{ p.supplier.name if p.supplier else '—' }}</a></td>
+      <td class="text-muted fs-12">{{ p.payment_date.strftime('%d %b %Y') if p.payment_date else '' }}</td>
+      <td><span class="badge {{ p.method_badge }}">{{ p.payment_method|replace('_',' ')|title }}</span></td>
+      <td class="text-end fw-700 {{ 'text-danger' if p.status == 'approved' else 'text-muted' }}">GHS {{ "%.2f"|format(p.amount) }}</td>
+      <td>{% if p.reference_note %}<span class="ref-note-badge"><i class="fas fa-book me-1"></i>{{ p.reference_note[:20] }}</span>{% else %}<span class="text-muted fs-12">—</span>{% endif %}</td>
+      <td class="fs-12">{{ p.paid_by.full_name if p.paid_by else '—' }}</td>
+      <td><span class="badge {{ p.status_badge }}">{{ p.status|title }}</span></td>
+      {% if current_user.can_approve_module('suppliers') %}
+      <td>
+        {% if p.status == 'pending' %}
+        <div class="d-flex gap-1">
+          <button class="btn btn-icon btn-sm btn-outline-success" data-action-url="{{ url_for('suppliers.approve_payment', payment_id=p.id) }}" data-confirm="Approve this GHS {{ '%.2f'|format(p.amount) }} payment to {{ p.supplier.name if p.supplier else 'this supplier' }}?" data-success-msg="Payment approved."><i class="fas fa-check"></i></button>
+          <button class="btn btn-icon btn-sm btn-outline-danger" data-action-url="{{ url_for('suppliers.reject_payment', payment_id=p.id) }}" data-confirm="Reject this payment proposal?" data-success-msg="Payment rejected."><i class="fas fa-times"></i></button>
+        </div>
+        {% endif %}
+      </td>
+      {% endif %}
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div></div></div>
+{% endif %}
+{% endblock %}
+{% block extra_js %}
+<script>
+$(document).ready(() => {
+  initDataTable('#payTable', {order:[[3,'desc']]});
+  if (document.getElementById('suppPayTable')) initDataTable('#suppPayTable', {order:[[2,'desc']]});
+});
+</script>
+{% endblock %}

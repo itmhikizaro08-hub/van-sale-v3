@@ -1,0 +1,17 @@
+{% extends 'base.html' %}{% block title %}Low Stock{% endblock %}{% block content %}
+<div class="page-header"><div><h1 class="page-title">Low Stock Alert</h1><p class="page-subtitle">Products at or below reorder level</p></div></div>
+<div class="card"><div class="card-body p-0"><div class="table-responsive">
+<table class="table table-hover dt-table mb-0" id="lowTable">
+  <thead><tr><th>Code</th><th>Product</th><th class="text-center">Stock</th><th class="text-center">Reorder Level</th><th>Status</th></tr></thead>
+  <tbody>{% for p in products %}<tr>
+    <td><code class="fs-12">{{ p.product_code }}</code></td>
+    <td class="fw-600">{{ p.product_name }}</td>
+    <td class="text-center"><span class="badge {{ 'bg-danger' if p.stock_quantity == 0 else 'bg-warning text-dark' }}">{{ p.stock_quantity }}</span></td>
+    <td class="text-center text-muted">{{ p.reorder_level }}</td>
+    <td>{% if p.stock_quantity == 0 %}<span class="badge bg-danger">Out of Stock</span>{% else %}<span class="badge bg-warning text-dark">Low Stock</span>{% endif %}</td>
+  </tr>{% endfor %}
+  </tbody>
+</table>
+</div></div></div>
+{% endblock %}
+{% block extra_js %}<script>$(document).ready(() => initDataTable('#lowTable', {order:[[2,'asc']]}));</script>{% endblock %}

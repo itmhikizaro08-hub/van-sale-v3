@@ -1,0 +1,81 @@
+{% extends 'base.html' %}
+{% block title %}Rep Statement{% endblock %}
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{{ url_for('reports.index') }}">Reports</a></li>
+<li class="breadcrumb-item active">Rep Statement</li>
+{% endblock %}
+{% block content %}
+<div class="page-header"><h1 class="page-title">Sales Rep Statement</h1></div>
+
+<div class="card mb-3"><div class="card-body py-2">
+  <form method="GET" class="row g-2 align-items-end">
+    {% if not own_scope %}
+    <div class="col-md-4">
+      <label class="form-label">Sales Rep</label>
+      <select name="rep_id" class="form-select">
+        {% for r in reps %}
+        <option value="{{ r.id }}" {{ 'selected' if rep and r.id == rep.id else '' }}>{{ r.full_name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    {% endif %}
+    <div class="col-md-3"><label class="form-label">From</label><input type="date" name="start" class="form-control" value="{{ start }}"></div>
+    <div class="col-md-3"><label class="form-label">To</label><input type="date" name="end" class="form-control" value="{{ end }}"></div>
+    <div class="col-md-2"><button type="submit" class="btn btn-primary w-100"><i class="fas fa-filter me-1"></i>Go</button></div>
+  </form>
+</div></div>
+
+{% if not rep %}
+<div class="empty-state py-5"><i class="fas fa-user-slash" style="font-size:2.5rem;color:var(--text-muted)"></i><h6 class="mt-3">No sales reps found</h6></div>
+{% else %}
+<div class="page-header mb-2"><h2 class="fs-18 fw-700 mb-0">{{ rep.full_name }}</h2></div>
+
+<div class="row g-3 mb-3">
+  <div class="col-6 col-md-3">
+    <div class="stat-card primary"><div class="stat-icon"><i class="fas fa-shopping-cart"></i></div>
+      <div><div class="stat-label">Sales</div><div class="stat-value">{{ sales_count }}</div><div class="stat-trend">GHS {{ "%.2f"|format(sales_total) }}</div></div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="stat-card info"><div class="stat-icon"><i class="fas fa-building"></i></div>
+      <div><div class="stat-label">Company Sales</div><div class="stat-value" style="font-size:16px">GHS {{ "%.2f"|format(company_sales_total) }}</div></div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="stat-card success"><div class="stat-icon"><i class="fas fa-coins"></i></div>
+      <div><div class="stat-label">Tips Earned</div><div class="stat-value" style="font-size:16px">GHS {{ "%.2f"|format(tips_total) }}</div></div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="stat-card {{ 'danger' if liability_value > 0 else 'success' }}"><div class="stat-icon"><i class="fas fa-truck-loading"></i></div>
+      <div><div class="stat-label">Van Stock Liability</div><div class="stat-value" style="font-size:16px">GHS {{ "%.2f"|format(liability_value) }}</div>
+        <div class="stat-trend">as of today, {{ liability_qty }} units</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="row g-3">
+  <div class="col-md-6">
+    <div class="card h-100">
+      <div class="card-header"><i class="fas fa-cash-register me-2"></i>Cash Reconciliation (This Period)</div>
+      <div class="card-body">
+        <div class="mb-2 d-flex justify-content-between"><span class="text-muted fs-12">Collected (Cash)</span><span class="fw-600">GHS {{ "%.2f"|format(cash.collected) }}</span></div>
+        <div class="mb-2 d-flex justify-content-between"><span class="text-muted fs-12">Declared</span><span class="fw-600">GHS {{ "%.2f"|format(cash.declared) }}</span></div>
+        <div class="d-flex justify-content-between"><span class="text-muted fs-12">Verified by Cashier</span><span class="fw-600">GHS {{ "%.2f"|format(cash.verified) }}</span></div>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-6">
+    <div class="card h-100">
+      <div class="card-header"><i class="fas fa-dolly me-2"></i>Stock Offloaded (This Period)</div>
+      <div class="card-body">
+        <div class="mb-2 d-flex justify-content-between"><span class="text-muted fs-12">Offload Submissions</span><span class="fw-600">{{ offload_count }}</span></div>
+        <div class="d-flex justify-content-between"><span class="text-muted fs-12">Value Received by Warehouse</span><span class="fw-600">GHS {{ "%.2f"|format(offload_value) }}</span></div>
+        <div class="form-text mt-2">Van Stock Liability above is a live snapshot of what the rep currently holds — it isn't limited to this date range.</div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}
+{% endblock %}

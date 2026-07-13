@@ -1,0 +1,10 @@
+{% extends 'base.html' %}{% block title %}Categories{% endblock %}{% block content %}
+<div class="page-header"><div><h1 class="page-title">Product Categories</h1></div></div>
+<div class="card"><div class="card-body p-0"><div class="table-responsive">
+<table class="table table-hover dt-table mb-0" id="catTable">
+  <thead><tr><th>Category</th><th>Products</th></tr></thead>
+  <tbody>{% for c in categories %}<tr><td class="fw-600">{{ c.name }}</td><td><span class="badge bg-secondary">{{ c.products.count() }}</span></td></tr>{% endfor %}</tbody>
+</table>
+</div></div></div>
+{% endblock %}
+{% block extra_js %}<script>$(document).ready(() => initDataTable('#catTable'));</script>{% endblock %}

@@ -1,0 +1,190 @@
+{% extends 'base.html' %}
+{% block title %}{{ supplier.name }}{% endblock %}
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{{ url_for('suppliers.index') }}">Suppliers</a></li>
+<li class="breadcrumb-item active">{{ supplier.name }}</li>
+{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div class="d-flex align-items-center gap-3">
+    <div class="user-avatar" style="width:52px;height:52px;font-size:22px">{{ supplier.name[0].upper() }}</div>
+    <div>
+      <h1 class="page-title mb-0">{{ supplier.name }}</h1>
+      <div class="d-flex align-items-center gap-2 mt-1">
+        <code class="fs-12">{{ supplier.supplier_code }}</code>
+        <span class="badge {{ 'bg-success' if supplier.status == 'active' else 'bg-secondary' }}">{{ supplier.status|title }}</span>
+      </div>
+    </div>
+  </div>
+  <div class="d-flex gap-2">
+    <a href="{{ url_for('suppliers.statement', supplier_id=supplier.id) }}" class="btn btn-outline-primary btn-sm"><i class="fas fa-file-invoice-dollar me-1"></i>Statement</a>
+    {% if current_user.can_write('suppliers') %}
+    <a href="{{ url_for('suppliers.edit', supplier_id=supplier.id) }}" class="btn btn-outline-secondary btn-sm"><i class="fas fa-edit me-1"></i>Edit</a>
+    {% if supplier.outstanding_balance > 0 %}
+    <a href="{{ url_for('suppliers.pay', supplier_id=supplier.id) }}" class="btn btn-success btn-sm"><i class="fas fa-money-bill me-1"></i>Pay Supplier</a>
+    {% endif %}
+    {% endif %}
+  </div>
+</div>
+
+<div class="row g-3 mb-4">
+  <div class="col-6 col-md-3">
+    <div class="stat-card {{ 'danger' if supplier.outstanding_balance > 0 else 'success' }}">
+      <div class="stat-icon"><i class="fas fa-exclamation-circle"></i></div>
+      <div><div class="stat-label">Balance Owed</div><div class="stat-value">GHS {{ "%.2f"|format(supplier.outstanding_balance) }}</div></div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="stat-card primary">
+      <div class="stat-icon"><i class="fas fa-truck-loading"></i></div>
+      <div><div class="stat-label">Deliveries</div><div class="stat-value">{{ delivery_count }}</div></div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="stat-card info">
+      <div class="stat-icon"><i class="fas fa-coins"></i></div>
+      <div><div class="stat-label">Total Purchased</div><div class="stat-value" style="font-size:16px">GHS {{ "%.2f"|format(total_value) }}</div></div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="stat-card success">
+      <div class="stat-icon"><i class="fas fa-hand-holding-usd"></i></div>
+      <div><div class="stat-label">Total Paid</div><div class="stat-value" style="font-size:16px">GHS {{ "%.2f"|format(total_paid) }}</div>
+        {% if pending_count > 0 %}<div class="stat-trend">{{ pending_count }} pending approval</div>{% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="card mb-3"><div class="card-body py-2">
+  <form method="GET" class="row g-2 align-items-end">
+    <div class="col-md-4"><label class="form-label">From</label><input type="date" name="start" class="form-control" value="{{ start }}"></div>
+    <div class="col-md-4"><label class="form-label">To</label><input type="date" name="end" class="form-control" value="{{ end }}"></div>
+    <div class="col-md-4"><button type="submit" class="btn btn-primary w-100"><i class="fas fa-filter me-1"></i>Filter</button></div>
+  </form>
+</div></div>
+
+<div class="row g-3">
+  <div class="col-md-4">
+    <div class="card">
+      <div class="card-header"><i class="fas fa-address-card me-2"></i>Contact Details</div>
+      <div class="card-body">
+        <div class="mb-3"><div class="text-muted fs-12 mb-1">Contact Person</div><div class="fw-600">{{ supplier.contact_person or '—' }}</div></div>
+        <div class="mb-3"><div class="text-muted fs-12 mb-1">Phone</div><div class="fw-600">{{ supplier.phone or '—' }}</div></div>
+        <div class="mb-3"><div class="text-muted fs-12 mb-1">Email</div><div class="fw-600">{{ supplier.email or '—' }}</div></div>
+        <div class="mb-3"><div class="text-muted fs-12 mb-1">Address</div><div>{{ supplier.address or '—' }}</div></div>
+        <div><div class="text-muted fs-12 mb-1">Member Since</div><div>{{ supplier.created_at.strftime('%d %b %Y') if supplier.created_at else '—' }}</div></div>
+      </div>
+    </div>
+
+    <div class="card mt-3">
+      <div class="card-header"><i class="fas fa-cog me-2"></i>Account Info</div>
+      <div class="card-body">
+        <div class="mb-2 d-flex justify-content-between"><span class="text-muted fs-12">Payment Terms</span><span class="fw-600">{{ supplier.payment_terms or '—' }}</span></div>
+        {% if supplier.notes %}
+        <div class="mt-2"><div class="text-muted fs-12 mb-1">Notes</div><div class="fs-13">{{ supplier.notes }}</div></div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-8">
+    <div class="card">
+      <div class="card-header p-0">
+        <ul class="nav nav-tabs border-0 px-3 pt-2" id="supplierTabs">
+          <li class="nav-item">
+            <a class="nav-link active" data-bs-toggle="tab" href="#deliveriesTab">
+              <i class="fas fa-truck-loading me-1"></i>Deliveries ({{ deliveries|length }})
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" data-bs-toggle="tab" href="#paymentsTab">
+              <i class="fas fa-money-bill me-1"></i>Payments ({{ payments|length }})
+            </a>
+          </li>
+        </ul>
+      </div>
+      <div class="card-body p-0">
+        <div class="tab-content">
+          <div class="tab-pane fade show active p-0" id="deliveriesTab">
+            {% if deliveries %}
+            <div class="p-3 pb-0">
+              <input type="text" class="form-control form-control-sm tab-search" data-target="deliveryTableBody" placeholder="Search product, date, ref note...">
+            </div>
+            <div class="table-responsive">
+              <table class="table table-hover mb-0">
+                <thead><tr><th>Date</th><th>Product</th><th class="text-end">Qty</th><th class="text-end">Value</th><th>Ref Note</th></tr></thead>
+                <tbody id="deliveryTableBody">
+                  {% for m in deliveries %}
+                  <tr>
+                    <td class="text-muted fs-12">{{ m.created_at.strftime('%d %b %Y %H:%M') if m.created_at else '' }}</td>
+                    <td class="fw-600">{{ m.product.product_name if m.product else '—' }}</td>
+                    <td class="text-end">{{ m.quantity }}</td>
+                    <td class="text-end fw-600">GHS {{ "%.2f"|format(m.quantity * (m.product.cost_price if m.product else 0)) }}</td>
+                    <td>{% if m.reference_note %}<span class="ref-note-badge"><i class="fas fa-book me-1"></i>{{ m.reference_note[:20] }}</span>{% else %}<span class="text-muted fs-12">—</span>{% endif %}</td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+            {% else %}
+            <div class="empty-state py-5"><i class="fas fa-truck-loading" style="font-size:2.5rem;color:var(--text-muted)"></i><h6 class="mt-3">No deliveries yet</h6><p class="text-muted">Stock received from this supplier will show up here.</p></div>
+            {% endif %}
+          </div>
+
+          <div class="tab-pane fade p-0" id="paymentsTab">
+            {% if payments %}
+            <div class="p-3 pb-0">
+              <input type="text" class="form-control form-control-sm tab-search" data-target="paymentTableBody" placeholder="Search reference, date, method...">
+            </div>
+            <div class="table-responsive">
+              <table class="table table-hover mb-0">
+                <thead><tr><th>Ref #</th><th>Date</th><th class="text-end">Amount</th><th>Method</th><th>Ref Note</th><th>Status</th>{% if current_user.can_approve_module('suppliers') %}<th></th>{% endif %}</tr></thead>
+                <tbody id="paymentTableBody">
+                  {% for p in payments %}
+                  <tr>
+                    <td><code class="fs-12">{{ p.payment_number }}</code></td>
+                    <td class="text-muted fs-12">{{ p.payment_date.strftime('%d %b %Y') if p.payment_date else '' }}</td>
+                    <td class="text-end fw-700 {{ 'text-success' if p.status == 'approved' else 'text-muted' }}">GHS {{ "%.2f"|format(p.amount) }}</td>
+                    <td><span class="badge {{ p.method_badge }}">{{ p.payment_method|replace('_',' ')|title }}</span></td>
+                    <td>{% if p.reference_note %}<span class="ref-note-badge"><i class="fas fa-book me-1"></i>{{ p.reference_note[:20] }}</span>{% else %}<span class="text-muted fs-12">—</span>{% endif %}</td>
+                    <td><span class="badge {{ p.status_badge }}">{{ p.status|title }}</span></td>
+                    {% if current_user.can_approve_module('suppliers') %}
+                    <td>
+                      {% if p.status == 'pending' %}
+                      <div class="d-flex gap-1">
+                        <button class="btn btn-icon btn-sm btn-outline-success" data-action-url="{{ url_for('suppliers.approve_payment', payment_id=p.id) }}" data-confirm="Approve this GHS {{ '%.2f'|format(p.amount) }} payment to {{ supplier.name }}?" data-success-msg="Payment approved."><i class="fas fa-check"></i></button>
+                        <button class="btn btn-icon btn-sm btn-outline-danger" data-action-url="{{ url_for('suppliers.reject_payment', payment_id=p.id) }}" data-confirm="Reject this payment proposal?" data-success-msg="Payment rejected."><i class="fas fa-times"></i></button>
+                      </div>
+                      {% endif %}
+                    </td>
+                    {% endif %}
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+            {% else %}
+            <div class="empty-state py-5"><i class="fas fa-money-bill-wave" style="font-size:2.5rem;color:var(--text-muted)"></i><h6 class="mt-3">No payments yet</h6><p class="text-muted">Payments made to this supplier will show up here.</p></div>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script>
+document.querySelectorAll('.tab-search').forEach(input => {
+  input.addEventListener('input', function () {
+    const q = this.value.trim().toLowerCase();
+    const tbody = document.getElementById(this.dataset.target);
+    if (!tbody) return;
+    tbody.querySelectorAll('tr').forEach(row => {
+      row.style.display = !q || row.textContent.toLowerCase().includes(q) ? '' : 'none';
+    });
+  });
+});
+</script>
+{% endblock %}

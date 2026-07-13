@@ -1,0 +1,38 @@
+{% extends 'base.html' %}
+{% block title %}Rep Stock Liability{% endblock %}
+{% block breadcrumb %}<li class="breadcrumb-item"><a href="{{ url_for('reports.index') }}">Reports</a></li><li class="breadcrumb-item active">Rep Liability</li>{% endblock %}
+{% block content %}
+<div class="page-header"><div><h1 class="page-title">Rep Stock Liability</h1><p class="page-subtitle">Current field custody — as of now</p></div><button onclick="window.print()" class="btn btn-outline-secondary btn-sm no-print"><i class="fas fa-print me-1"></i>Print</button></div>
+<div class="row g-3 mb-4">
+  <div class="col-md-4"><div class="stat-card danger"><div class="stat-icon"><i class="fas fa-id-badge"></i></div><div><div class="stat-label">Reps with Stock</div><div class="stat-value">{{ liabilities|length }}</div></div></div></div>
+  <div class="col-md-4"><div class="stat-card warning"><div class="stat-icon"><i class="fas fa-coins"></i></div><div><div class="stat-label">Total Field Value</div><div class="stat-value" style="font-size:16px">GHS {{ "%.2f"|format(total_value) }}</div></div></div></div>
+</div>
+{% for rep_data in liabilities %}
+<div class="card mb-3">
+  <div class="card-header d-flex align-items-center justify-content-between">
+    <div class="d-flex align-items-center gap-2">
+      <div class="user-avatar" style="width:36px;height:36px;font-size:15px;background:var(--brand);color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center">{{ rep_data.rep.full_name[0] }}</div>
+      <div><div class="fw-700">{{ rep_data.rep.full_name }}</div><div class="text-muted fs-12">{{ rep_data.rep.role_label }} • Vans: {{ rep_data.vans|join(', ') }}</div></div>
+    </div>
+    <div class="text-end"><div class="fw-800 text-danger fs-15">GHS {{ "%.2f"|format(rep_data.total_value) }}</div><div class="text-muted fs-12">{{ rep_data.total_qty }} units</div></div>
+  </div>
+  <div class="card-body p-0">
+    <table class="table table-hover mb-0">
+      <thead><tr><th>Product</th><th>Van</th><th>Qty</th>{% if current_user.see_cost_prices() %}<th class="text-end">Value</th>{% endif %}</tr></thead>
+      <tbody>
+        {% for item in rep_data['items'] %}
+        <tr>
+          <td class="fw-600">{{ item.product.product_name if item.product else '—' }}</td>
+          <td>{{ item.van.van_number if item.van else '—' }}</td>
+          <td>{{ item.quantity }}</td>
+          {% if current_user.see_cost_prices() %}<td class="text-end fw-700">GHS {{ "%.2f"|format(item.quantity * (item.product.cost_price if item.product else 0)) }}</td>{% endif %}
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% else %}
+<div class="empty-state"><i class="fas fa-id-badge"></i><h5>No reps with field stock</h5></div>
+{% endfor %}
+{% endblock %}

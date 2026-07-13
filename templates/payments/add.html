@@ -1,0 +1,139 @@
+{% extends 'base.html' %}
+{% block title %}Record Payment{% endblock %}
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{{ url_for('payments.index') }}">Payments</a></li>
+<li class="breadcrumb-item active">Record Payment</li>
+{% endblock %}
+{% block content %}
+<div class="page-header"><h1 class="page-title">Record Payment</h1></div>
+<div class="row justify-content-center"><div class="col-md-6">
+<form method="POST" id="paymentForm"><div class="card">
+  <div class="card-header"><i class="fas fa-money-bill me-2"></i>Payment Details</div>
+  <div class="card-body">
+    <div class="mb-3">
+      <label class="form-label">Customer <span class="text-danger">*</span></label>
+      <select name="customer_id" id="customerSelect" class="form-select" required>
+        <option value="">— Select Customer —</option>
+        {% for c in customers %}
+        <option value="{{ c.id }}" {{ 'selected' if preselect_customer_id == c.id }}>
+          {{ c.name }} — Owed: GHS {{ "%.2f"|format(c.outstanding_balance) }}
+        </option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="mb-3">
+      <label class="form-label">Invoice <span class="text-danger">*</span></label>
+      <select name="sale_id" id="saleSelect" class="form-select" required disabled>
+        <option value="">— Select a customer first —</option>
+      </select>
+      <div class="form-text" id="saleHelpText"></div>
+    </div>
+    <div class="mb-3">
+      <label class="form-label">Amount (GHS) <span class="text-danger">*</span></label>
+      <div class="input-group"><span class="input-group-text">GHS</span>
+      <input type="number" name="amount" id="amountInput" class="form-control" step="0.01" min="0.01" required disabled></div>
+    </div>
+    <div class="mb-3">
+      <label class="form-label">Payment Method</label>
+      <select name="payment_method" class="form-select">
+        <option value="cash">Cash</option>
+        <option value="mobile_money">Mobile Money</option>
+        <option value="bank_transfer">Bank Transfer</option>
+        <option value="cheque">Cheque</option>
+      </select>
+    </div>
+    <div class="mb-3">
+      <label class="form-label">Reference Number</label>
+      <input type="text" name="reference_number" class="form-control" placeholder="MoMo ref, cheque #, etc.">
+    </div>
+    <div class="mb-3">
+      <label class="form-label"><i class="fas fa-book text-info me-1"></i>Reference Note</label>
+      <input type="text" name="reference_note" class="form-control" placeholder="e.g. Book pg 5, receipt #45">
+      <div class="form-text"><i class="fas fa-info-circle text-info me-1"></i>Cross-check with your physical records.</div>
+    </div>
+    <div class="mb-3">
+      <label class="form-label">Notes</label>
+      <textarea name="notes" class="form-control" rows="2"></textarea>
+    </div>
+  </div>
+  <div class="card-footer d-flex gap-2">
+    <button type="submit" class="btn btn-success" id="submitBtn" disabled><i class="fas fa-save me-1"></i>Record Payment</button>
+    <a href="{{ url_for('payments.index') }}" class="btn btn-outline-secondary">Cancel</a>
+  </div>
+</div></form>
+</div></div>
+{% endblock %}
+{% block extra_js %}
+<script>
+const customerSelect = document.getElementById('customerSelect');
+const saleSelect = document.getElementById('saleSelect');
+const amountInput = document.getElementById('amountInput');
+const submitBtn = document.getElementById('submitBtn');
+const saleHelpText = document.getElementById('saleHelpText');
+
+const preselectSaleId = {{ preselect_sale_id or 'null' }};
+
+async function loadCustomerInvoices(customerId, selectSaleId) {
+  saleSelect.disabled = true;
+  amountInput.disabled = true;
+  submitBtn.disabled = true;
+  saleSelect.innerHTML = '<option value="">Loading…</option>';
+  saleHelpText.textContent = '';
+
+  if (!customerId) {
+    saleSelect.innerHTML = '<option value="">— Select a customer first —</option>';
+    return;
+  }
+
+  try {
+    const sales = await apiCall(`/payments/api/customer-sales/${customerId}`);
+    if (!sales.length) {
+      saleSelect.innerHTML = '<option value="">— No outstanding invoices —</option>';
+      saleHelpText.textContent = 'This customer has no unpaid or partially paid invoices.';
+      return;
+    }
+    saleSelect.innerHTML = '<option value="">— Select Invoice —</option>' + sales.map(s => `
+      <option value="${s.id}" data-balance="${s.balance_due}">
+        ${s.invoice_number} — GHS ${s.balance_due.toFixed(2)} due (${s.payment_status})
+      </option>`).join('');
+    saleSelect.disabled = false;
+
+    if (selectSaleId) {
+      saleSelect.value = selectSaleId;
+      onSaleChange();
+    }
+  } catch {
+    saleSelect.innerHTML = '<option value="">— Failed to load invoices —</option>';
+    Toast.show('Could not load this customer\'s invoices.', 'danger');
+  }
+}
+
+function onSaleChange() {
+  const opt = saleSelect.selectedOptions[0];
+  if (opt && opt.value) {
+    amountInput.value = parseFloat(opt.dataset.balance).toFixed(2);
+    amountInput.max = opt.dataset.balance;
+    amountInput.disabled = false;
+    submitBtn.disabled = false;
+  } else {
+    amountInput.value = '';
+    amountInput.disabled = true;
+    submitBtn.disabled = true;
+  }
+}
+
+customerSelect.addEventListener('change', () => loadCustomerInvoices(customerSelect.value));
+saleSelect.addEventListener('change', onSaleChange);
+
+// Prevent a double-click (or repeated Enter) from firing two submissions
+// before the page has a chance to navigate away.
+document.getElementById('paymentForm').addEventListener('submit', () => {
+  submitBtn.disabled = true;
+  submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Saving…';
+});
+
+if (customerSelect.value) {
+  loadCustomerInvoices(customerSelect.value, preselectSaleId);
+}
+</script>
+{% endblock %}

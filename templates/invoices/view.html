@@ -1,0 +1,127 @@
+{% extends 'base.html' %}
+{% block title %}{{ sale.invoice_number }}{% endblock %}
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{{ url_for('invoices.index') }}">Invoices</a></li>
+<li class="breadcrumb-item active">{{ sale.invoice_number }}</li>
+{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title">{{ sale.invoice_number }}</h1>
+    <div class="d-flex gap-2 mt-1">
+      <span class="badge {{ sale.status_badge }}">{{ sale.status|title }}</span>
+      <span class="badge {{ sale.payment_badge }}">{{ sale.payment_status|title }}</span>
+    </div>
+  </div>
+  <div class="d-flex gap-2">
+    <button onclick="window.print()" class="btn btn-outline-secondary btn-sm no-print"><i class="fas fa-print me-1"></i>Print</button>
+    {% if sale.status == 'completed' and current_user.is_manager %}
+    <button class="btn btn-outline-danger btn-sm"
+      data-action-url="{{ url_for('sales.cancel', sale_id=sale.id) }}"
+      data-confirm="Cancel invoice {{ sale.invoice_number }}?"
+      data-success-msg="Sale cancelled.">
+      <i class="fas fa-times me-1"></i>Cancel
+    </button>
+    {% endif %}
+  </div>
+</div>
+
+<div class="row g-3">
+  <div class="col-md-8">
+    <div class="card">
+      <div class="card-header"><i class="fas fa-boxes me-2"></i>Line Items</div>
+      <div class="card-body p-0">
+        <table class="table mb-0">
+          <thead><tr><th>#</th><th>Product</th><th class="text-center">Qty</th><th class="text-end">Unit Price</th><th class="text-end">Total</th></tr></thead>
+          <tbody>
+            {% for item in sale.items %}
+            <tr>
+              <td class="text-muted fs-12">{{ loop.index }}</td>
+              <td class="fw-600">{{ item.product.product_name if item.product else '—' }}<div class="text-muted fs-12">{{ item.product.product_code if item.product else '' }}</div></td>
+              <td class="text-center">{{ item.quantity }}</td>
+              <td class="text-end">GHS {{ "%.2f"|format(item.unit_price) }}</td>
+              <td class="text-end fw-600">GHS {{ "%.2f"|format(item.line_total) }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+          <tfoot>
+            <tr><td colspan="4" class="text-end fw-600">Subtotal</td><td class="text-end">GHS {{ "%.2f"|format(sale.subtotal) }}</td></tr>
+            {% if sale.discount_amount > 0 %}<tr><td colspan="4" class="text-end text-muted">Discount</td><td class="text-end text-danger">- GHS {{ "%.2f"|format(sale.discount_amount) }}</td></tr>{% endif %}
+            {% if sale.tax_amount > 0 %}<tr><td colspan="4" class="text-end text-muted">Tax</td><td class="text-end">GHS {{ "%.2f"|format(sale.tax_amount) }}</td></tr>{% endif %}
+            <tr><td colspan="4" class="text-end fw-800 fs-14">TOTAL</td><td class="text-end fw-800 fs-14 text-primary">GHS {{ "%.2f"|format(sale.total_amount) }}</td></tr>
+            <tr><td colspan="4" class="text-end text-success">Paid</td><td class="text-end text-success fw-600">GHS {{ "%.2f"|format(sale.amount_paid) }}</td></tr>
+            <tr><td colspan="4" class="text-end {{ 'text-danger' if sale.balance_due > 0 else 'text-muted' }}">Balance Due</td>
+                <td class="text-end fw-700 {{ 'text-danger' if sale.balance_due > 0 else 'text-muted' }}">GHS {{ "%.2f"|format(sale.balance_due) }}</td></tr>
+          </tfoot>
+        </table>
+      </div>
+    </div>
+
+    {# Admin/Manager tips panel — completely hidden from all other roles, and never printed #}
+    {% if current_user.can_access('tips') and current_user.role in ('admin','manager') and sale.has_tips %}
+    <div class="card mt-3 no-print" style="border-color:#16a34a">
+      <div class="card-header" style="background:#f0fdf4;color:#166534">
+        <i class="fas fa-coins me-2"></i>Tip Breakdown <span class="badge bg-success ms-1">Admin View</span>
+      </div>
+      <div class="card-body p-0">
+        <table class="table mb-0">
+          <thead><tr><th>Product</th><th class="text-end">Official Price</th><th class="text-end">Tip/Unit</th><th class="text-end">Final Price</th><th class="text-end">Qty</th><th class="text-end">Tip Total</th></tr></thead>
+          <tbody>
+            {% for item in sale.items %}{% if item.tip_amount > 0 %}
+            <tr>
+              <td class="fw-600">{{ item.product.product_name if item.product else '—' }}</td>
+              <td class="text-end text-muted">GHS {{ "%.2f"|format(item.official_price) }}</td>
+              <td class="text-end"><span class="badge bg-success">+ GHS {{ "%.2f"|format(item.tip_amount) }}</span></td>
+              <td class="text-end fw-600">GHS {{ "%.2f"|format(item.unit_price) }}</td>
+              <td class="text-end">{{ item.quantity }}</td>
+              <td class="text-end fw-700 text-success">GHS {{ "%.2f"|format(item.tip_line_total) }}</td>
+            </tr>
+            {% endif %}{% endfor %}
+          </tbody>
+          <tfoot><tr><td colspan="5" class="text-end fw-700">Total Tips</td><td class="text-end fw-800 text-success">GHS {{ "%.2f"|format(sale.total_tips) }}</td></tr></tfoot>
+        </table>
+      </div>
+    </div>
+    {% endif %}
+
+    {# Rep sees own tips only on own invoices — never printed #}
+    {% if current_user.is_rep and sale.sales_rep_id == current_user.id and sale.has_tips %}
+    <div class="card mt-3 no-print" style="border-color:#16a34a">
+      <div class="card-header" style="background:#f0fdf4;color:#166534"><i class="fas fa-coins me-2"></i>Your Tips on this Invoice</div>
+      <div class="card-body">
+        {% for item in sale.items %}{% if item.tip_amount > 0 %}
+        <div class="d-flex justify-content-between fs-13 mb-1">
+          <span>{{ item.product.product_name if item.product else '—' }} × {{ item.quantity }}</span>
+          <span class="fw-600 text-success">+ GHS {{ "%.2f"|format(item.tip_line_total) }}</span>
+        </div>
+        {% endif %}{% endfor %}
+        <hr class="my-2">
+        <div class="d-flex justify-content-between fw-700"><span>Total Tips</span><span class="text-success">GHS {{ "%.2f"|format(sale.total_tips) }}</span></div>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+
+  <div class="col-md-4">
+    <div class="card">
+      <div class="card-header"><i class="fas fa-info-circle me-2"></i>Sale Info</div>
+      <div class="card-body">
+        <div class="mb-3"><div class="text-muted fs-12">Customer</div><div class="fw-700">{{ sale.customer.name if sale.customer else '—' }}</div></div>
+        <div class="mb-3"><div class="text-muted fs-12">Date</div><div class="fw-600">{{ sale.sale_date.strftime('%d %B %Y %H:%M') if sale.sale_date else '—' }}</div></div>
+        <div class="mb-3"><div class="text-muted fs-12">Sales Rep</div><div class="fw-600">{{ sale.sales_rep.full_name if sale.sales_rep else '—' }}</div></div>
+        <div class="mb-3"><div class="text-muted fs-12">Van</div><div class="fw-600">{{ sale.van.van_number if sale.van else 'Warehouse Sale' }}</div></div>
+        <div class="mb-3"><div class="text-muted fs-12">Payment</div><div class="fw-600">{{ sale.payment_method|replace('_',' ')|title }}</div></div>
+        {% if sale.reference_note %}<div class="mb-3"><div class="text-muted fs-12"><i class="fas fa-book text-info me-1"></i>Reference Note</div><div class="fw-600 text-info">{{ sale.reference_note }}</div></div>{% endif %}
+        {% if sale.notes %}<div><div class="text-muted fs-12">Notes</div><div class="fs-13">{{ sale.notes }}</div></div>{% endif %}
+      </div>
+    </div>
+    {% if sale.balance_due > 0 and current_user.can_write('payments') %}
+    <div class="mt-3">
+      <a href="{{ url_for('payments.add') }}?sale_id={{ sale.id }}&customer_id={{ sale.customer_id }}" class="btn btn-success w-100">
+        <i class="fas fa-money-bill me-1"></i>Record Payment
+      </a>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

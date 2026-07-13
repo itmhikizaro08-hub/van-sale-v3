@@ -1,0 +1,89 @@
+{% extends 'base.html' %}
+{% block title %}Credit & Debit Notes{% endblock %}
+{% block breadcrumb %}<li class="breadcrumb-item active">Notes</li>{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div><h1 class="page-title">Credit & Debit Notes</h1></div>
+  {% if current_user.can_write('notes') %}<a href="{{ url_for('notes.new_debit') }}" class="btn btn-warning text-dark"><i class="fas fa-plus me-1"></i>New Debit Note</a>{% endif %}
+</div>
+
+<div class="row g-3 mb-3">
+  <div class="col-6 col-md-4">
+    <div class="stat-card success"><div class="stat-icon"><i class="fas fa-receipt"></i></div>
+      <div><div class="stat-label">Total Credit Notes</div><div class="stat-value">GHS {{ "%.2f"|format(total_credit) }}</div></div>
+    </div>
+  </div>
+  <div class="col-6 col-md-4">
+    <div class="stat-card warning"><div class="stat-icon"><i class="fas fa-receipt"></i></div>
+      <div><div class="stat-label">Total Debit Notes</div><div class="stat-value">GHS {{ "%.2f"|format(total_debit) }}</div></div>
+    </div>
+  </div>
+</div>
+
+<div class="card mb-3"><div class="card-body py-2">
+  <form method="GET" class="row g-2 align-items-end">
+    <div class="col-md-4"><label class="form-label">From</label><input type="date" name="start" class="form-control" value="{{ start }}"></div>
+    <div class="col-md-4"><label class="form-label">To</label><input type="date" name="end" class="form-control" value="{{ end }}"></div>
+    <div class="col-md-4"><button type="submit" class="btn btn-primary w-100"><i class="fas fa-filter me-1"></i>Filter</button></div>
+  </form>
+</div></div>
+
+<div class="card mb-3">
+  <div class="card-header"><i class="fas fa-receipt text-success me-2"></i>Credit Notes</div>
+  <div class="card-body p-0"><div class="table-responsive">
+  <table class="table table-hover dt-table mb-0" id="cnTable">
+    <thead><tr><th>Note #</th><th>Customer</th><th>Date</th><th class="text-end">Amount</th><th>Ref Note</th><th>Status</th><th></th></tr></thead>
+    <tbody>
+      {% for cn in credit_notes %}
+      <tr>
+        <td class="fw-600">{{ cn.note_number }}</td>
+        <td>{{ cn.customer.name if cn.customer else '—' }}</td>
+        <td class="text-muted fs-12">{{ cn.created_at.strftime('%d %b %Y') if cn.created_at else '' }}</td>
+        <td class="text-end fw-700 text-success">GHS {{ "%.2f"|format(cn.amount) }}</td>
+        <td>{% if cn.reference_note %}<span class="ref-note-badge"><i class="fas fa-book me-1"></i>{{ cn.reference_note[:20] }}</span>{% else %}<span class="text-muted fs-12">—</span>{% endif %}</td>
+        <td><span class="badge {{ cn.status_badge }}">{{ cn.status|title }}</span></td>
+        <td>
+          {% if cn.status != 'void' and current_user.can_approve_module('notes') %}
+          <button class="btn btn-icon btn-sm btn-outline-secondary" title="Void"
+            data-action-url="{{ url_for('notes.void_note', kind='credit', note_id=cn.id) }}"
+            data-confirm="Void this credit note?"
+            data-success-msg="Credit note voided."><i class="fas fa-ban"></i></button>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div></div>
+</div>
+<div class="card">
+  <div class="card-header"><i class="fas fa-receipt text-warning me-2"></i>Debit Notes</div>
+  <div class="card-body p-0"><div class="table-responsive">
+  <table class="table table-hover dt-table mb-0" id="dnTable">
+    <thead><tr><th>Note #</th><th>Customer</th><th>Date</th><th class="text-end">Amount</th><th>Reason</th><th>Ref Note</th><th>Status</th><th></th></tr></thead>
+    <tbody>
+      {% for dn in debit_notes %}
+      <tr>
+        <td class="fw-600">{{ dn.note_number }}</td>
+        <td>{{ dn.customer.name if dn.customer else '—' }}</td>
+        <td class="text-muted fs-12">{{ dn.created_at.strftime('%d %b %Y') if dn.created_at else '' }}</td>
+        <td class="text-end fw-700 text-warning">GHS {{ "%.2f"|format(dn.amount) }}</td>
+        <td class="fs-12 text-muted">{{ dn.reason or '—' }}</td>
+        <td>{% if dn.reference_note %}<span class="ref-note-badge"><i class="fas fa-book me-1"></i>{{ dn.reference_note[:20] }}</span>{% else %}<span class="text-muted fs-12">—</span>{% endif %}</td>
+        <td><span class="badge {{ dn.status_badge }}">{{ dn.status|title }}</span></td>
+        <td>
+          {% if dn.status != 'void' and current_user.can_approve_module('notes') %}
+          <button class="btn btn-icon btn-sm btn-outline-secondary"
+            data-action-url="{{ url_for('notes.void_note', kind='debit', note_id=dn.id) }}"
+            data-confirm="Void this debit note?"
+            data-success-msg="Voided."><i class="fas fa-ban"></i></button>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div></div>
+</div>
+{% endblock %}
+{% block extra_js %}<script>$(document).ready(() => { initDataTable('#cnTable', {order:[[2,'desc']]}); initDataTable('#dnTable', {order:[[2,'desc']]}); });</script>{% endblock %}

@@ -1,0 +1,18 @@
+{% extends 'base.html' %}
+{% block title %}Stock Out{% endblock %}
+{% block breadcrumb %}<li class="breadcrumb-item"><a href="{{ url_for('inventory.index') }}">Inventory</a></li><li class="breadcrumb-item active">Stock Out</li>{% endblock %}
+{% block content %}
+<div class="page-header"><h1 class="page-title">Stock Out</h1><p class="page-subtitle">Remove stock from warehouse (non-sale)</p></div>
+<div class="row justify-content-center"><div class="col-md-6">
+<form method="POST"><div class="card">
+  <div class="card-body">
+    <div class="mb-3"><label class="form-label">Product <span class="text-danger">*</span></label><select name="product_id" class="form-select" required>{% for p in products %}<option value="{{ p.id }}">{{ p.product_name }} (Stock: {{ p.stock_quantity }})</option>{% endfor %}</select></div>
+    <div class="mb-3"><label class="form-label">Quantity <span class="text-danger">*</span></label><input type="number" name="quantity" class="form-control" min="1" required></div>
+    <div class="mb-3"><label class="form-label">Reason</label><select name="movement_type" class="form-select"><option value="stock_out">Stock Out</option><option value="damaged">Damaged</option><option value="expired">Expired</option><option value="adjustment">Adjustment</option></select></div>
+    <div class="mb-3"><label class="form-label"><i class="fas fa-book text-info me-1"></i>Reference Note</label><input type="text" name="reference_note" class="form-control" placeholder="e.g. Wastage report #5, Book pg 3"></div>
+    <div class="mb-3"><label class="form-label">Notes</label><textarea name="notes" class="form-control" rows="2"></textarea></div>
+  </div>
+  <div class="card-footer d-flex gap-2"><button type="submit" class="btn btn-danger"><i class="fas fa-minus me-1"></i>Record Stock Out</button><a href="{{ url_for('inventory.index') }}" class="btn btn-outline-secondary">Cancel</a></div>
+</div></form>
+</div></div>
+{% endblock %}

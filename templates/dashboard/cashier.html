@@ -1,0 +1,91 @@
+{% extends 'base.html' %}
+{% block title %}Cashier Dashboard{% endblock %}
+{% block content %}
+{% with subtitle = 'Here\'s today\'s collections and cash verification status.' %}{% include 'dashboard/_hero.html' %}{% endwith %}
+
+<div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
+  <div class="section-title mb-0"><i class="fas fa-gauge-high"></i>Key Metrics{% if not is_today %} <span class="badge bg-warning text-dark ms-2">Historical</span>{% endif %}</div>
+  {% include 'dashboard/_date_filter.html' %}
+</div>
+<div class="row g-3 mb-4">
+  <div class="col-6 col-md-4"><div class="stat-card success"><div class="stat-icon"><i class="fas fa-money-bill-wave"></i></div><div><div class="stat-label">Collected Today</div><div class="stat-value">GHS {{ "%.2f"|format(collections_today) }}</div><div class="stat-trend">{{ payment_count }} payments</div></div></div></div>
+  <div class="col-6 col-md-4"><div class="stat-card danger"><div class="stat-icon"><i class="fas fa-exclamation-circle"></i></div><div><div class="stat-label">Total Outstanding</div><div class="stat-value">GHS {{ "%.0f"|format(total_outstanding) }}</div></div></div></div>
+  <div class="col-6 col-md-4"><div class="stat-card warning" onclick="window.location='{{ url_for('cash_decl.index') }}'" style="cursor:pointer"><div class="stat-icon"><i class="fas fa-cash-register"></i></div><div><div class="stat-label">Pending Declarations</div><div class="stat-value">{{ pending_declarations }}</div></div></div></div>
+</div>
+
+<div class="row g-3 mb-4">
+  <div class="col-md-8">
+    <div class="card h-100">
+      <div class="card-header"><i class="fas fa-chart-area me-2"></i>Collections Trend — Last 7 Days</div>
+      <div class="card-body">
+        <div style="height:220px"><canvas id="collectionsTrendChart"></canvas></div>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card h-100">
+      <div class="card-header"><i class="fas fa-bolt me-2"></i>Quick Actions</div>
+      <div class="card-body d-flex flex-column gap-2">
+        <a href="{{ url_for('payments.index') }}" class="btn btn-success"><i class="fas fa-money-bill me-1"></i>Payments</a>
+        <a href="{{ url_for('payments.outstanding') }}" class="btn btn-outline-danger"><i class="fas fa-exclamation me-1"></i>Outstanding</a>
+        <a href="{{ url_for('cash_decl.index') }}" class="btn btn-warning text-dark"><i class="fas fa-cash-register me-1"></i>Cash Declarations</a>
+        <a href="{{ url_for('reports.sales_report') }}" class="btn btn-outline-info"><i class="fas fa-chart-bar me-1"></i>Sales Report</a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header d-flex align-items-center justify-content-between">
+    <span><i class="fas fa-receipt me-2"></i>Today's Payments</span>
+    <a href="{{ url_for('payments.index') }}" class="btn btn-outline-secondary btn-sm">View All</a>
+  </div>
+  <div class="card-body p-0">
+    <table class="table table-hover mb-0">
+      <thead><tr><th>Ref</th><th>Customer</th><th class="text-end">Amount</th><th>Method</th></tr></thead>
+      <tbody>
+        {% for p in recent_payments %}
+        <tr>
+          <td><code class="fs-12">{{ p.payment_number }}</code></td>
+          <td class="fs-13">{{ p.customer.name if p.customer else '—' }}</td>
+          <td class="text-end fw-600 text-success">GHS {{ "%.2f"|format(p.amount) }}</td>
+          <td><span class="badge {{ p.method_badge }}">{{ p.payment_method|replace('_',' ')|title }}</span></td>
+        </tr>
+        {% else %}
+        <tr><td colspan="4" class="text-muted text-center py-3">No payments collected yet today</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script>
+new Chart(document.getElementById('collectionsTrendChart'), {
+  type: 'line',
+  data: {
+    labels: {{ trend_labels|tojson }},
+    datasets: [{
+      label: 'Collections',
+      data: {{ trend_values|tojson }},
+      borderColor: '#10b981',
+      backgroundColor: 'rgba(16,185,129,.12)',
+      borderWidth: 2,
+      tension: 0.4,
+      fill: true,
+      pointRadius: 3,
+      pointHoverRadius: 5
+    }]
+  },
+  options: {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: { display: false },
+      tooltip: { callbacks: { label: ctx => 'GHS ' + ctx.raw.toLocaleString() } }
+    },
+    scales: { y: { beginAtZero: true, ticks: { callback: v => 'GHS ' + v.toLocaleString() } } }
+  }
+});
+</script>
+{% endblock %}

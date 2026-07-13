@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="{{ current_user.theme_preference if current_user.is_authenticated and current_user.theme_preference else 'light' }}">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}Van Sales V3 ERP{% endblock %} | {{ company_name }}</title>
+  <!-- Bootstrap 5 -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css">
+  <!-- Font Awesome -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <!-- DataTables -->
+  <link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/dataTables.bootstrap5.min.css">
+  <!-- Google Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+  {% block extra_css %}{% endblock %}
+</head>
+<body>
+
+<!-- ══ Sidebar ══════════════════════════════════════════════════════════════ -->
+<nav class="sidebar" id="sidebar">
+  <div class="sidebar-header">
+    <div class="brand-logo">
+      {% if company_logo %}
+      <img src="{{ url_for('uploads', filename=company_logo) }}" alt="Logo" style="width:100%;height:100%;object-fit:contain">
+      {% else %}
+      <i class="fa-solid fa-truck-fast"></i>
+      {% endif %}
+    </div>
+    <div class="brand-text">
+      <span class="brand-name">VanSales</span>
+      <span class="brand-version">V3 ERP</span>
+    </div>
+    <button class="sidebar-toggle-btn d-lg-none" id="sidebarClose">
+      <i class="fas fa-times"></i>
+    </button>
+  </div>
+
+  <div class="sidebar-search">
+    <i class="fas fa-search"></i>
+    <input type="text" id="menuSearch" placeholder="Search menu...">
+  </div>
+
+  <div class="sidebar-menu">
+
+    <!-- Dashboard always shown -->
+    <div class="menu-section">
+      <span class="menu-label">MAIN</span>
+      <a href="{{ url_for('dashboard.index') }}" class="menu-item {% if request.endpoint == 'dashboard.index' %}active{% endif %}">
+        <i class="fas fa-home"></i><span>Dashboard</span>
+      </a>
+    </div>
+
+    <!-- Dynamic role-based nav -->
+    {% for section in current_user.sidebar_items() %}
+    <div class="menu-section">
+      <span class="menu-label">{{ section.label }}</span>
+      {% for item in section['items'] %}
+      <a href="{{ url_for(item.url) }}"
+         class="menu-item {% if (item.match_endpoints and request.endpoint in item.match_endpoints) or (not item.match_endpoints and (request.blueprint == item.get('bp','') or request.endpoint == item.url)) %}active{% endif %}">
+        <i class="{{ item.icon }}"></i><span>{{ item.label }}</span>
+      </a>
+      {% endfor %}
+    </div>
+    {% endfor %}
+</nav>
+
+<!-- ══ Overlay ═══════════════════════════════════════════════════════════════ -->
+<div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+<!-- ══ Main Content ══════════════════════════════════════════════════════════ -->
+<div class="main-wrapper">
+  <!-- Topbar -->
+  <header class="topbar">
+    <div class="topbar-left">
+      <button class="topbar-btn" id="sidebarToggle">
+        <i class="fas fa-bars"></i>
+      </button>
+      <nav aria-label="breadcrumb" class="d-none d-md-block">
+        <ol class="breadcrumb mb-0">
+          <li class="breadcrumb-item"><a href="{{ url_for('dashboard.index') }}">Home</a></li>
+          {% block breadcrumb %}{% endblock %}
+        </ol>
+      </nav>
+    </div>
+
+    <div class="topbar-right">
+      <!-- Theme toggle -->
+      <button class="topbar-btn" id="themeToggle" title="Toggle theme">
+        <i class="fas fa-moon" id="themeIcon"></i>
+      </button>
+      <!-- Notifications -->
+      {% if current_user.is_authenticated and current_user.can_access('notifications') %}
+      <a href="{{ url_for('notifications.index') }}" class="topbar-btn position-relative">
+        <i class="fas fa-bell"></i>
+        {% if unread_notifications > 0 %}
+        <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" style="font-size:10px">
+          {{ unread_notifications }}
+        </span>
+        {% endif %}
+      </a>
+      {% endif %}
+      <!-- Profile -->
+      <div class="dropdown">
+        <button class="topbar-btn dropdown-toggle" data-bs-toggle="dropdown">
+          <div class="topbar-avatar">{{ current_user.full_name[0].upper() }}</div>
+        </button>
+        <ul class="dropdown-menu dropdown-menu-end">
+          <li><a class="dropdown-item" href="{{ url_for('auth.profile') }}"><i class="fas fa-user me-2"></i>Profile</a></li>
+          <li><a class="dropdown-item" href="{{ url_for('auth.change_password') }}"><i class="fas fa-key me-2"></i>Change Password</a></li>
+          <li><hr class="dropdown-divider"></li>
+          <li><a class="dropdown-item text-danger" href="{{ url_for('auth.logout') }}"><i class="fas fa-sign-out-alt me-2"></i>Logout</a></li>
+        </ul>
+      </div>
+    </div>
+  </header>
+
+  <!-- Flash messages -->
+  <div class="flash-container">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% for category, message in messages %}
+      <div class="alert alert-{{ 'danger' if category == 'error' else category }} alert-dismissible fade show flash-alert" role="alert">
+        <i class="fas fa-{{ 'check-circle' if category == 'success' else 'exclamation-triangle' if category in ('danger','error') else 'info-circle' }} me-2"></i>
+        {{ message }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+      </div>
+      {% endfor %}
+    {% endwith %}
+  </div>
+
+  <!-- Page Content -->
+  <main class="page-content">
+    {% block content %}{% endblock %}
+  </main>
+</div>
+
+<!-- Toast container -->
+<div class="toast-container position-fixed bottom-0 end-0 p-3" id="toastContainer"></div>
+
+<!-- Scripts -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.7/js/dataTables.bootstrap5.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script src="{{ url_for('static', filename='js/main.js') }}"></script>
+{% block extra_js %}{% endblock %}
+</body>
+</html>

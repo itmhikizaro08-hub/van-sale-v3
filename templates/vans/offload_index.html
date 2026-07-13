@@ -1,0 +1,187 @@
+{% extends 'base.html' %}
+{% block title %}Stock Offload{% endblock %}
+{% block breadcrumb %}<li class="breadcrumb-item active">Stock Offload</li>{% endblock %}
+{% block content %}
+
+{% if own_scope %}
+<div class="page-header"><div><h1 class="page-title">Stock Offload</h1><p class="page-subtitle">Return van stock to the warehouse to clear your stock liability</p></div></div>
+
+{% set total_qty = van_stock|sum(attribute='quantity') %}
+{% set total_value = van_stock|sum(attribute='stock_value') %}
+<div class="row g-3 mb-4">
+  <div class="col-6 col-md-4">
+    <div class="stat-card primary"><div class="stat-icon"><i class="fas fa-truck-loading"></i></div>
+      <div><div class="stat-label">Units Held</div><div class="stat-value">{{ total_qty }}</div></div>
+    </div>
+  </div>
+  <div class="col-6 col-md-4">
+    <div class="stat-card {{ 'danger' if total_value > 0 else 'success' }}"><div class="stat-icon"><i class="fas fa-exclamation-circle"></i></div>
+      <div><div class="stat-label">Stock Liability</div><div class="stat-value">GHS {{ "%.2f"|format(total_value) }}</div></div>
+    </div>
+  </div>
+</div>
+
+<div class="row g-3">
+  <div class="col-md-7">
+    <div class="card">
+      <div class="card-header"><i class="fas fa-dolly me-2"></i>Submit Stock Offload</div>
+      {% if van_stock %}
+      <form method="POST" action="{{ url_for('vans.offload_submit') }}">
+        <div class="card-body p-0">
+          <table class="table table-sm mb-0">
+            <thead><tr><th></th><th>Product</th><th class="text-end">Held</th><th style="width:110px">Offload Qty</th></tr></thead>
+            <tbody>
+              {% for vs in van_stock %}
+              <tr>
+                <td><input type="hidden" name="product_id[]" value="{{ vs.product_id }}"></td>
+                <td class="fw-600 fs-13">{{ vs.product.product_name if vs.product else '—' }}</td>
+                <td class="text-end">{{ vs.quantity }}</td>
+                <td><input type="number" min="0" max="{{ vs.quantity }}" step="1" class="form-control form-control-sm"
+                    name="quantity[]" value="0"></td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        <div class="card-body">
+          <label class="form-label">Notes</label>
+          <textarea name="notes" class="form-control" rows="2" placeholder="Optional"></textarea>
+        </div>
+        <div class="card-footer">
+          <button type="submit" class="btn btn-success"><i class="fas fa-paper-plane me-1"></i>Submit for Confirmation</button>
+        </div>
+      </form>
+      {% else %}
+      <div class="card-body"><div class="empty-state py-4"><i class="fas fa-check-circle" style="font-size:2rem;color:var(--text-muted)"></i><p class="mt-2 text-muted">You hold no van stock — nothing to offload</p></div></div>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="col-md-5">
+    <div class="card h-100">
+      <div class="card-header"><i class="fas fa-history me-2"></i>My Offloads</div>
+      <div class="card-body p-0">
+        <table class="table table-hover mb-0">
+          <thead><tr><th>#</th><th>Date</th><th class="text-end">Qty</th><th>Status</th></tr></thead>
+          <tbody>
+            {% for o in offloads %}
+            <tr>
+              <td class="fw-600 fs-13">{{ o.offload_number }}</td>
+              <td class="text-muted fs-12">{{ o.created_at.strftime('%d %b, %H:%M') if o.created_at else '' }}</td>
+              <td class="text-end fw-600">{{ o.total_declared_qty }}</td>
+              <td><span class="badge {{ o.status_badge }}">{{ o.status|title }}</span></td>
+            </tr>
+            {% else %}
+            <tr><td colspan="4" class="text-muted text-center py-3">No offloads yet</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% else %}
+<div class="page-header"><div><h1 class="page-title">Stock Offloads</h1><p class="page-subtitle">Confirm van stock returned by reps</p></div></div>
+
+<div class="card">
+  <div class="card-header"><i class="fas fa-hourglass-half me-2"></i>Pending Offloads</div>
+  <div class="card-body p-0">
+    <table class="table table-hover mb-0">
+      <thead><tr><th>#</th><th>Rep</th><th>Van</th><th class="text-end">Declared Qty</th><th></th></tr></thead>
+      <tbody>
+        {% for o in pending %}
+        <tr>
+          <td class="fw-600 fs-13">{{ o.offload_number }}</td>
+          <td class="fs-13">{{ o.sales_rep.full_name if o.sales_rep else '—' }}</td>
+          <td class="fs-13">{{ o.van.van_number if o.van else '—' }}</td>
+          <td class="text-end fw-600">{{ o.total_declared_qty }}</td>
+          <td>
+            <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#confirmModal"
+              data-offload-id="{{ o.id }}" data-offload-number="{{ o.offload_number }}"
+              data-offload-rep="{{ o.sales_rep.full_name if o.sales_rep else '—' }}"
+              data-offload-items='[{% for i in o.items %}{"id":{{ i.id }},"name":{{ (i.product.product_name if i.product else "—")|tojson }},"declared":{{ i.quantity_declared }}}{{ ',' if not loop.last }}{% endfor %}]'>
+              <i class="fas fa-check me-1"></i>Confirm
+            </button>
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="5" class="text-muted text-center py-3">No pending offloads</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="card mt-3">
+  <div class="card-header"><i class="fas fa-history me-2"></i>Recent Confirmations</div>
+  <div class="card-body p-0">
+    <table class="table table-hover mb-0">
+      <thead><tr><th>#</th><th>Rep</th><th class="text-end">Declared</th><th class="text-end">Received</th><th>Status</th><th>Confirmed By</th></tr></thead>
+      <tbody>
+        {% for o in recent %}
+        <tr>
+          <td class="fw-600 fs-13">{{ o.offload_number }}</td>
+          <td class="fs-13">{{ o.sales_rep.full_name if o.sales_rep else '—' }}</td>
+          <td class="text-end">{{ o.total_declared_qty }}</td>
+          <td class="text-end">{{ o.items|sum(attribute='quantity_received') }}</td>
+          <td><span class="badge {{ o.status_badge }}">{{ o.status|title }}</span></td>
+          <td class="fs-12 text-muted">{{ o.confirmed_by.full_name if o.confirmed_by else '—' }}</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="6" class="text-muted text-center py-3">No confirmations yet</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Confirm Modal -->
+<div class="modal fade" id="confirmModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <form method="POST" id="confirmForm">
+        <div class="modal-header">
+          <h5 class="modal-title"><i class="fas fa-check-circle me-2"></i>Confirm Offload <span id="cOffloadNumber"></span></h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <p class="mb-3">Rep: <strong id="cOffloadRep"></strong></p>
+          <table class="table table-sm">
+            <thead><tr><th>Product</th><th class="text-end">Declared</th><th style="width:110px">Received</th></tr></thead>
+            <tbody id="cItemsBody"></tbody>
+          </table>
+          <div class="mb-2">
+            <label class="form-label">Notes</label>
+            <textarea name="notes" class="form-control" rows="2" placeholder="Optional — explain any mismatch"></textarea>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-primary"><i class="fas fa-save me-1"></i>Confirm</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+{% endblock %}
+{% block extra_js %}
+<script>
+document.getElementById('confirmModal')?.addEventListener('show.bs.modal', e => {
+  const btn = e.relatedTarget;
+  const offloadId = btn.dataset.offloadId;
+  const items = JSON.parse(btn.dataset.offloadItems);
+  document.getElementById('cOffloadNumber').textContent = btn.dataset.offloadNumber;
+  document.getElementById('cOffloadRep').textContent = btn.dataset.offloadRep;
+  document.getElementById('confirmForm').action = '/vans/offload/' + offloadId + '/confirm';
+  document.getElementById('cItemsBody').innerHTML = items.map(i => `
+    <tr>
+      <td class="fs-13">${i.name}</td>
+      <td class="text-end">${i.declared}</td>
+      <td><input type="number" min="0" class="form-control form-control-sm" name="received_${i.id}" value="${i.declared}"></td>
+    </tr>`).join('');
+});
+</script>
+{% endblock %}

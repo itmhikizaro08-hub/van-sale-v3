@@ -1,0 +1,101 @@
+{% extends 'base.html' %}
+{% block title %}Cash Declarations{% endblock %}
+{% block breadcrumb %}<li class="breadcrumb-item active">Cash Declarations</li>{% endblock %}
+{% block content %}
+<div class="page-header"><div><h1 class="page-title">Cash Declarations</h1><p class="page-subtitle">Declare cash collected and hand it to a cashier</p></div></div>
+
+<div class="row g-3 mb-4">
+  <div class="col-6 col-md-4">
+    <div class="stat-card primary"><div class="stat-icon"><i class="fas fa-hand-holding-usd"></i></div>
+      <div><div class="stat-label">Cash Collected (This Month)</div><div class="stat-value">GHS {{ "%.2f"|format(balance.collected) }}</div></div>
+    </div>
+  </div>
+  <div class="col-6 col-md-4">
+    <div class="stat-card success"><div class="stat-icon"><i class="fas fa-cash-register"></i></div>
+      <div><div class="stat-label">Declared (This Month)</div><div class="stat-value">GHS {{ "%.2f"|format(balance.declared) }}</div></div>
+    </div>
+  </div>
+  <div class="col-6 col-md-4">
+    <div class="stat-card {{ 'danger' if balance.balance > 0 else 'success' }}"><div class="stat-icon"><i class="fas fa-exclamation-circle"></i></div>
+      <div><div class="stat-label">Outstanding Balance</div><div class="stat-value">GHS {{ "%.2f"|format(balance.balance) }}</div><div class="stat-trend">Carries over month to month</div></div>
+    </div>
+  </div>
+</div>
+
+<div class="row g-3">
+  <div class="col-md-6">
+    <div class="card">
+      <div class="card-header"><i class="fas fa-coins me-2"></i>Submit Cash Declaration</div>
+      <form method="POST" action="{{ url_for('cash_decl.submit') }}" id="declareForm">
+        <div class="card-body">
+          <table class="table table-sm mb-2">
+            <thead><tr><th>Denomination</th><th style="width:110px">Count</th><th class="text-end">Subtotal</th></tr></thead>
+            <tbody>
+              {% for d in denominations %}
+              <tr>
+                <td class="fw-600">GHS {{ "%.2f"|format(d) if d < 1 else d|int }}</td>
+                <td><input type="number" min="0" step="1" class="form-control form-control-sm denom-count"
+                    name="denom_{{ (d|string).replace('.', '_') }}" data-denom="{{ d }}" value="0"></td>
+                <td class="text-end fs-13 denom-subtotal">0.00</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+            <tfoot><tr><td colspan="2" class="text-end fw-700">Total</td><td class="text-end fw-800 text-success" id="declareTotal">GHS 0.00</td></tr></tfoot>
+          </table>
+          <div class="mb-2">
+            <label class="form-label">Notes</label>
+            <textarea name="notes" class="form-control" rows="2" placeholder="Optional"></textarea>
+          </div>
+        </div>
+        <div class="card-footer">
+          <button type="submit" class="btn btn-success"><i class="fas fa-paper-plane me-1"></i>Submit to Cashier</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="col-md-6">
+    <div class="card h-100">
+      <div class="card-header"><i class="fas fa-history me-2"></i>My Declarations</div>
+      <div class="card-body p-0">
+        <form method="GET" class="row g-2 align-items-end p-3 border-bottom">
+          <div class="col-5"><label class="form-label mb-1 fs-12">From</label><input type="date" name="start" class="form-control form-control-sm" value="{{ start }}"></div>
+          <div class="col-5"><label class="form-label mb-1 fs-12">To</label><input type="date" name="end" class="form-control form-control-sm" value="{{ end }}"></div>
+          <div class="col-2"><button type="submit" class="btn btn-primary btn-sm w-100"><i class="fas fa-filter"></i></button></div>
+        </form>
+        <table class="table table-hover mb-0">
+          <thead><tr><th>#</th><th>Date</th><th class="text-end">Declared</th><th>Status</th></tr></thead>
+          <tbody>
+            {% for d in declarations %}
+            <tr>
+              <td class="fw-600 fs-13">{{ d.declaration_number }}</td>
+              <td class="text-muted fs-12">{{ d.created_at.strftime('%d %b, %H:%M') if d.created_at else '' }}</td>
+              <td class="text-end fw-600">GHS {{ "%.2f"|format(d.declared_amount) }}</td>
+              <td><span class="badge {{ d.status_badge }}">{{ d.status|title }}</span></td>
+            </tr>
+            {% else %}
+            <tr><td colspan="4" class="text-muted text-center py-3">No declarations in this date range</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script>
+document.querySelectorAll('.denom-count').forEach(inp => inp.addEventListener('input', updateDeclareTotal));
+function updateDeclareTotal() {
+  let total = 0;
+  document.querySelectorAll('.denom-count').forEach(inp => {
+    const denom = parseFloat(inp.dataset.denom);
+    const count = parseInt(inp.value) || 0;
+    const subtotal = denom * count;
+    inp.closest('tr').querySelector('.denom-subtotal').textContent = subtotal.toFixed(2);
+    total += subtotal;
+  });
+  document.getElementById('declareTotal').textContent = formatGHS(total);
+}
+</script>
+{% endblock %}

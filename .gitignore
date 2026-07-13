@@ -1,0 +1,26 @@
+# Environment / secrets
+.env
+.env.local
+
+# Python
+__pycache__/
+*.pyc
+venv/
+*.egg-info/
+
+# Local database (SQLite dev only — never the source of truth once hosted)
+instance/
+*.db
+*.db-journal
+
+# Uploads (logos/avatars) — not source-controlled
+uploads/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Local Claude Code tooling config — not part of the app
+.claude/

@@ -1,0 +1,42 @@
+{% extends 'base.html' %}
+{% block title %}Schedule Visit{% endblock %}
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{{ url_for('visits.index') }}">Visits</a></li>
+<li class="breadcrumb-item active">Schedule Visit</li>
+{% endblock %}
+{% block content %}
+<div class="page-header"><h1 class="page-title">Schedule Visit</h1></div>
+<div class="row justify-content-center"><div class="col-md-6">
+<form method="POST"><div class="card">
+  <div class="card-header"><i class="fas fa-calendar-plus me-2"></i>Visit Details</div>
+  <div class="card-body">
+    <div class="mb-3">
+      <label class="form-label">Customer <span class="text-danger">*</span></label>
+      <select name="customer_id" class="form-select" required>
+        <option value="">— Select Customer —</option>
+        {% for c in customers %}
+        <option value="{{ c.id }}">{{ c.name }} ({{ c.customer_code }})</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="mb-3">
+      <label class="form-label">Route</label>
+      <select name="route_id" class="form-select">
+        <option value="">— None —</option>
+        {% for r in routes %}
+        <option value="{{ r.id }}">{{ r.route_name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="mb-3">
+      <label class="form-label">Notes</label>
+      <textarea name="notes" class="form-control" rows="2" placeholder="Optional"></textarea>
+    </div>
+  </div>
+  <div class="card-footer d-flex gap-2">
+    <button type="submit" class="btn btn-primary"><i class="fas fa-save me-1"></i>Schedule Visit</button>
+    <a href="{{ url_for('visits.index') }}" class="btn btn-outline-secondary">Cancel</a>
+  </div>
+</div></form>
+</div></div>
+{% endblock %}

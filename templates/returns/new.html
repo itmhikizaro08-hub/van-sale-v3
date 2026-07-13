@@ -1,0 +1,153 @@
+{% extends 'base.html' %}
+{% block title %}New Return{% endblock %}
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{{ url_for('returns.index') }}">Returns</a></li>
+<li class="breadcrumb-item active">New</li>
+{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div><h1 class="page-title">New Return Order</h1><p class="page-subtitle">Multi-product return — any day, any time</p></div>
+  <a href="{{ url_for('returns.index') }}" class="btn btn-outline-secondary btn-sm"><i class="fas fa-arrow-left me-1"></i>Back</a>
+</div>
+<form method="POST">
+<div class="row g-3">
+  <div class="col-md-8">
+    <div class="card">
+      <div class="card-header"><i class="fas fa-undo-alt me-2"></i>Return Details</div>
+      <div class="card-body">
+        <div class="row g-3">
+          <div class="col-md-6">
+            <label class="form-label">Customer <span class="text-danger">*</span></label>
+            <select name="customer_id" class="form-select" required id="custSel" onchange="loadSales(this.value)">
+              <option value="">— Select Customer —</option>
+              {% for c in customers %}<option value="{{ c.id }}">{{ c.name }}</option>{% endfor %}
+            </select>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">Original Invoice (optional)</label>
+            <select name="sale_id" class="form-select" id="saleSel" onchange="loadSaleItems(this.value)">
+              <option value="">— Select Invoice —</option>
+            </select>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">Return Destination</label>
+            <select name="return_destination" class="form-select">
+              <option value="warehouse">Warehouse (default)</option>
+              <option value="van_stock">Back to Van Stock</option>
+              <option value="scrap">Scrap (damaged/expired)</option>
+            </select>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">Refund Method</label>
+            <select name="refund_method" class="form-select">
+              <option value="credit">Credit (reduce balance)</option>
+              <option value="cash">Cash payout</option>
+            </select>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label"><i class="fas fa-book text-info me-1"></i>Reference Note</label>
+            <input type="text" name="reference_note" class="form-control" placeholder="Book pg, receipt #…">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">Notes</label>
+            <textarea name="notes" class="form-control" rows="2"></textarea>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card mt-3">
+      <div class="card-header d-flex align-items-center justify-content-between">
+        <span><i class="fas fa-list me-2"></i>Return Lines</span>
+        <button type="button" class="btn btn-sm btn-outline-primary" onclick="addLine()"><i class="fas fa-plus me-1"></i>Add Line</button>
+      </div>
+      <div class="card-body p-0">
+        <table class="table mb-0">
+          <thead><tr><th>Product</th><th style="width:80px">Qty</th><th style="width:110px">Unit Price</th><th style="width:100px">Reason</th><th style="width:90px">Total</th><th style="width:36px"></th></tr></thead>
+          <tbody id="returnLines"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card">
+      <div class="card-header"><i class="fas fa-receipt me-2"></i>Summary</div>
+      <div class="card-body">
+        <div class="d-flex justify-content-between fw-700 fs-14">
+          <span>Total Refund</span><span id="returnTotal" class="text-success">GHS 0.00</span>
+        </div>
+      </div>
+    </div>
+    <div class="d-grid gap-2 mt-3">
+      <button type="submit" class="btn btn-warning text-dark btn-lg"><i class="fas fa-undo me-2"></i>Submit Return</button>
+      <a href="{{ url_for('returns.index') }}" class="btn btn-outline-secondary">Cancel</a>
+    </div>
+  </div>
+</div>
+</form>
+{% endblock %}
+{% block extra_js %}
+<script>
+const ALL_PRODUCTS = [{% for p in products %}{ id: {{ p.id }}, name: "{{ p.product_name|replace('"',"'") }}", price: {{ p.selling_price }} },{% endfor %}];
+let lineCount = 0;
+
+function addLine(productId='', qty=1, price=0, reason='sales_return') {
+  lineCount++;
+  const opts = ALL_PRODUCTS.map(p => `<option value="${p.id}" data-price="${p.price}" ${p.id==productId?'selected':''}>${p.name}</option>`).join('');
+  const reasons = ['sales_return','damaged','expired','wrong_item'];
+  const rOpts = reasons.map(r => `<option value="${r}" ${r==reason?'selected':''}>${r.replace('_',' ').replace(/\b\w/g,c=>c.toUpperCase())}</option>`).join('');
+  const tr = document.createElement('tr');
+  tr.id = `line-${lineCount}`;
+  tr.innerHTML = `
+    <td><select name="product_id[]" class="form-select form-select-sm" onchange="onProd(this,${lineCount})" required><option value="">—</option>${opts}</select></td>
+    <td><input type="number" name="quantity[]" id="qty-${lineCount}" class="form-control form-control-sm" min="1" value="${qty}" oninput="calc(${lineCount})"></td>
+    <td><input type="number" step="0.01" name="unit_price[]" id="price-${lineCount}" class="form-control form-control-sm" value="${price.toFixed(2)}" oninput="calc(${lineCount})"></td>
+    <td><select name="reason[]" class="form-select form-select-sm">${rOpts}</select></td>
+    <td class="fw-700" id="lt-${lineCount}">GHS 0.00</td>
+    <td><button type="button" class="btn btn-icon btn-sm btn-outline-danger" onclick="document.getElementById('line-${lineCount}').remove();calcTotal()"><i class="fas fa-times"></i></button></td>`;
+  document.getElementById('returnLines').appendChild(tr);
+  calc(lineCount);
+}
+
+function onProd(sel, lid) {
+  const price = parseFloat(sel.selectedOptions[0]?.dataset?.price || 0);
+  document.getElementById(`price-${lid}`).value = price.toFixed(2);
+  calc(lid);
+}
+
+function calc(lid) {
+  const qty = parseFloat(document.getElementById(`qty-${lid}`)?.value || 0);
+  const price = parseFloat(document.getElementById(`price-${lid}`)?.value || 0);
+  const el = document.getElementById(`lt-${lid}`);
+  if (el) el.textContent = `GHS ${(qty * price).toFixed(2)}`;
+  calcTotal();
+}
+
+function calcTotal() {
+  let total = 0;
+  document.querySelectorAll('[id^="lt-"]').forEach(el => total += parseFloat(el.textContent.replace('GHS ','')) || 0);
+  document.getElementById('returnTotal').textContent = `GHS ${total.toFixed(2)}`;
+}
+
+async function loadSales(custId) {
+  const sel = document.getElementById('saleSel');
+  sel.innerHTML = '<option value="">Loading...</option>';
+  if (!custId) { sel.innerHTML = '<option value="">—</option>'; return; }
+  try {
+    const data = await apiCall(`/returns/api/customer-sales/${custId}`);
+    sel.innerHTML = '<option value="">— Select Invoice —</option>' + data.map(s => `<option value="${s.id}">${s.invoice_number} — ${s.sale_date}</option>`).join('');
+  } catch { sel.innerHTML = '<option value="">—</option>'; }
+}
+
+async function loadSaleItems(saleId) {
+  if (!saleId) return;
+  try {
+    const items = await apiCall(`/returns/api/sale-items/${saleId}`);
+    document.getElementById('returnLines').innerHTML = '';
+    lineCount = 0;
+    items.forEach(i => addLine(i.product_id, i.quantity, i.unit_price));
+  } catch {}
+}
+
+addLine();
+</script>
+{% endblock %}

@@ -1,0 +1,41 @@
+{% extends 'base.html' %}
+{% block title %}Outstanding{% endblock %}
+{% block breadcrumb %}<li class="breadcrumb-item active">Outstanding</li>{% endblock %}
+{% block content %}
+<div class="page-header"><div><h1 class="page-title">Outstanding Balances</h1></div></div>
+
+<div class="row g-3 mb-3">
+  <div class="col-6 col-md-4">
+    <div class="stat-card danger"><div class="stat-icon"><i class="fas fa-exclamation-circle"></i></div>
+      <div><div class="stat-label">Total Outstanding</div><div class="stat-value">GHS {{ "%.2f"|format(total_outstanding) }}</div></div>
+    </div>
+  </div>
+  <div class="col-6 col-md-4">
+    <div class="stat-card warning"><div class="stat-icon"><i class="fas fa-users"></i></div>
+      <div><div class="stat-label">Customers Owing</div><div class="stat-value">{{ customers|length }}</div></div>
+    </div>
+  </div>
+</div>
+
+<div class="card"><div class="card-body p-0"><div class="table-responsive">
+<table class="table table-hover dt-table mb-0" id="outTable">
+  <thead><tr><th>Customer</th><th>Code</th><th>Phone</th><th>Credit Limit</th><th class="text-end">Outstanding</th><th></th></tr></thead>
+  <tbody>
+    {% for c in customers %}
+    <tr>
+      <td><a href="{{ url_for('customers.view', customer_id=c.id) }}" class="fw-600">{{ c.name }}</a></td>
+      <td><code class="fs-12">{{ c.customer_code }}</code></td>
+      <td class="fs-12">{{ c.phone or '—' }}</td>
+      <td>GHS {{ "%.2f"|format(c.credit_limit) }}</td>
+      <td class="text-end fw-700 {{ 'text-danger' if c.outstanding_balance > c.credit_limit and c.credit_limit > 0 else 'text-warning' }}">
+        GHS {{ "%.2f"|format(c.outstanding_balance) }}
+        {% if c.credit_limit > 0 and c.outstanding_balance > c.credit_limit %}<span class="badge bg-danger ms-1">Over Limit</span>{% endif %}
+      </td>
+      <td><a href="{{ url_for('payments.add') }}?customer_id={{ c.id }}" class="btn btn-sm btn-success"><i class="fas fa-money-bill me-1"></i>Pay</a></td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div></div></div>
+{% endblock %}
+{% block extra_js %}<script>$(document).ready(() => initDataTable('#outTable', {order:[[4,'desc']]}));</script>{% endblock %}

@@ -1,0 +1,5 @@
+{% extends 'base.html' %}{% block title %}New Return{% endblock %}
+{% block content %}
+<script>window.location.href = "{{ url_for('returns.new') }}";</script>
+<p>Redirecting... <a href="{{ url_for('returns.new') }}">Click here</a></p>
+{% endblock %}
