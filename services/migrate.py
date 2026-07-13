@@ -117,6 +117,11 @@ def _repair_sale_payment_status(db):
             db.session.commit()
             log.info(f"Repaired payment_status on {fixed} sale(s).")
     except Exception as e:
+        # A failed query leaves the session's transaction aborted on Postgres
+        # (unlike SQLite) — every later query in this request would fail too
+        # unless we roll back here, e.g. on a fresh DB where 'sales' doesn't
+        # exist yet (this runs before db.create_all()).
+        db.session.rollback()
         log.debug(f"payment_status repair skipped: {e}")
 
 
@@ -144,6 +149,7 @@ def _repair_customer_outstanding_balance(db):
             db.session.commit()
             log.info(f"Repaired outstanding_balance on {fixed} customer(s).")
     except Exception as e:
+        db.session.rollback()
         log.debug(f"outstanding_balance repair skipped: {e}")
 
 
@@ -177,6 +183,7 @@ def _repair_historical_tip_amounts(db):
             log.info(f"Backfilled official_price/tip_amount on {fixed_items} historical "
                      f"sale item(s) across {len(fixed_sales)} sale(s).")
     except Exception as e:
+        db.session.rollback()
         log.debug(f"historical tip backfill skipped: {e}")
 
 
