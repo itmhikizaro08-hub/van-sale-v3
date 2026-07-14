@@ -102,6 +102,16 @@ def create_app():
         from flask import send_from_directory
         return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
 
+    # ── PWA service worker ─────────────────────────────────────────────────────
+    # Served from the root, not /static/sw.js — a service worker's default
+    # scope is everything at or below the path it's served from, so serving it
+    # from /static/ would only ever let it control /static/ assets, not the
+    # actual app pages the manifest's start_url points to.
+    @app.route('/sw.js')
+    def service_worker():
+        from flask import send_from_directory
+        return send_from_directory('static', 'sw.js', mimetype='application/javascript')
+
     # ── Friendly error for oversized uploads ───────────────────────────────────
     @app.errorhandler(413)
     def handle_large_upload(e):
