@@ -86,10 +86,20 @@ def run_migrations(db):
 
 
 def _add_column_if_missing(conn, engine, table, column, col_type):
-    """Add a column to a table if it doesn't already exist."""
+    """Add a column to a table if it doesn't already exist.
+
+    Inspects via `conn` (the same connection/transaction doing the ALTER),
+    not `engine` (which opens a fresh connection). On Postgres, an ALTER
+    TABLE holds a lock until commit — if a *different* connection tried to
+    inspect that same table before this transaction commits, it would block
+    waiting on its own uncommitted lock and hang forever. Inspecting through
+    `conn` reads this transaction's own uncommitted state instead, so it
+    never has to wait on itself. SQLite never hit this since it doesn't lock
+    the same way, which is why this only ever surfaced against Postgres.
+    """
     from sqlalchemy import text, inspect
     try:
-        inspector = inspect(engine)
+        inspector = inspect(conn)
         tables = inspector.get_table_names()
         if table not in tables:
             return  # table doesn't exist yet — db.create_all() will make it
@@ -200,7 +210,9 @@ def _fix_van_stocks_constraint(conn, engine):
     """
     from sqlalchemy import text, inspect
     try:
-        inspector = inspect(engine)
+        # Inspect via `conn`, not `engine` — see _add_column_if_missing's
+        # docstring for why a separate connection can deadlock on Postgres.
+        inspector = inspect(conn)
         if 'van_stocks' not in inspector.get_table_names():
             return
 
