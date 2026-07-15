@@ -1,0 +1,75 @@
+{% extends 'base.html' %}
+{% block title %}Profit & Loss{% endblock %}
+{% block breadcrumb %}<li class="breadcrumb-item"><a href="{{ url_for('reports.index') }}">Reports</a></li><li class="breadcrumb-item active">Profit & Loss</li>{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div><h1 class="page-title">Profit & Loss</h1><p class="page-subtitle">{{ start }} to {{ end }}</p></div>
+  <button onclick="window.print()" class="btn btn-outline-secondary btn-sm no-print"><i class="fas fa-print me-1"></i>Print</button>
+</div>
+
+<div class="card mb-3 no-print"><div class="card-body py-2">
+  <form method="GET" class="row g-2 align-items-end">
+    <div class="col-md-4"><label class="form-label">From</label><input type="date" name="start" class="form-control" value="{{ start }}"></div>
+    <div class="col-md-4"><label class="form-label">To</label><input type="date" name="end" class="form-control" value="{{ end }}"></div>
+    <div class="col-md-4"><button type="submit" class="btn btn-primary w-100"><i class="fas fa-filter me-1"></i>Filter</button></div>
+  </form>
+</div></div>
+
+<div class="row g-3 mb-4">
+  <div class="col-6 col-md-3">
+    <div class="stat-card primary"><div class="stat-icon"><i class="fas fa-chart-line"></i></div>
+      <div><div class="stat-label">Net Revenue</div><div class="stat-value" style="font-size:18px">GHS {{ "%.2f"|format(net_revenue) }}</div></div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="stat-card warning"><div class="stat-icon"><i class="fas fa-balance-scale"></i></div>
+      <div><div class="stat-label">Gross Profit</div><div class="stat-value" style="font-size:18px">GHS {{ "%.2f"|format(gross_profit) }}</div><div class="stat-trend">{{ gross_margin_pct }}% margin</div></div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="stat-card danger"><div class="stat-icon"><i class="fas fa-receipt"></i></div>
+      <div><div class="stat-label">Total Expenses</div><div class="stat-value" style="font-size:18px">GHS {{ "%.2f"|format(total_expenses) }}</div></div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="stat-card {{ 'success' if net_profit >= 0 else 'danger' }}"><div class="stat-icon"><i class="fas fa-{{ 'arrow-trend-up' if net_profit >= 0 else 'arrow-trend-down' }}"></i></div>
+      <div><div class="stat-label">Net Profit</div><div class="stat-value" style="font-size:18px">GHS {{ "%.2f"|format(net_profit) }}</div><div class="stat-trend">{{ net_margin_pct }}% margin</div></div>
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header"><i class="fas fa-file-invoice-dollar me-2"></i>Statement</div>
+  <div class="card-body p-0">
+    <table class="table mb-0">
+      <tbody>
+        <tr><td class="fw-700">Gross Sales Revenue</td><td class="text-end">GHS {{ "%.2f"|format(gross_revenue) }}</td></tr>
+        {% if total_credits > 0 %}
+        <tr><td class="text-muted ps-4">Less: Credit Notes</td><td class="text-end text-danger">- GHS {{ "%.2f"|format(total_credits) }}</td></tr>
+        {% endif %}
+        <tr class="border-top"><td class="fw-700">Net Revenue</td><td class="text-end fw-700">GHS {{ "%.2f"|format(net_revenue) }}</td></tr>
+        <tr><td class="text-muted ps-4">Less: Cost of Goods Sold</td><td class="text-end text-danger">- GHS {{ "%.2f"|format(cogs) }}</td></tr>
+        <tr class="border-top"><td class="fw-800">Gross Profit</td><td class="text-end fw-800 text-warning">GHS {{ "%.2f"|format(gross_profit) }}</td></tr>
+
+        {% for category, amount in expenses_by_category %}
+        <tr><td class="text-muted ps-4">Less: {{ category|replace('_',' ')|title }}</td><td class="text-end text-danger">- GHS {{ "%.2f"|format(amount) }}</td></tr>
+        {% else %}
+        <tr><td class="text-muted ps-4 fst-italic">No approved expenses in this period</td><td></td></tr>
+        {% endfor %}
+        <tr class="border-top"><td class="text-muted">Total Expenses</td><td class="text-end text-danger">- GHS {{ "%.2f"|format(total_expenses) }}</td></tr>
+
+        <tr class="border-top" style="border-top-width:2px !important">
+          <td class="fw-800 fs-15">Net Profit</td>
+          <td class="text-end fw-800 fs-15 {{ 'text-success' if net_profit >= 0 else 'text-danger' }}">GHS {{ "%.2f"|format(net_profit) }}</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="card mt-3 no-print">
+  <div class="card-body">
+    <p class="text-muted fs-12 mb-0"><i class="fas fa-info-circle me-1"></i>Cost of Goods Sold uses each product's <strong>current</strong> cost price — there's no historical snapshot of cost at the time of each sale, so this is a close approximation, not an audited figure. If cost prices have changed recently, older periods in this report will drift slightly from what was true at the time.</p>
+  </div>
+</div>
+{% endblock %}

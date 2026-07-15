@@ -24,6 +24,74 @@ def index():
     return render_template('reports/index.html')
 
 
+# ── Profit & Loss ─────────────────────────────────────────────────────────────
+@reports_bp.route('/profit-loss')
+@login_required
+def profit_loss():
+    # Requires cost-price visibility, not just general reports access — the
+    # whole point of this report is margin, which is meaningless without cost.
+    if not current_user.can_access('reports') or not current_user.see_cost_prices():
+        flash('Access denied.', 'danger')
+        return redirect(url_for('dashboard.index'))
+
+    from models.notification import Expense
+    start, end = _date_range()
+    end_bound = end + ' 23:59:59'
+
+    sales = Sale.query.filter(
+        Sale.status == 'completed',
+        Sale.sale_date >= start, Sale.sale_date <= end_bound
+    ).all()
+
+    gross_revenue = round(sum(s.total_amount for s in sales), 2)
+
+    # COGS: quantity sold × each product's CURRENT cost price. There's no
+    # historical cost snapshot per sale item (unlike official_price for
+    # tips), so this is an approximation that drifts if cost prices have
+    # changed since the sale — acceptable for a trend report, not for audit.
+    cogs = 0.0
+    for s in sales:
+        for item in s.items:
+            cogs += item.quantity * (item.product.cost_price if item.product else 0)
+    cogs = round(cogs, 2)
+
+    # Credit notes reduce what was actually collected, same convention as
+    # sales_report()'s net_total.
+    total_credits = 0.0
+    try:
+        from models.v4_models import CreditNote
+        credit_notes = CreditNote.query.filter(
+            CreditNote.status == 'applied',
+            CreditNote.created_at >= start, CreditNote.created_at <= end_bound
+        ).all()
+        total_credits = round(sum(cn.amount for cn in credit_notes), 2)
+    except Exception:
+        pass
+
+    net_revenue = round(gross_revenue - total_credits, 2)
+    gross_profit = round(net_revenue - cogs, 2)
+    gross_margin_pct = round(gross_profit / net_revenue * 100, 1) if net_revenue > 0 else 0
+
+    expenses = Expense.query.filter(
+        Expense.status == 'approved',
+        Expense.expense_date >= start, Expense.expense_date <= end_bound
+    ).all()
+    total_expenses = round(sum(e.amount for e in expenses), 2)
+    expenses_by_category = {}
+    for e in expenses:
+        expenses_by_category[e.category] = round(expenses_by_category.get(e.category, 0) + e.amount, 2)
+    expenses_by_category = sorted(expenses_by_category.items(), key=lambda x: x[1], reverse=True)
+
+    net_profit = round(gross_profit - total_expenses, 2)
+    net_margin_pct = round(net_profit / net_revenue * 100, 1) if net_revenue > 0 else 0
+
+    return render_template('reports/profit_loss.html', start=start, end=end,
+        gross_revenue=gross_revenue, total_credits=total_credits, net_revenue=net_revenue,
+        cogs=cogs, gross_profit=gross_profit, gross_margin_pct=gross_margin_pct,
+        expenses_by_category=expenses_by_category, total_expenses=total_expenses,
+        net_profit=net_profit, net_margin_pct=net_margin_pct)
+
+
 # ── Sales Report ──────────────────────────────────────────────────────────────
 @reports_bp.route('/sales')
 @login_required
