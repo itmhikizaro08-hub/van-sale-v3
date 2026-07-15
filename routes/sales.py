@@ -68,6 +68,19 @@ def create():
     if not data.get('items'):
         return jsonify({'error': 'No items in sale'}), 400
 
+    # discount_percent (both sale-level and per-item) came straight from the
+    # client with no server-side check against the rep's role-based cap —
+    # anyone could grant themselves any discount via a direct API call,
+    # bypassing max_discount() entirely.
+    max_discount = current_user.max_discount()
+    sale_discount_pct = float(data.get('discount_percent') or 0)
+    if sale_discount_pct > max_discount:
+        return jsonify({'error': f'A discount of {sale_discount_pct}% exceeds your maximum allowed discount of {max_discount}%.'}), 400
+    for item_data in data['items']:
+        item_discount_pct = float(item_data.get('discount_percent') or 0)
+        if item_discount_pct > max_discount:
+            return jsonify({'error': f'An item discount of {item_discount_pct}% exceeds your maximum allowed discount of {max_discount}%.'}), 400
+
     sale = Sale(
         invoice_number=next_invoice_number(),
         customer_id=customer.id,

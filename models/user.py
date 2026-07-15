@@ -37,6 +37,7 @@ ROLE_PERMISSIONS = {
         'vans':          ('all',  True,  False),
         'drivers':       ('all',  True,  False),
         'sms':           ('all',  True,  True),
+        'insights':      ('all',  False, False),
     },
     'manager': {
         'dashboard':     ('all',  False, True),
@@ -68,6 +69,7 @@ ROLE_PERMISSIONS = {
         'vans':          ('all',  True,  False),
         'drivers':       ('all',  True,  False),
         'sms':           ('all',  True,  False),
+        'insights':      ('all',  False, False),
     },
     'supervisor': {
         'dashboard':     ('team', False, False),
@@ -99,6 +101,7 @@ ROLE_PERMISSIONS = {
         'vans':          ('all',  False, False),
         'drivers':       ('all',  False, False),
         'sms':           ('none', False, False),
+        'insights':      ('none', False, False),
     },
     'sales_rep': {
         'dashboard':     ('own',  False, False),
@@ -130,6 +133,7 @@ ROLE_PERMISSIONS = {
         'vans':          ('none', False, False),   # Fleet section hidden from reps
         'drivers':       ('none', False, False),
         'sms':           ('none', False, False),
+        'insights':      ('none', False, False),
     },
     'warehouse_manager': {
         'dashboard':     ('all',  False, False),
@@ -161,6 +165,7 @@ ROLE_PERMISSIONS = {
         'vans':          ('all',  False, False),   # loads vans, doesn't manage the fleet
         'drivers':       ('all',  False, False),
         'sms':           ('none', False, False),
+        'insights':      ('none', False, False),
     },
     'cashier': {
         'dashboard':     ('all',  False, False),
@@ -192,6 +197,7 @@ ROLE_PERMISSIONS = {
         'vans':          ('none', False, False),
         'drivers':       ('none', False, False),
         'sms':           ('none', False, False),
+        'insights':      ('none', False, False),
     },
 }
 
@@ -478,11 +484,15 @@ class User(UserMixin, db.Model):
             sections.append({'label': '💵 Money', 'items': money_items})
 
         # ── REPORTS ──────────────────────────────────────────────────────
+        report_items = []
         if self.can_access('reports'):
-            sections.append({'label': '📊 Reports', 'items': [
-                {'label': 'Reports', 'icon': 'fas fa-chart-bar',
-                 'url': 'reports.index', 'bp': 'reports'}
-            ]})
+            report_items.append({'label': 'Reports', 'icon': 'fas fa-chart-bar',
+                 'url': 'reports.index', 'bp': 'reports'})
+        if self.can_access('insights'):
+            report_items.append({'label': 'AI Insights', 'icon': 'fas fa-brain',
+                 'url': 'insights.index', 'bp': 'insights'})
+        if report_items:
+            sections.append({'label': '📊 Reports', 'items': report_items})
 
         # ── ADMIN ────────────────────────────────────────────────────────
         if self.role == 'admin':

@@ -69,6 +69,7 @@ def create_app():
     from routes.audit import audit_bp
     from routes.pricing import pricing_bp
     from routes.settings import settings_bp
+    from routes.insights import insights_bp
 
     app.register_blueprint(auth_bp, url_prefix='/auth')
     app.register_blueprint(dashboard_bp, url_prefix='/')
@@ -95,6 +96,7 @@ def create_app():
     app.register_blueprint(audit_bp, url_prefix='/audit')
     app.register_blueprint(pricing_bp, url_prefix='/pricing')
     app.register_blueprint(settings_bp, url_prefix='/settings')
+    app.register_blueprint(insights_bp, url_prefix='/insights')
 
     # ── Uploaded files (logos, avatars) ────────────────────────────────────────
     @app.route('/uploads/<path:filename>')

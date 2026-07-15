@@ -1,0 +1,44 @@
+{% extends 'base.html' %}
+{% block title %}AI Insights{% endblock %}
+{% block breadcrumb %}<li class="breadcrumb-item active">AI Insights</li>{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div><h1 class="page-title">AI Insights</h1><p class="page-subtitle">Patterns and predictions computed straight from your own data — no external service, nothing sent off this server.</p></div>
+</div>
+
+<div class="row g-3">
+  <div class="col-md-4">
+    <a href="{{ url_for('insights.reorder') }}" class="text-decoration-none">
+      <div class="card h-100" style="transition:box-shadow .2s">
+        <div class="card-body">
+          <div class="stat-icon mb-3" style="background:var(--brand-light);color:var(--brand)"><i class="fas fa-dolly"></i></div>
+          <h5 class="mb-2" style="color:var(--text)">Reorder Suggestions</h5>
+          <p class="text-muted fs-13 mb-0">Flags products likely to run out soon based on actual recent sales speed — catches fast movers a static reorder level would miss.</p>
+        </div>
+      </div>
+    </a>
+  </div>
+  <div class="col-md-4">
+    <a href="{{ url_for('insights.forecast') }}" class="text-decoration-none">
+      <div class="card h-100" style="transition:box-shadow .2s">
+        <div class="card-body">
+          <div class="stat-icon mb-3" style="background:#ecfdf5;color:#10b981"><i class="fas fa-chart-line"></i></div>
+          <h5 class="mb-2" style="color:var(--text)">Sales Forecast</h5>
+          <p class="text-muted fs-13 mb-0">Projects the next two weeks of sales from your recent trend, so you can see where things are heading before month-end.</p>
+        </div>
+      </div>
+    </a>
+  </div>
+  <div class="col-md-4">
+    <a href="{{ url_for('insights.anomalies') }}" class="text-decoration-none">
+      <div class="card h-100" style="transition:box-shadow .2s">
+        <div class="card-body">
+          <div class="stat-icon mb-3" style="background:#fef2f2;color:#ef4444"><i class="fas fa-triangle-exclamation"></i></div>
+          <h5 class="mb-2" style="color:var(--text)">Anomalies</h5>
+          <p class="text-muted fs-13 mb-0">Surfaces discounts beyond a rep's limit, cash declarations that didn't match what was counted, and unusually high void rates.</p>
+        </div>
+      </div>
+    </a>
+  </div>
+</div>
+{% endblock %}

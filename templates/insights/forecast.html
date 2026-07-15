@@ -1,0 +1,93 @@
+{% extends 'base.html' %}
+{% block title %}Sales Forecast{% endblock %}
+{% block breadcrumb %}<li class="breadcrumb-item"><a href="{{ url_for('insights.index') }}">AI Insights</a></li><li class="breadcrumb-item active">Sales Forecast</li>{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div><h1 class="page-title">Sales Forecast</h1><p class="page-subtitle">A trend line projected from your recent daily sales — not a guarantee, just where things are heading if the pattern holds.</p></div>
+</div>
+
+<div class="row g-3 mb-4">
+  <div class="col-6 col-md-4">
+    <div class="stat-card primary"><div class="stat-icon"><i class="fas fa-calendar-days"></i></div>
+      <div><div class="stat-label">Next {{ forecast_days }} Days (Projected)</div><div class="stat-value" style="font-size:20px">GHS {{ "%.0f"|format(projected_total) }}</div></div>
+    </div>
+  </div>
+  <div class="col-6 col-md-4">
+    <div class="stat-card info"><div class="stat-icon"><i class="fas fa-chart-bar"></i></div>
+      <div><div class="stat-label">Recent Daily Average</div><div class="stat-value" style="font-size:20px">GHS {{ "%.0f"|format(recent_avg) }}</div></div>
+    </div>
+  </div>
+  <div class="col-6 col-md-4">
+    <div class="stat-card {{ 'success' if trend == 'up' else 'danger' if trend == 'down' else 'warning' }}">
+      <div class="stat-icon"><i class="fas fa-{{ 'arrow-trend-up' if trend == 'up' else 'arrow-trend-down' if trend == 'down' else 'arrows-left-right' }}"></i></div>
+      <div><div class="stat-label">Trend</div><div class="stat-value" style="font-size:20px">{{ trend|title }}</div></div>
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header"><i class="fas fa-chart-line me-2"></i>History &amp; Forecast</div>
+  <div class="card-body">
+    <div style="height:340px"><canvas id="forecastChart"></canvas></div>
+  </div>
+</div>
+
+<div class="card mt-3">
+  <div class="card-body">
+    <p class="text-muted fs-12 mb-0"><i class="fas fa-info-circle me-1"></i>This is a straight-line trend fitted to recent history (linear regression), not a machine-learning model — it won't account for seasonality, promotions, or one-off events. Treat it as a rough directional signal, not a target.</p>
+  </div>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script>
+const historyLabels = {{ history_labels|tojson }};
+const historyValues = {{ history_values|tojson }};
+const forecastLabels = {{ forecast_labels|tojson }};
+const forecastValues = {{ forecast_values|tojson }};
+
+const allLabels = historyLabels.concat(forecastLabels);
+const historyData = historyValues.concat(Array(forecastValues.length).fill(null));
+const forecastData = Array(historyValues.length - 1).fill(null).concat([historyValues[historyValues.length - 1]]).concat(forecastValues);
+
+new Chart(document.getElementById('forecastChart'), {
+  type: 'line',
+  data: {
+    labels: allLabels,
+    datasets: [
+      {
+        label: 'Actual Sales',
+        data: historyData,
+        borderColor: '#2563EB',
+        backgroundColor: 'rgba(37,99,235,.1)',
+        borderWidth: 2,
+        tension: 0.3,
+        fill: true,
+        pointRadius: 0,
+      },
+      {
+        label: 'Forecast',
+        data: forecastData,
+        borderColor: '#f59e0b',
+        borderDash: [6, 4],
+        borderWidth: 2,
+        tension: 0.3,
+        fill: false,
+        pointRadius: 0,
+      }
+    ]
+  },
+  options: {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: { display: true, position: 'top' },
+      tooltip: { callbacks: { label: ctx => (ctx.dataset.label + ': GHS ' + (ctx.raw ?? 0).toLocaleString()) } }
+    },
+    scales: {
+      y: { beginAtZero: true, ticks: { callback: v => 'GHS ' + v.toLocaleString() } },
+      x: { ticks: { maxTicksLimit: 12 } }
+    }
+  }
+});
+</script>
+{% endblock %}

@@ -1,0 +1,59 @@
+{% extends 'base.html' %}
+{% block title %}Reorder Suggestions{% endblock %}
+{% block breadcrumb %}<li class="breadcrumb-item"><a href="{{ url_for('insights.index') }}">AI Insights</a></li><li class="breadcrumb-item active">Reorder Suggestions</li>{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div><h1 class="page-title">Reorder Suggestions</h1>
+    <p class="page-subtitle">Based on the last {{ lookback_days }} days of sales, assuming a {{ lead_time_days }}-day lead time to restock.</p>
+  </div>
+</div>
+
+<div class="row g-3 mb-4">
+  <div class="col-6 col-md-4">
+    <div class="stat-card danger"><div class="stat-icon"><i class="fas fa-triangle-exclamation"></i></div>
+      <div><div class="stat-label">Needs Reorder Soon</div><div class="stat-value">{{ suggestions|length }}</div></div>
+    </div>
+  </div>
+  <div class="col-6 col-md-4">
+    <div class="stat-card warning"><div class="stat-icon"><i class="fas fa-question"></i></div>
+      <div><div class="stat-label">Low Stock, No Recent Sales</div><div class="stat-value">{{ no_movement|length }}</div><div class="stat-trend">can't estimate — no sales to go on</div></div>
+    </div>
+  </div>
+</div>
+
+<div class="card mb-3">
+  <div class="card-header"><i class="fas fa-dolly text-danger me-2"></i>Order Soon</div>
+  <div class="card-body p-0"><div class="table-responsive">
+    <table class="table table-hover mb-0">
+      <thead><tr><th>Product</th><th class="text-end">Current Stock</th><th class="text-end">Avg Daily Sales</th><th class="text-end">Days of Stock Left</th><th class="text-end">Suggested Reorder Qty</th></tr></thead>
+      <tbody>
+        {% for row in suggestions %}
+        <tr>
+          <td class="fw-600">{{ row.product.product_name }}</td>
+          <td class="text-end">{{ row.product.stock_quantity }}</td>
+          <td class="text-end">{{ row.daily_velocity }}</td>
+          <td class="text-end"><span class="badge {{ 'bg-danger' if row.days_left <= 5 else 'bg-warning text-dark' }}">{{ row.days_left }} days</span></td>
+          <td class="text-end fw-700 text-primary">{{ row.suggested_qty }}</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="5" class="text-muted text-center py-3">Nothing needs reordering right now — all good.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div></div>
+</div>
+
+{% if no_movement %}
+<div class="card">
+  <div class="card-header"><i class="fas fa-question-circle text-warning me-2"></i>Low Stock but No Recent Sales</div>
+  <div class="card-body">
+    <p class="text-muted fs-13">These are at or below their reorder level, but haven't sold in the last {{ lookback_days }} days — there's not enough recent activity to estimate how urgent restocking actually is. Check the regular <a href="{{ url_for('products.low_stock') }}">Low Stock</a> page for these.</p>
+    <div class="d-flex flex-wrap gap-2">
+      {% for p in no_movement %}
+      <span class="badge bg-secondary fs-12">{{ p.product_name }} ({{ p.stock_quantity }})</span>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+{% endif %}
+{% endblock %}
