@@ -87,7 +87,12 @@ def void_note(kind, note_id):
         note = CreditNote.query.get_or_404(note_id)
         if note.status == 'void':
             return jsonify({'error': 'Already void'}), 400
-        if note.status == 'applied' and note.customer:
+        # A credit note only ever reduced outstanding_balance if it was
+        # refunded 'as credit' (routes/returns.py) — a cash-refunded return's
+        # note never touched the balance, so reversing it here would inflate
+        # what the customer owes by an amount that was never subtracted.
+        was_credit_refund = note.return_order and note.return_order.refund_method == 'credit'
+        if note.status == 'applied' and note.customer and was_credit_refund:
             note.customer.outstanding_balance += note.amount
         note.status = 'void'
     elif kind == 'debit':

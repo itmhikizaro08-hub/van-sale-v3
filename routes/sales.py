@@ -248,9 +248,19 @@ def cancel(sale_id):
         return jsonify({'error': 'Permission denied'}), 403
     sale = Sale.query.get_or_404(sale_id)
     if sale.status == 'completed':
-        # Reverse stock
+        # Reverse stock into whichever pool it actually came out of. A rep's
+        # sale draws down VanStock, not the warehouse (see create()) — always
+        # crediting item.product.stock_quantity here created phantom
+        # warehouse stock that was never actually removed from the warehouse,
+        # while the rep's van stock stayed permanently short.
         for item in sale.items:
-            item.product.stock_quantity += item.quantity
+            van_stock_row = VanStock.query.filter_by(
+                sales_rep_id=sale.sales_rep_id, product_id=item.product_id
+            ).first()
+            if van_stock_row:
+                van_stock_row.quantity += item.quantity
+            else:
+                item.product.stock_quantity += item.quantity
         sale.status = 'cancelled'
         sale.customer.outstanding_balance -= sale.balance_due
         db.session.commit()

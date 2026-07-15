@@ -35,6 +35,9 @@ def index():
 @visits_bp.route('/add', methods=['GET', 'POST'])
 @login_required
 def add():
+    if not current_user.can_write('visits'):
+        flash('Permission denied.', 'danger')
+        return redirect(url_for('visits.index'))
     customers = Customer.query.filter_by(status='active').order_by(Customer.name).all()
     routes = Route.query.filter_by(status='active').all()
     if request.method == 'POST':
@@ -56,7 +59,11 @@ def add():
 @visits_bp.route('/<int:visit_id>/checkin', methods=['POST'])
 @login_required
 def checkin(visit_id):
+    if not current_user.can_write('visits'):
+        return jsonify({'error': 'Permission denied'}), 403
     visit = CustomerVisit.query.get_or_404(visit_id)
+    if current_user.scope('visits') == 'own' and visit.sales_rep_id != current_user.id:
+        return jsonify({'error': 'Access denied'}), 403
     data = request.get_json() or {}
     visit.check_in_time = datetime.utcnow()
     visit.gps_latitude = data.get('lat')
@@ -70,7 +77,11 @@ def checkin(visit_id):
 @visits_bp.route('/<int:visit_id>/checkout', methods=['POST'])
 @login_required
 def checkout(visit_id):
+    if not current_user.can_write('visits'):
+        return jsonify({'error': 'Permission denied'}), 403
     visit = CustomerVisit.query.get_or_404(visit_id)
+    if current_user.scope('visits') == 'own' and visit.sales_rep_id != current_user.id:
+        return jsonify({'error': 'Access denied'}), 403
     data = request.get_json() or {}
     visit.check_out_time = datetime.utcnow()
     visit.outcome = data.get('outcome', 'no_sale')
@@ -103,11 +114,12 @@ def today():
 @visits_bp.route('/mark', methods=['POST'])
 @login_required
 def mark():
+    if not current_user.can_write('visits'):
+        return jsonify({'error': 'Permission denied'}), 403
     data = request.get_json()
     if not data or not data.get('customer_id'):
         return jsonify({'error': 'customer_id required'}), 400
     try:
-        from models.van import CustomerVisit
         visit = CustomerVisit(
             customer_id=data['customer_id'],
             sales_rep_id=current_user.id,
@@ -119,7 +131,14 @@ def mark():
             outcome=data.get('outcome', 'visited')
         )
         db.session.add(visit)
+        # checkin() updates this too — without it, a visit logged through
+        # this quick-mark flow leaves Customer.last_visit_date stale, which
+        # customers/view.html and reports read directly.
+        customer = Customer.query.get(data['customer_id'])
+        if customer:
+            customer.last_visit_date = datetime.utcnow()
         db.session.commit()
         return jsonify({'success': True})
     except Exception as e:
+        db.session.rollback()
         return jsonify({'error': str(e)}), 500
