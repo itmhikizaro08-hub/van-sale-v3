@@ -4,8 +4,55 @@
 {% block content %}
 <div class="page-header">
   <div><h1 class="page-title">Products</h1></div>
-  {% if current_user.can_write('products') %}<a href="{{ url_for('products.add') }}" class="btn btn-primary"><i class="fas fa-plus me-1"></i>Add Product</a>{% endif %}
+  <div class="d-flex gap-2">
+    <a href="{{ url_for('products.categories') }}" class="btn btn-outline-secondary"><i class="fas fa-tags me-1"></i>Categories</a>
+    {% if current_user.can_write('products') %}<a href="{{ url_for('products.add') }}" class="btn btn-primary"><i class="fas fa-plus me-1"></i>Add Product</a>{% endif %}
+  </div>
 </div>
+
+<div class="row g-3 mb-4">
+  <div class="col-6 col-md-3">
+    <div class="stat-card primary">
+      <div class="stat-icon"><i class="fas fa-box"></i></div>
+      <div><div class="stat-label">Total Products</div><div class="stat-value">{{ products|length }}</div></div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="stat-card warning">
+      <div class="stat-icon"><i class="fas fa-exclamation-triangle"></i></div>
+      <div><div class="stat-label">Low Stock</div><div class="stat-value">{{ low_stock_count }}</div></div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="stat-card danger">
+      <div class="stat-icon"><i class="fas fa-times-circle"></i></div>
+      <div><div class="stat-label">Out of Stock</div><div class="stat-value">{{ out_of_stock_count }}</div></div>
+    </div>
+  </div>
+  {% if current_user.see_cost_prices() %}
+  <div class="col-6 col-md-3">
+    <div class="stat-card success">
+      <div class="stat-icon"><i class="fas fa-coins"></i></div>
+      <div><div class="stat-label">Stock Value</div><div class="stat-value" style="font-size:18px">GHS {{ "%.0f"|format(total_stock_value) }}</div></div>
+    </div>
+  </div>
+  {% endif %}
+</div>
+
+<div class="card mb-3"><div class="card-body py-2">
+  <div class="row g-2 align-items-end">
+    <div class="col-md-4">
+      <label class="form-label">Category</label>
+      <select class="form-select" id="categoryFilter">
+        <option value="">All Categories</option>
+        {% for c in categories %}
+        <option value="{{ c.name }}">{{ c.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+  </div>
+</div></div>
+
 <div class="card"><div class="card-body p-0"><div class="table-responsive">
 <table class="table table-hover dt-table mb-0" id="prodTable">
   <thead>
@@ -24,11 +71,29 @@
       <td class="text-end fw-600 text-primary">GHS {{ "%.2f"|format(p.selling_price) }}</td>
       <td class="text-center"><span class="badge {{ 'bg-danger' if p.stock_quantity == 0 else 'bg-warning text-dark' if p.is_low_stock else 'bg-success' }}">{{ p.stock_quantity }}</span></td>
       <td>{% if p.is_low_stock %}<span class="badge bg-warning text-dark">Low</span>{% endif %}</td>
-      <td><a href="{{ url_for('products.view', product_id=p.id) }}" class="btn btn-icon btn-sm btn-outline-primary"><i class="fas fa-eye"></i></a></td>
+      <td class="text-nowrap">
+        <div class="d-flex gap-1">
+          <a href="{{ url_for('products.view', product_id=p.id) }}" class="btn btn-icon btn-sm btn-outline-primary" title="View"><i class="fas fa-eye"></i></a>
+          {% if current_user.can_write('products') %}
+          <a href="{{ url_for('products.edit', product_id=p.id) }}" class="btn btn-icon btn-sm btn-outline-secondary" title="Edit"><i class="fas fa-edit"></i></a>
+          {% endif %}
+        </div>
+      </td>
     </tr>
+    {% else %}
+    <tr><td colspan="{{ 9 if current_user.see_cost_prices() else 8 }}" class="text-muted text-center py-3">No products yet</td></tr>
     {% endfor %}
   </tbody>
 </table>
 </div></div></div>
 {% endblock %}
-{% block extra_js %}<script>$(document).ready(() => initDataTable('#prodTable', {order:[[1,'asc']]}));</script>{% endblock %}
+{% block extra_js %}
+<script>
+$(document).ready(() => {
+  const table = initDataTable('#prodTable', {order:[[1,'asc']]});
+  document.getElementById('categoryFilter').addEventListener('change', function () {
+    table.column(2).search(this.value).draw();
+  });
+});
+</script>
+{% endblock %}

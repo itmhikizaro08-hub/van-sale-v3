@@ -16,15 +16,25 @@ def _next_code():
 @products_bp.route('/')
 @login_required
 def index():
-    products = Product.query.order_by(Product.product_name).all()
+    if not current_user.can_access('products'):
+        flash('Access denied.', 'danger')
+        return redirect(url_for('dashboard.index'))
+    # Soft-deleted (deactivated) products stay in the table forever — never
+    # show them on the main catalog, same convention as customers/suppliers.
+    products = Product.query.filter_by(status='active').order_by(Product.product_name).all()
     categories = Category.query.order_by(Category.name).all()
-    return render_template('products/index.html', products=products, categories=categories)
+    low_stock_count = sum(1 for p in products if p.is_low_stock and p.stock_quantity > 0)
+    out_of_stock_count = sum(1 for p in products if p.stock_quantity == 0)
+    total_stock_value = round(sum(p.stock_quantity * p.cost_price for p in products), 2)
+    return render_template('products/index.html', products=products, categories=categories,
+        low_stock_count=low_stock_count, out_of_stock_count=out_of_stock_count,
+        total_stock_value=total_stock_value)
 
 
 @products_bp.route('/add', methods=['GET', 'POST'])
 @login_required
 def add():
-    if not current_user.can_add:
+    if not current_user.can_write('products'):
         flash('Permission denied.', 'danger')
         return redirect(url_for('products.index'))
 
@@ -58,7 +68,7 @@ def add():
 @products_bp.route('/<int:product_id>/edit', methods=['GET', 'POST'])
 @login_required
 def edit(product_id):
-    if not current_user.can_edit:
+    if not current_user.can_write('products'):
         flash('Permission denied.', 'danger')
         return redirect(url_for('products.index'))
 
@@ -88,7 +98,7 @@ def edit(product_id):
 @products_bp.route('/<int:product_id>/delete', methods=['POST'])
 @login_required
 def delete(product_id):
-    if not current_user.can_delete:
+    if not current_user.can_write('products'):
         return jsonify({'error': 'Permission denied'}), 403
     product = Product.query.get_or_404(product_id)
     product.status = 'inactive'
@@ -99,6 +109,8 @@ def delete(product_id):
 @products_bp.route('/search')
 @login_required
 def search():
+    if not current_user.can_access('products'):
+        return jsonify([]), 403
     q = request.args.get('q', '').strip()
     products = Product.query.filter(
         (Product.product_name.ilike(f'%{q}%') |
@@ -113,6 +125,9 @@ def search():
 @products_bp.route('/low-stock')
 @login_required
 def low_stock():
+    if not current_user.can_access('products'):
+        flash('Access denied.', 'danger')
+        return redirect(url_for('dashboard.index'))
     products = Product.query.filter(
         Product.stock_quantity <= Product.reorder_level,
         Product.status == 'active'
@@ -123,7 +138,13 @@ def low_stock():
 @products_bp.route('/categories', methods=['GET', 'POST'])
 @login_required
 def categories():
+    if not current_user.can_access('products'):
+        flash('Access denied.', 'danger')
+        return redirect(url_for('dashboard.index'))
     if request.method == 'POST':
+        if not current_user.can_write('products'):
+            flash('Permission denied.', 'danger')
+            return redirect(url_for('products.categories'))
         name = request.form.get('name', '').strip()
         if name and not Category.query.filter_by(name=name).first():
             db.session.add(Category(name=name, description=request.form.get('description')))
@@ -137,6 +158,8 @@ def categories():
 @products_bp.route('/<int:product_id>')
 @login_required
 def view(product_id):
-    from models.product import Product
+    if not current_user.can_access('products'):
+        flash('Access denied.', 'danger')
+        return redirect(url_for('dashboard.index'))
     product = Product.query.get_or_404(product_id)
     return render_template('products/view.html', product=product)
