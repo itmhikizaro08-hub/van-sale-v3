@@ -11,6 +11,9 @@ sms_bp = Blueprint('sms', __name__)
 @sms_bp.route('/')
 @login_required
 def index():
+    if not current_user.can_access('sms'):
+        flash('Access denied.', 'danger')
+        return redirect(url_for('dashboard.index'))
     logs = SMSLog.query.order_by(SMSLog.created_at.desc()).limit(200).all()
     stats = {
         'total': SMSLog.query.count(),
@@ -24,6 +27,9 @@ def index():
 @sms_bp.route('/send', methods=['GET', 'POST'])
 @login_required
 def send():
+    if not current_user.can_write('sms'):
+        flash('Permission denied.', 'danger')
+        return redirect(url_for('sms.index'))
     customers = Customer.query.filter_by(status='active').order_by(Customer.name).all()
     if request.method == 'POST':
         phone = request.form.get('phone')
@@ -43,6 +49,8 @@ def send():
 @login_required
 def bulk():
     """Send SMS to multiple customers."""
+    if not current_user.can_write('sms'):
+        return jsonify({'error': 'Permission denied'}), 403
     data = request.get_json()
     message = data.get('message')
     customer_ids = data.get('customer_ids', [])
@@ -60,5 +68,7 @@ def bulk():
 @sms_bp.route('/overdue-reminders', methods=['POST'])
 @login_required
 def overdue_reminders():
+    if not current_user.can_write('sms'):
+        return jsonify({'error': 'Permission denied'}), 403
     count = send_overdue_reminders()
     return jsonify({'sent': count})

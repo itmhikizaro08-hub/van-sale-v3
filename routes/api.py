@@ -12,6 +12,8 @@ api_bp = Blueprint('api', __name__)
 @api_bp.route('/products/search')
 @login_required
 def products_search():
+    if not current_user.can_access('products'):
+        return jsonify([]), 403
     q = request.args.get('q', '')
     products = Product.query.filter(
         (Product.product_name.ilike(f'%{q}%') | Product.product_code.ilike(f'%{q}%') | Product.barcode.ilike(f'%{q}%')),
@@ -42,11 +44,18 @@ def products_search():
 @api_bp.route('/customers/search')
 @login_required
 def customers_search():
+    if not current_user.can_access('customers'):
+        return jsonify([]), 403
     q = request.args.get('q', '')
-    customers = Customer.query.filter(
+    query = Customer.query.filter(
         (Customer.name.ilike(f'%{q}%') | Customer.customer_code.ilike(f'%{q}%') | Customer.phone.ilike(f'%{q}%')),
         Customer.status == 'active'
-    ).limit(15).all()
+    )
+    # A rep scoped to 'own' customers must not be able to look up every
+    # other rep's customers through this autocomplete, same as customers.py.
+    if current_user.scope('customers') == 'own':
+        query = query.filter_by(sales_rep_id=current_user.id)
+    customers = query.limit(15).all()
     return jsonify([c.to_dict() for c in customers])
 
 

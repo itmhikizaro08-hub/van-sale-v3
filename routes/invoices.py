@@ -11,13 +11,20 @@ invoices_bp = Blueprint('invoices', __name__)
 @invoices_bp.route('/')
 @login_required
 def index():
+    if not current_user.can_access('invoices'):
+        flash('Access denied.', 'danger')
+        return redirect(url_for('dashboard.index'))
+
     start = request.args.get('start', (datetime.utcnow() - timedelta(days=30)).strftime('%Y-%m-%d'))
     end   = request.args.get('end',   datetime.utcnow().strftime('%Y-%m-%d'))
-    sales = Sale.query.filter(
+    q = Sale.query.filter(
         Sale.status == 'completed',
         Sale.sale_date >= start,
         Sale.sale_date <= end + ' 23:59:59'
-    ).order_by(Sale.sale_date.desc()).limit(200).all()
+    )
+    if current_user.scope('invoices') == 'own':
+        q = q.filter_by(sales_rep_id=current_user.id)
+    sales = q.order_by(Sale.sale_date.desc()).limit(200).all()
 
     total_sales_amount = round(sum(s.total_amount for s in sales), 2)
     total_outstanding = round(sum(s.balance_due for s in sales), 2)
@@ -30,6 +37,12 @@ def index():
 @login_required
 def view(sale_id):
     sale = Sale.query.get_or_404(sale_id)
+    if not current_user.can_access('invoices'):
+        flash('Access denied.', 'danger')
+        return redirect(url_for('dashboard.index'))
+    if current_user.scope('invoices') == 'own' and sale.sales_rep_id != current_user.id:
+        flash('Access denied.', 'danger')
+        return redirect(url_for('invoices.index'))
     s = Settings.get()
     company = {
         'name': s.company_name,

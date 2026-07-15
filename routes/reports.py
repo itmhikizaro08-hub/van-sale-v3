@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, request, make_response
+from flask import Blueprint, render_template, request, make_response, flash, redirect, url_for
 from flask_login import login_required, current_user
 from datetime import datetime, timedelta, date
 from sqlalchemy import func
@@ -28,6 +28,9 @@ def index():
 @reports_bp.route('/sales')
 @login_required
 def sales_report():
+    if not current_user.can_access('reports'):
+        flash('Access denied.', 'danger')
+        return redirect(url_for('dashboard.index'))
     start, end = _date_range()
     q = Sale.query.filter(
         Sale.status == 'completed',
@@ -66,13 +69,21 @@ def sales_report():
 @reports_bp.route('/sales/excel')
 @login_required
 def sales_excel():
+    if not current_user.can_access('reports'):
+        flash('Access denied.', 'danger')
+        return redirect(url_for('dashboard.index'))
     import pandas as pd, io
     start, end = _date_range()
-    sales = Sale.query.filter(
+    q = Sale.query.filter(
         Sale.status == 'completed',
         Sale.sale_date >= start,
         Sale.sale_date <= end + ' 23:59:59'
-    ).all()
+    )
+    # Same 'own' scope filter as sales_report() — without it a rep could
+    # bypass their own-sales restriction just by hitting the Excel export.
+    if current_user.scope('sales') == 'own':
+        q = q.filter(Sale.sales_rep_id == current_user.id)
+    sales = q.all()
     data = [{
         'Invoice':    s.invoice_number,
         'Customer':   s.customer.name if s.customer else '',
@@ -100,7 +111,13 @@ def sales_excel():
 @reports_bp.route('/customers')
 @login_required
 def customers_report():
-    customers = Customer.query.order_by(Customer.outstanding_balance.desc()).all()
+    if not current_user.can_access('customers'):
+        flash('Access denied.', 'danger')
+        return redirect(url_for('dashboard.index'))
+    q = Customer.query
+    if current_user.scope('customers') == 'own':
+        q = q.filter_by(sales_rep_id=current_user.id)
+    customers = q.order_by(Customer.outstanding_balance.desc()).all()
     for c in customers:
         c.total_sales = db.session.query(func.sum(Sale.total_amount)).filter(
             Sale.customer_id == c.id, Sale.status == 'completed'
@@ -115,6 +132,9 @@ def customers_report():
 @reports_bp.route('/inventory')
 @login_required
 def inventory_report():
+    if not current_user.can_access('inventory'):
+        flash('Access denied.', 'danger')
+        return redirect(url_for('dashboard.index'))
     from models.notification import VanStock
     products = Product.query.filter_by(status='active').order_by(Product.product_name).all()
     warehouse_value = round(sum(p.stock_quantity * p.cost_price for p in products), 2)
@@ -136,6 +156,9 @@ def inventory_report():
 @reports_bp.route('/inventory/excel')
 @login_required
 def inventory_excel():
+    if not current_user.can_access('inventory'):
+        flash('Access denied.', 'danger')
+        return redirect(url_for('dashboard.index'))
     import pandas as pd, io
     from models.notification import VanStock
     products = Product.query.filter_by(status='active').all()
@@ -168,8 +191,14 @@ def inventory_excel():
 @reports_bp.route('/debt-ageing')
 @login_required
 def debt_ageing():
+    if not current_user.can_access('customers'):
+        flash('Access denied.', 'danger')
+        return redirect(url_for('dashboard.index'))
+    q = Customer.query.filter(Customer.outstanding_balance > 0)
+    if current_user.scope('customers') == 'own':
+        q = q.filter_by(sales_rep_id=current_user.id)
     today = date.today()
-    customers = Customer.query.filter(Customer.outstanding_balance > 0).all()
+    customers = q.all()
     buckets = {'0_30': [], '31_60': [], '61_90': [], '90_plus': []}
     for c in customers:
         oldest = Sale.query.filter_by(customer_id=c.id, status='completed').filter(
@@ -192,9 +221,15 @@ def debt_ageing():
 @reports_bp.route('/debt-ageing/excel')
 @login_required
 def debt_ageing_excel():
+    if not current_user.can_access('customers'):
+        flash('Access denied.', 'danger')
+        return redirect(url_for('dashboard.index'))
     import pandas as pd, io
+    q = Customer.query.filter(Customer.outstanding_balance > 0)
+    if current_user.scope('customers') == 'own':
+        q = q.filter_by(sales_rep_id=current_user.id)
     today = date.today()
-    customers = Customer.query.filter(Customer.outstanding_balance > 0).all()
+    customers = q.all()
     data = []
     for c in customers:
         oldest = Sale.query.filter_by(customer_id=c.id, status='completed').filter(
@@ -218,11 +253,16 @@ def debt_ageing_excel():
 @reports_bp.route('/rep-liability')
 @login_required
 def rep_liability():
+    if not current_user.can_access('van_stock'):
+        flash('Access denied.', 'danger')
+        return redirect(url_for('dashboard.index'))
     from models.notification import VanStock
     from models.user import User
     reps = User.query.filter(
         User.role.in_(['sales_rep', 'supervisor']), User.is_active == True
     ).all()
+    if current_user.scope('van_stock') == 'own':
+        reps = [r for r in reps if r.id == current_user.id]
     liabilities = []
     for rep in reps:
         rows = VanStock.query.filter_by(sales_rep_id=rep.id).filter(VanStock.quantity > 0).all()
@@ -242,7 +282,6 @@ def rep_liability():
 @login_required
 def rep_statement():
     if not current_user.can_access('reports'):
-        from flask import flash, redirect, url_for
         flash('Access denied.', 'danger')
         return redirect(url_for('dashboard.index'))
 
@@ -311,6 +350,9 @@ def rep_statement():
 @reports_bp.route('/returns-analysis')
 @login_required
 def returns_analysis():
+    if not current_user.can_access('returns'):
+        flash('Access denied.', 'danger')
+        return redirect(url_for('dashboard.index'))
     start, end = _date_range()
     try:
         from models.v4_models import ReturnOrder
@@ -342,6 +384,9 @@ def returns_analysis():
 @reports_bp.route('/van-performance')
 @login_required
 def van_performance():
+    if not current_user.can_access('vans'):
+        flash('Access denied.', 'danger')
+        return redirect(url_for('dashboard.index'))
     from models.van import Van
     start, end = _date_range()
     vans = Van.query.all()

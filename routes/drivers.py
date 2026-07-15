@@ -10,6 +10,9 @@ drivers_bp = Blueprint('drivers', __name__)
 @drivers_bp.route('/')
 @login_required
 def index():
+    if not current_user.can_access('drivers'):
+        flash('Access denied.', 'danger')
+        return redirect(url_for('dashboard.index'))
     drivers = Driver.query.order_by(Driver.name).all()
     return render_template('drivers/index.html', drivers=drivers)
 
@@ -17,6 +20,9 @@ def index():
 @drivers_bp.route('/add', methods=['GET', 'POST'])
 @login_required
 def add():
+    if not current_user.can_write('drivers'):
+        flash('Permission denied.', 'danger')
+        return redirect(url_for('drivers.index'))
     if request.method == 'POST':
         expiry = request.form.get('license_expiry')
         driver = Driver(
@@ -40,6 +46,9 @@ def add():
 @drivers_bp.route('/<int:driver_id>/edit', methods=['GET', 'POST'])
 @login_required
 def edit(driver_id):
+    if not current_user.can_write('drivers'):
+        flash('Permission denied.', 'danger')
+        return redirect(url_for('drivers.index'))
     driver = Driver.query.get_or_404(driver_id)
     if request.method == 'POST':
         expiry = request.form.get('license_expiry')

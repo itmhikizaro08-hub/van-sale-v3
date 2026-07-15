@@ -107,7 +107,10 @@ def users():
 @auth_bp.route('/users/add', methods=['GET', 'POST'])
 @login_required
 def add_user():
-    if not current_user.is_manager:
+    # This whole section is admin-only (see comment above) — a manager could
+    # otherwise pick role='admin' from the form (it's a valid, offered
+    # choice) and mint themselves or an accomplice a brand-new admin account.
+    if not current_user.is_admin:
         flash('Access denied.', 'danger')
         return redirect(url_for('dashboard.index'))
 

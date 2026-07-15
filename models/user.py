@@ -35,6 +35,8 @@ ROLE_PERMISSIONS = {
         'cost_prices':   ('all',  False, False),
         'notifications': ('all',  True,  True),
         'vans':          ('all',  True,  False),
+        'drivers':       ('all',  True,  False),
+        'sms':           ('all',  True,  True),
     },
     'manager': {
         'dashboard':     ('all',  False, True),
@@ -64,6 +66,8 @@ ROLE_PERMISSIONS = {
         'cost_prices':   ('all',  False, False),
         'notifications': ('all',  True,  True),
         'vans':          ('all',  True,  False),
+        'drivers':       ('all',  True,  False),
+        'sms':           ('all',  True,  False),
     },
     'supervisor': {
         'dashboard':     ('team', False, False),
@@ -93,6 +97,8 @@ ROLE_PERMISSIONS = {
         'cost_prices':   ('all',  False, False),
         'notifications': ('all',  False, False),
         'vans':          ('all',  False, False),
+        'drivers':       ('all',  False, False),
+        'sms':           ('none', False, False),
     },
     'sales_rep': {
         'dashboard':     ('own',  False, False),
@@ -122,6 +128,8 @@ ROLE_PERMISSIONS = {
         'cost_prices':   ('none', False, False),   # HIDDEN
         'notifications': ('none', False, False),   # no operational relevance
         'vans':          ('none', False, False),   # Fleet section hidden from reps
+        'drivers':       ('none', False, False),
+        'sms':           ('none', False, False),
     },
     'warehouse_manager': {
         'dashboard':     ('all',  False, False),
@@ -151,6 +159,8 @@ ROLE_PERMISSIONS = {
         'cost_prices':   ('all',  False, False),
         'notifications': ('all',  True,  False),   # low-stock alerts relevant to them
         'vans':          ('all',  False, False),   # loads vans, doesn't manage the fleet
+        'drivers':       ('all',  False, False),
+        'sms':           ('none', False, False),
     },
     'cashier': {
         'dashboard':     ('all',  False, False),
@@ -180,6 +190,8 @@ ROLE_PERMISSIONS = {
         'cost_prices':   ('none', False, False),
         'notifications': ('all',  True,  False),   # outstanding-balance alerts relevant to them
         'vans':          ('none', False, False),
+        'drivers':       ('none', False, False),
+        'sms':           ('none', False, False),
     },
 }
 
@@ -401,6 +413,9 @@ class User(UserMixin, db.Model):
         if self.can_access('visits'):
             crm_items.append({'label': 'Visits', 'icon': 'fas fa-map-pin',
                                'url': 'visits.index', 'bp': 'visits'})
+        if self.can_access('sms'):
+            crm_items.append({'label': 'SMS Center', 'icon': 'fas fa-sms',
+                               'url': 'sms.index', 'bp': 'sms'})
         if crm_items:
             sections.append({'label': '👥 Customers', 'items': crm_items})
 
@@ -432,12 +447,14 @@ class User(UserMixin, db.Model):
 
         # ── FLEET ────────────────────────────────────────────────────────
         fleet_items = []
-        if self.role in ('admin', 'manager', 'supervisor'):
+        if self.can_access('vans'):
             fleet_items.append({'label': 'Vans', 'icon': 'fas fa-truck',
                                  'url': 'vans.index', 'bp': 'vans',
                                  'match_endpoints': ['vans.index', 'vans.add', 'vans.view', 'vans.edit']})
+        if self.can_access('drivers'):
             fleet_items.append({'label': 'Drivers', 'icon': 'fas fa-id-badge',
                                  'url': 'drivers.index', 'bp': 'drivers'})
+        if self.can_access('routes'):
             fleet_items.append({'label': 'Routes', 'icon': 'fas fa-route',
                                  'url': 'routes.index', 'bp': 'routes'})
         if fleet_items:
