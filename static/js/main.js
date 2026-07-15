@@ -289,7 +289,7 @@ document.addEventListener('click', async e => {
     btn.disabled = true;
     const res = await apiCall(btn.dataset.actionUrl, 'POST');
     if (res.success) {
-      Toast.show(btn.dataset.successMsg || 'Action completed.', 'success');
+      Toast.show(res.message || btn.dataset.successMsg || 'Action completed.', 'success');
       setTimeout(() => location.reload(), 800);
     } else {
       Toast.show(res.error || 'Action failed.', 'danger');
