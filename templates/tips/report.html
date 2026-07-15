@@ -235,7 +235,7 @@
             <th class="text-end">Final Price</th>
             <th class="text-end">Qty</th>
             <th class="text-end">Tip Total</th>
-            {% if current_user.role == 'admin' %}<th>Actions</th>{% endif %}
+            {% if current_user.can_write('tips') %}<th>Actions</th>{% endif %}
           </tr>
         </thead>
         <tbody>
@@ -265,7 +265,7 @@
             <td class="text-end fw-700 text-success" id="tip-total-{{ item.id }}">
               GHS {{ "%.2f"|format(item.tip_line_total) }}
             </td>
-            {% if current_user.role == 'admin' %}
+            {% if current_user.can_write('tips') %}
             <td>
               <div class="d-flex gap-1">
                 <button class="btn btn-icon btn-sm btn-outline-primary"
@@ -288,7 +288,7 @@
           <tr class="fw-700">
             <td colspan="9" class="text-end">Total Tips</td>
             <td class="text-end fw-800 text-success">GHS {{ "%.2f"|format(total_tip) }}</td>
-            {% if current_user.role == 'admin' %}<td></td>{% endif %}
+            {% if current_user.can_write('tips') %}<td></td>{% endif %}
           </tr>
         </tfoot>
       </table>
@@ -297,7 +297,7 @@
 </div>
 
 <!-- Edit Tip Modal -->
-{% if current_user.role == 'admin' %}
+{% if current_user.can_write('tips') %}
 <div class="modal fade" id="editTipModal" tabindex="-1">
   <div class="modal-dialog modal-sm">
     <div class="modal-content">

@@ -26,18 +26,20 @@ tips_bp = Blueprint('tips', __name__)
 
 def _require_tip_access():
     """Returns True if current user may access the tips module at all."""
-    return current_user.role in ('admin', 'manager', 'sales_rep')
+    return current_user.can_access('tips')
 
 
 def _can_admin_tips():
-    return current_user.role in ('admin', 'manager')
+    """True for the full company-wide report — only roles with unrestricted
+    ('all') tips scope, i.e. admin/manager, not a rep's own-only 'own' scope."""
+    return current_user.scope('tips') == 'all'
 
 
 # ── My Tips (Sales Rep view) ──────────────────────────────────────────────────
 @tips_bp.route('/my-tips')
 @login_required
 def my_tips():
-    if current_user.role not in ('admin', 'manager', 'sales_rep'):
+    if not _require_tip_access():
         flash('Access denied.', 'danger')
         return redirect(url_for('dashboard.index'))
 
@@ -51,7 +53,7 @@ def my_tips():
         Sale.sale_date <= end + ' 23:59:59',
         SaleItem.tip_amount > 0
     )
-    if current_user.role == 'sales_rep':
+    if current_user.scope('tips') == 'own':
         q = q.filter(Sale.sales_rep_id == current_user.id)
 
     items = q.order_by(Sale.sale_date.desc()).all()
@@ -170,8 +172,8 @@ def report():
 @tips_bp.route('/edit/<int:item_id>', methods=['POST'])
 @login_required
 def edit_tip(item_id):
-    if current_user.role != 'admin':
-        return jsonify({'error': 'Admin only'}), 403
+    if not current_user.can_write('tips'):
+        return jsonify({'error': 'Permission denied'}), 403
 
     item = SaleItem.query.get_or_404(item_id)
     data = request.get_json()
@@ -216,8 +218,8 @@ def edit_tip(item_id):
 @tips_bp.route('/delete/<int:item_id>', methods=['POST'])
 @login_required
 def delete_tip(item_id):
-    if current_user.role != 'admin':
-        return jsonify({'error': 'Admin only'}), 403
+    if not current_user.can_write('tips'):
+        return jsonify({'error': 'Permission denied'}), 403
 
     item = SaleItem.query.get_or_404(item_id)
     item.tip_amount = 0.0

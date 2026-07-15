@@ -77,6 +77,11 @@ def run_migrations(db):
         # tip feature (best-effort, approved by the user) ──────────────────
         _repair_historical_tip_amounts(db)
 
+        # ── Correct the originally-seeded 'tips' permissions, which granted
+        # manager/sales_rep write access contradicting the module's own
+        # documented read-only design ───────────────────────────────────────
+        _repair_tips_permissions(db)
+
         log.info("Migrations applied successfully.")
 
     except Exception as e:
@@ -197,6 +202,37 @@ def _repair_historical_tip_amounts(db):
     except Exception as e:
         db.session.rollback()
         log.debug(f"historical tip backfill skipped: {e}")
+
+
+def _repair_tips_permissions(db):
+    """One-time correction: the 'tips' RolePermission rows were originally
+    seeded granting manager/sales_rep write+approve access, contradicting
+    routes/tips.py's own documented design (manager and sales_rep are
+    read-only for tips; only admin may edit/delete). Once seeded, the DB
+    table is authoritative over the ROLE_PERMISSIONS dict in code (see
+    load_role_permissions()), so fixing the dict alone never takes effect
+    on a database that already ran the old seed. Only corrects rows still
+    at that exact original (buggy) value, so it never overwrites a
+    permission an admin has since deliberately changed via Settings."""
+    try:
+        from models.user import RolePermission
+        fixed = 0
+        original_bad = {
+            'manager':   {'can_write': True, 'can_approve': True},
+            'sales_rep': {'can_write': True, 'can_approve': False},
+        }
+        for role, bad in original_bad.items():
+            row = RolePermission.query.filter_by(role=role, module='tips').first()
+            if row and row.can_write == bad['can_write'] and row.can_approve == bad['can_approve']:
+                row.can_write = False
+                row.can_approve = False
+                fixed += 1
+        if fixed:
+            db.session.commit()
+            log.info(f"Repaired tips permissions on {fixed} role(s).")
+    except Exception as e:
+        db.session.rollback()
+        log.debug(f"tips permission repair skipped: {e}")
 
 
 def _fix_van_stocks_constraint(conn, engine):

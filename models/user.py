@@ -55,7 +55,7 @@ ROLE_PERMISSIONS = {
         'procurement':   ('all',  True,  True),
         'expenses':      ('all',  False, True),
         'reports':       ('all',  False, False),
-        'tips':          ('all',  True,  True),
+        'tips':          ('all',  False, False),   # view all tips, read-only (see routes/tips.py)
         'cash_decl':     ('all',  False, True),
         'stock_offload': ('all',  False, True),
         'gps_map':       ('all',  False, False),
@@ -117,7 +117,7 @@ ROLE_PERMISSIONS = {
         'procurement':   ('none', False, False),
         'expenses':      ('own',  True,  False),   # submit own
         'reports':       ('own',  False, False),   # own performance
-        'tips':          ('own',  True,  False),   # own tips only
+        'tips':          ('own',  False, False),   # own tips only, read-only (see routes/tips.py)
         'cash_decl':     ('own',  True,  False),   # submit own
         'stock_offload': ('own',  True,  False),   # submit own
         'gps_map':       ('own',  False, False),   # own route only ← FIXED
@@ -396,10 +396,10 @@ class User(UserMixin, db.Model):
             sales_items.append({'label': 'Credit/Debit Notes', 'icon': 'fas fa-receipt',
                                  'url': 'notes.index', 'bp': 'notes'})
         if self.can_access('tips'):
-            if self.role == 'sales_rep':
+            if self.scope('tips') == 'own':
                 sales_items.append({'label': 'My Tips', 'icon': 'fas fa-coins',
                                      'url': 'tips.my_tips', 'bp': 'tips'})
-            elif self.role in ('admin', 'manager'):
+            elif self.scope('tips') == 'all':
                 sales_items.append({'label': 'Tips Report', 'icon': 'fas fa-coins',
                                      'url': 'tips.report', 'bp': 'tips'})
         if sales_items:
