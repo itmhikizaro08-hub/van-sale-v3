@@ -22,7 +22,7 @@
     <a href="{{ url_for('customers.statement', customer_id=customer.id) }}" class="btn btn-outline-primary btn-sm">
       <i class="fas fa-file-invoice-dollar me-1"></i>Statement
     </a>
-    {% if current_user.can_edit %}
+    {% if current_user.can_write('customers') %}
     <a href="{{ url_for('customers.edit', customer_id=customer.id) }}" class="btn btn-outline-secondary btn-sm">
       <i class="fas fa-edit me-1"></i>Edit
     </a>

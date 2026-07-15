@@ -39,7 +39,7 @@ def index():
 @customers_bp.route('/add', methods=['GET', 'POST'])
 @login_required
 def add():
-    if not current_user.can_add:
+    if not current_user.can_write('customers'):
         flash('Permission denied.', 'danger')
         return redirect(url_for('customers.index'))
 
@@ -153,11 +153,14 @@ def statement_pdf(customer_id):
 @customers_bp.route('/<int:customer_id>/edit', methods=['GET', 'POST'])
 @login_required
 def edit(customer_id):
-    if not current_user.can_edit:
+    if not current_user.can_write('customers'):
         flash('Permission denied.', 'danger')
         return redirect(url_for('customers.index'))
 
     customer = Customer.query.get_or_404(customer_id)
+    if current_user.scope('customers') == 'own' and customer.sales_rep_id != current_user.id:
+        flash('Access denied.', 'danger')
+        return redirect(url_for('customers.index'))
     vans = Van.query.filter_by(status='active').all()
     routes = Route.query.filter_by(status='active').all()
     sales_reps = User.query.filter(User.role.in_(['sales_rep', 'supervisor', 'manager'])).all()
@@ -187,9 +190,11 @@ def edit(customer_id):
 @customers_bp.route('/<int:customer_id>/delete', methods=['POST'])
 @login_required
 def delete(customer_id):
-    if not current_user.can_delete:
+    if not current_user.can_write('customers'):
         return jsonify({'error': 'Permission denied'}), 403
     customer = Customer.query.get_or_404(customer_id)
+    if current_user.scope('customers') == 'own' and customer.sales_rep_id != current_user.id:
+        return jsonify({'error': 'Access denied'}), 403
     customer.status = 'inactive'
     db.session.commit()
     flash('Customer deactivated.', 'success')
@@ -199,10 +204,14 @@ def delete(customer_id):
 @customers_bp.route('/search')
 @login_required
 def search():
+    if not current_user.can_access('customers'):
+        return jsonify([]), 403
     q = request.args.get('q', '').strip()
     customers = Customer.query.filter(
         Customer.name.ilike(f'%{q}%') |
         Customer.customer_code.ilike(f'%{q}%') |
         Customer.phone.ilike(f'%{q}%')
     ).filter_by(status='active').limit(20).all()
+    if current_user.scope('customers') == 'own':
+        customers = [c for c in customers if c.sales_rep_id == current_user.id]
     return jsonify([c.to_dict() for c in customers])
