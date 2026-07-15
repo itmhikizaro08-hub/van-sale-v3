@@ -22,7 +22,12 @@
     <td class="text-muted fs-12">{{ r.area or '—' }}</td>
     <td>{{ r.customers.count() }}</td>
     <td><span class="badge {{ 'bg-success' if r.status == 'active' else 'bg-secondary' }}">{{ r.status|title }}</span></td>
-    <td><a href="{{ url_for('routes.view', route_id=r.id) }}" class="btn btn-icon btn-sm btn-outline-primary"><i class="fas fa-eye"></i></a></td>
+    <td class="text-nowrap">
+      <div class="d-flex gap-1">
+        <a href="{{ url_for('routes.view', route_id=r.id) }}" class="btn btn-icon btn-sm btn-outline-primary" title="View"><i class="fas fa-eye"></i></a>
+        {% if current_user.can_write('routes') %}<a href="{{ url_for('routes.edit', route_id=r.id) }}" class="btn btn-icon btn-sm btn-outline-secondary" title="Edit"><i class="fas fa-edit"></i></a>{% endif %}
+      </div>
+    </td>
   </tr>{% endfor %}</tbody>
 </table>
 </div></div></div>
