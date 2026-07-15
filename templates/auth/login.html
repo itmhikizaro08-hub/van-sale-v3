@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Login — Van Sales V3 ERP</title>
+  <title>Login | {{ company_name }}</title>
   <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
   <meta name="theme-color" content="#2563EB">
   <link rel="apple-touch-icon" href="{{ url_for('static', filename='icons/icon-180.png') }}">
@@ -23,7 +23,8 @@
 
     .login-card{position:relative;z-index:1;width:100%;max-width:420px;padding:20px}
     .card{background:rgba(30,41,59,.85);backdrop-filter:blur(20px);border:1px solid rgba(255,255,255,.1);border-radius:20px;padding:40px;box-shadow:0 25px 50px rgba(0,0,0,.5)}
-    .brand-logo{width:56px;height:56px;background:linear-gradient(135deg,#2563EB,#7c3aed);border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:24px;color:#fff;margin:0 auto 20px;box-shadow:0 8px 24px rgba(37,99,235,.4)}
+    .brand-logo{width:56px;height:56px;background:linear-gradient(135deg,#2563EB,#7c3aed);border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:24px;color:#fff;margin:0 auto 20px;box-shadow:0 8px 24px rgba(37,99,235,.4);overflow:hidden}
+    .brand-logo img{width:100%;height:100%;object-fit:contain;padding:6px}
     h1{font-size:26px;font-weight:800;color:#f1f5f9;text-align:center;margin-bottom:4px}
     .subtitle{text-align:center;color:#64748b;font-size:14px;margin-bottom:32px}
 
@@ -59,9 +60,15 @@
 
 <div class="login-card">
   <div class="card">
-    <div class="brand-logo"><i class="fa-solid fa-truck-fast"></i></div>
-    <h1>Van Sales V3</h1>
-    <p class="subtitle">ERP System — Sign in to continue</p>
+    <div class="brand-logo">
+      {% if company_logo %}
+      <img src="{{ url_for('uploads', filename=company_logo) }}" alt="{{ company_name }}">
+      {% else %}
+      <i class="fa-solid fa-truck-fast"></i>
+      {% endif %}
+    </div>
+    <h1>{{ company_name }}</h1>
+    <p class="subtitle">Sign in to continue</p>
 
     {% with messages = get_flashed_messages(with_categories=true) %}
       {% for category, message in messages %}
