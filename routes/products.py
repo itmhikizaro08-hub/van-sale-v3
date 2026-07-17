@@ -53,7 +53,8 @@ def add():
             selling_price=float(request.form.get('selling_price') or 0),
             wholesale_price=float(request.form.get('wholesale_price') or 0),
             reorder_level=int(request.form.get('reorder_level') or Settings.get().default_reorder_level or 10),
-            stock_quantity=int(request.form.get('stock_quantity') or 0),
+            stock_quantity=float(request.form.get('stock_quantity') or 0),
+            pieces_per_unit=int(request.form.get('pieces_per_unit') or 1),
             tax_rate=float(request.form.get('tax_rate') or 0),
             status=request.form.get('status', 'active')
         )
@@ -86,6 +87,7 @@ def edit(product_id):
         product.selling_price = float(request.form.get('selling_price') or 0)
         product.wholesale_price = float(request.form.get('wholesale_price') or 0)
         product.reorder_level = int(request.form.get('reorder_level') or Settings.get().default_reorder_level or 10)
+        product.pieces_per_unit = int(request.form.get('pieces_per_unit') or 1)
         product.tax_rate = float(request.form.get('tax_rate') or 0)
         product.status = request.form.get('status', 'active')
         db.session.commit()

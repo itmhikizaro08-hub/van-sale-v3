@@ -27,11 +27,17 @@ class Product(db.Model):
     description = db.Column(db.Text)
     barcode = db.Column(db.String(50), unique=True)
     unit = db.Column(db.String(20), default='pcs')  # pcs, box, carton, kg, litre
+    # How many individual pieces make up one stocked `unit` (e.g. 12 for a
+    # carton of 12 sachets). Default 1 means the unit itself is the smallest
+    # sellable piece — no behavior change for products that don't need this.
+    pieces_per_unit = db.Column(db.Integer, default=1)
     cost_price = db.Column(db.Float, default=0.0)
     selling_price = db.Column(db.Float, default=0.0)
     wholesale_price = db.Column(db.Float, default=0.0)
     reorder_level = db.Column(db.Integer, default=10)
-    stock_quantity = db.Column(db.Integer, default=0)
+    # Float, not Integer — selling a few pieces out of a multi-piece unit
+    # leaves a fractional amount of that unit in stock (e.g. 8.75 cartons).
+    stock_quantity = db.Column(db.Float, default=0)
     image = db.Column(db.String(255))
     status = db.Column(db.String(20), default='active')  # active, inactive, discontinued
     tax_rate = db.Column(db.Float, default=0.0)
@@ -83,6 +89,7 @@ class Product(db.Model):
             'selling_price': self.selling_price,
             'stock_quantity': self.stock_quantity,
             'unit': self.unit,
+            'pieces_per_unit': self.pieces_per_unit or 1,
             'status': self.status,
             'is_low_stock': self.is_low_stock
         }

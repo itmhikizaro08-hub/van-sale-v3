@@ -29,7 +29,7 @@
       <td class="text-muted fs-12">{{ m.created_at.strftime('%d %b %Y %H:%M') if m.created_at else '' }}</td>
       <td class="fw-600">{{ m.product.product_name if m.product else '—' }}</td>
       <td><span class="badge {{ m.type_badge }}">{{ m.movement_type|replace('_',' ')|title }}</span></td>
-      <td class="text-center fw-700 {{ 'text-success' if m.quantity > 0 else 'text-danger' }}">{{ '+' if m.quantity > 0 else '' }}{{ m.quantity }}</td>
+      <td class="text-center fw-700 {{ 'text-success' if m.quantity > 0 else 'text-danger' }}">{{ '+' if m.quantity > 0 else '' }}{{ m.quantity|qty }}</td>
       <td class="fs-12">{{ m.supplier.name if m.supplier else '—' }}</td>
       <td>{% if m.reference_note %}<span class="ref-note-badge"><i class="fas fa-book me-1"></i>{{ m.reference_note[:20] }}</span>{% else %}<span class="text-muted fs-12">—</span>{% endif %}</td>
       <td class="text-muted fs-12">{{ m.notes or '—' }}</td>

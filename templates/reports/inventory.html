@@ -20,9 +20,9 @@
     <tr>
       <td><code class="fs-12">{{ p.product_code }}</code></td>
       <td class="fw-600">{{ p.product_name }}</td>
-      <td class="text-center"><span class="badge {{ 'bg-danger' if p.stock_quantity == 0 else 'bg-success' }}">{{ p.stock_quantity }}</span></td>
-      <td class="text-center"><span class="badge {{ 'bg-secondary' if p.field_qty == 0 else 'bg-info text-dark' }}">{{ p.field_qty }}</span></td>
-      <td class="text-center fw-700">{{ p.stock_quantity + p.field_qty }}</td>
+      <td class="text-center"><span class="badge {{ 'bg-danger' if p.stock_quantity == 0 else 'bg-success' }}">{{ p.stock_quantity|qty }}</span></td>
+      <td class="text-center"><span class="badge {{ 'bg-secondary' if p.field_qty == 0 else 'bg-info text-dark' }}">{{ p.field_qty|qty }}</span></td>
+      <td class="text-center fw-700">{{ (p.stock_quantity + p.field_qty)|qty }}</td>
       {% if current_user.see_cost_prices() %}<td class="text-end text-muted fs-12">GHS {{ "%.2f"|format(p.cost_price) }}</td><td class="text-end fw-700">GHS {{ "%.2f"|format(p.total_value) }}</td>{% endif %}
       <td>{% if p.stock_quantity == 0 %}<span class="badge bg-danger">Out</span>{% elif p.is_low_stock %}<span class="badge bg-warning text-dark">Low</span>{% else %}<span class="badge bg-success">OK</span>{% endif %}</td>
     </tr>

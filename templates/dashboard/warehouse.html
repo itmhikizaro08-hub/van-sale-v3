@@ -34,7 +34,7 @@
             {% for p in low_stock %}
             <tr>
               <td class="fw-600">{{ p.product_name }}</td>
-              <td class="text-center"><span class="badge {{ 'bg-danger' if p.stock_quantity == 0 else 'bg-warning text-dark' }}">{{ p.stock_quantity }}</span></td>
+              <td class="text-center"><span class="badge {{ 'bg-danger' if p.stock_quantity == 0 else 'bg-warning text-dark' }}">{{ p.stock_quantity|qty }}</span></td>
               <td class="text-center text-muted">{{ p.reorder_level }}</td>
               <td><a href="{{ url_for('products.view', product_id=p.id) }}" class="btn btn-outline-primary btn-sm">View</a></td>
             </tr>

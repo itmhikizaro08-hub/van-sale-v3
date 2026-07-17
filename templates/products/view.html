@@ -17,7 +17,7 @@
         <div class="mb-2"><div class="text-muted fs-12">Unit</div><div class="fw-600">{{ product.unit }}</div></div>
         {% if current_user.see_cost_prices() %}<div class="mb-2"><div class="text-muted fs-12">Cost Price</div><div class="fw-600">GHS {{ "%.2f"|format(product.cost_price) }}</div></div>{% endif %}
         <div class="mb-2"><div class="text-muted fs-12">Selling Price</div><div class="fw-700 text-primary fs-15">GHS {{ "%.2f"|format(product.selling_price) }}</div></div>
-        <div class="mb-2"><div class="text-muted fs-12">Warehouse Stock</div><span class="badge {{ 'bg-danger' if product.stock_quantity == 0 else 'bg-warning text-dark' if product.is_low_stock else 'bg-success' }} fs-13">{{ product.stock_quantity }} {{ product.unit }}</span></div>
+        <div class="mb-2"><div class="text-muted fs-12">Warehouse Stock</div><span class="badge {{ 'bg-danger' if product.stock_quantity == 0 else 'bg-warning text-dark' if product.is_low_stock else 'bg-success' }} fs-13">{{ product.stock_quantity|qty }} {{ product.unit }}</span></div>
         <div class="mb-2"><div class="text-muted fs-12">Reorder Level</div><div class="fw-600">{{ product.reorder_level }} {{ product.unit }}</div></div>
       </div>
     </div>

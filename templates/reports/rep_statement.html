@@ -49,7 +49,7 @@
   <div class="col-6 col-md-3">
     <div class="stat-card {{ 'danger' if liability_value > 0 else 'success' }}"><div class="stat-icon"><i class="fas fa-truck-loading"></i></div>
       <div><div class="stat-label">Van Stock Liability</div><div class="stat-value" style="font-size:16px">GHS {{ "%.2f"|format(liability_value) }}</div>
-        <div class="stat-trend">as of today, {{ liability_qty }} units</div>
+        <div class="stat-trend">as of today, {{ liability_qty|qty }} units</div>
       </div>
     </div>
   </div>

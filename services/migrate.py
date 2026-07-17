@@ -63,6 +63,16 @@ def run_migrations(db):
         # ── Drop old broken unique constraint on van_stocks and recreate ───
         _fix_van_stocks_constraint(conn, engine)
 
+        # ── Piece-selling: how many pieces make up one stocked unit ────────
+        _add_column_if_missing(conn, engine, 'products', 'pieces_per_unit', 'INTEGER DEFAULT 1')
+
+        # ── Piece-selling: widen quantity columns from INTEGER to FLOAT so a
+        # sale/stock row can hold a fractional unit (e.g. 0.25 of a carton).
+        # SQLite has no real column types (everything is dynamically typed,
+        # so an "INTEGER" column already stores floats fine) — only Postgres
+        # needs the actual ALTER COLUMN TYPE.
+        _widen_quantity_columns_to_float(conn, engine)
+
         conn.commit()
 
         # ── Self-heal sales where payment_status drifted from balance_due ──
@@ -114,6 +124,37 @@ def _add_column_if_missing(conn, engine, table, column, col_type):
             log.info(f"Migration: added {table}.{column}")
     except Exception as e:
         log.debug(f"Column {table}.{column}: {e}")
+
+
+def _widen_quantity_columns_to_float(conn, engine):
+    """Postgres-only: widen quantity columns from INTEGER to DOUBLE PRECISION
+    so piece-selling can store a fractional unit (e.g. 8.75 cartons). SQLite
+    is skipped — its columns are dynamically typed, so an "INTEGER"-declared
+    column already stores a float value without any schema change needed.
+    Safe to re-run: ALTER COLUMN TYPE to the same type is a no-op on Postgres."""
+    if engine.dialect.name != 'postgresql':
+        return
+    from sqlalchemy import text, inspect
+    targets = [
+        ('products', 'stock_quantity'),
+        ('van_stocks', 'quantity'),
+        ('sale_items', 'quantity'),
+        ('inventory_movements', 'quantity'),
+        ('inventory_movements', 'quantity_before'),
+        ('inventory_movements', 'quantity_after'),
+    ]
+    try:
+        inspector = inspect(conn)
+        tables = inspector.get_table_names()
+        for table, column in targets:
+            if table not in tables:
+                continue
+            conn.execute(text(
+                f'ALTER TABLE {table} ALTER COLUMN {column} TYPE DOUBLE PRECISION'
+            ))
+        log.info("Migration: widened quantity columns to FLOAT for piece-selling.")
+    except Exception as e:
+        log.debug(f"widen quantity columns: {e}")
 
 
 def _repair_sale_payment_status(db):
@@ -270,7 +311,7 @@ def _fix_van_stocks_constraint(conn, engine):
                 van_id       INTEGER NOT NULL REFERENCES vans(id),
                 sales_rep_id INTEGER REFERENCES users(id),
                 product_id   INTEGER NOT NULL REFERENCES products(id),
-                quantity     INTEGER DEFAULT 0,
+                quantity     FLOAT DEFAULT 0,
                 updated_at   DATETIME,
                 UNIQUE (van_id, sales_rep_id, product_id)
             )

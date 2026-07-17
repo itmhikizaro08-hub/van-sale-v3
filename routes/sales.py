@@ -102,7 +102,14 @@ def create():
             db.session.rollback()
             return jsonify({'error': 'Unknown product'}), 400
 
-        qty_needed = item_data['quantity']
+        try:
+            qty_needed = round(float(item_data['quantity']), 3)
+        except (TypeError, ValueError, KeyError):
+            db.session.rollback()
+            return jsonify({'error': f'Invalid quantity for {product.product_name}'}), 400
+        if qty_needed <= 0:
+            db.session.rollback()
+            return jsonify({'error': f'Quantity for {product.product_name} must be greater than zero'}), 400
 
         # Sales reps sell out of their own van custody, not the warehouse —
         # loading a van already moved this stock out of Product.stock_quantity,
@@ -141,7 +148,7 @@ def create():
         item = SaleItem(
             sale_id=sale.id,
             product_id=product.id,
-            quantity=item_data['quantity'],
+            quantity=qty_needed,
             official_price=official_price,
             unit_price=unit_price,
             tip_amount=tip_amount,

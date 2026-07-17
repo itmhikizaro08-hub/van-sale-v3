@@ -12,7 +12,7 @@
       <td class="fw-600">{{ vs.van.van_number if vs.van else '—' }}</td>
       {% if current_user.scope('van_stock') != 'own' %}<td>{{ vs.sales_rep.full_name if vs.sales_rep else '—' }}</td>{% endif %}
       <td class="fw-600">{{ vs.product.product_name if vs.product else '—' }}</td>
-      <td class="text-end"><span class="badge {{ 'bg-warning text-dark' if vs.quantity <= 5 else 'bg-success' }}">{{ vs.quantity }}</span></td>
+      <td class="text-end"><span class="badge {{ 'bg-warning text-dark' if vs.quantity <= 5 else 'bg-success' }}">{{ vs.quantity|qty }}</span></td>
       <td class="text-end fw-600">GHS {{ "%.2f"|format(vs.quantity * (vs.product.cost_price if vs.product else 0)) }}</td>
     </tr>
     {% endfor %}

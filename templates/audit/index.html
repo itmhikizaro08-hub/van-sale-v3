@@ -68,7 +68,7 @@
             <td class="text-end {{ 'text-success fw-600' if log.tip_calculated > 0 else 'text-muted' }}">
               {{ "+ GHS %.2f"|format(log.tip_calculated) if log.tip_calculated > 0 else '—' }}
             </td>
-            <td class="text-end">{{ log.quantity }}</td>
+            <td class="text-end">{{ log.quantity|qty }}</td>
             <td class="text-end fw-700">GHS {{ "%.2f"|format(log.total_amount) }}</td>
             <td><span class="badge {{ 'bg-primary' if log.action == 'sale' else 'bg-warning text-dark' }}">{{ log.action|replace('_',' ')|title }}</span></td>
           </tr>

@@ -80,7 +80,10 @@ class SaleItem(db.Model):
     id               = db.Column(db.Integer, primary_key=True)
     sale_id          = db.Column(db.Integer, db.ForeignKey("sales.id"),    nullable=False)
     product_id       = db.Column(db.Integer, db.ForeignKey("products.id"), nullable=False)
-    quantity         = db.Column(db.Integer, nullable=False, default=1)
+    # Float, not Integer — selling by the piece (see Product.pieces_per_unit)
+    # records a fractional number of the stocked unit, e.g. 0.25 of a
+    # 12-piece carton when only 3 pieces were sold.
+    quantity         = db.Column(db.Float, nullable=False, default=1)
     official_price   = db.Column(db.Float, nullable=False, default=0.0)
     tip_amount       = db.Column(db.Float, nullable=False, default=0.0)
     unit_price       = db.Column(db.Float, nullable=False, default=0.0)

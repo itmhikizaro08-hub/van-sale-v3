@@ -261,7 +261,7 @@
             <td class="text-end fw-600" id="final-price-{{ item.id }}">
               GHS {{ "%.2f"|format(item.unit_price) }}
             </td>
-            <td class="text-end">{{ item.quantity }}</td>
+            <td class="text-end">{{ item.quantity|qty }}</td>
             <td class="text-end fw-700 text-success" id="tip-total-{{ item.id }}">
               GHS {{ "%.2f"|format(item.tip_line_total) }}
             </td>

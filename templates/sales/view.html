@@ -56,7 +56,7 @@
                 {{ item.product.product_name if item.product else '—' }}
                 <div class="text-muted fs-12">{{ item.product.product_code if item.product else '' }}</div>
               </td>
-              <td class="text-center">{{ item.quantity }}</td>
+              <td class="text-center">{{ item.quantity|qty }}</td>
               {# unit_price = official_price + tip — customer sees this only #}
               <td class="text-end">GHS {{ "%.2f"|format(item.unit_price) }}</td>
               <td class="text-end fw-600">GHS {{ "%.2f"|format(item.line_total) }}</td>
@@ -107,7 +107,7 @@
               <td class="text-end text-muted">GHS {{ "%.2f"|format(item.official_price) }}</td>
               <td class="text-end"><span class="badge bg-success">+ GHS {{ "%.2f"|format(item.tip_amount) }}</span></td>
               <td class="text-end fw-600">GHS {{ "%.2f"|format(item.unit_price) }}</td>
-              <td class="text-end">{{ item.quantity }}</td>
+              <td class="text-end">{{ item.quantity|qty }}</td>
               <td class="text-end fw-700 text-success">GHS {{ "%.2f"|format(item.tip_line_total) }}</td>
             </tr>
             {% endif %}
@@ -134,7 +134,7 @@
         {% for item in sale.items %}
         {% if item.tip_amount > 0 %}
         <div class="d-flex justify-content-between fs-13 mb-1">
-          <span>{{ item.product.product_name if item.product else '—' }} × {{ item.quantity }}</span>
+          <span>{{ item.product.product_name if item.product else '—' }} × {{ item.quantity|qty }}</span>
           <span class="fw-600 text-success">+ GHS {{ "%.2f"|format(item.tip_line_total) }}</span>
         </div>
         {% endif %}

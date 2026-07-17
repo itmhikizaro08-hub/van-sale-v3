@@ -122,6 +122,20 @@ def create_app():
         flash(f'File is too large. Maximum upload size is {max_mb}MB.', 'danger')
         return redirect(request.referrer or url_for('dashboard.index'))
 
+    # ── Template filters ────────────────────────────────────────────────────────
+    @app.template_filter('qty')
+    def format_qty(value):
+        """Render a quantity without a spurious '.0' now that stock/sale
+        quantities are floats (to support selling by the piece) — whole
+        numbers still display as whole numbers, fractional ones keep up to
+        2 decimal places."""
+        if value is None:
+            return '0'
+        v = float(value)
+        if v == int(v):
+            return str(int(v))
+        return f'{v:.2f}'.rstrip('0').rstrip('.')
+
     # ── Context processors ─────────────────────────────────────────────────────
     @app.context_processor
     def inject_globals():

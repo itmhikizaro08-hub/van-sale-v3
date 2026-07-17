@@ -343,7 +343,7 @@ searchInput.addEventListener('input', localDebounce(async function() {
       // selling_price IS the company (floor) price in this system — there is
       // no separate company_price field, so it's passed as both price and floor.
       resultsBox.innerHTML = products.map(p => `
-        <div class="product-result-item" onclick='addToCart(${p.id}, ${JSON.stringify(p.product_name)}, ${Number(p.selling_price)}, ${Number(p.stock_quantity)}, ${Number(p.selling_price)})'>
+        <div class="product-result-item" onclick='addToCart(${p.id}, ${JSON.stringify(p.product_name)}, ${Number(p.selling_price)}, ${Number(p.stock_quantity)}, ${Number(p.selling_price)}, ${Number(p.pieces_per_unit || 1)})'>
           <div class="d-flex justify-content-between align-items-center">
             <div>
               <span class="fw-600">${p.product_name}</span>
@@ -373,7 +373,7 @@ document.addEventListener('click', e => {
 });
 
 /* ── Cart operations ──────────────────────────────────────── */
-function addToCart(id, name, price, stock, companyPrice = 0) {
+function addToCart(id, name, price, stock, companyPrice = 0, piecesPerUnit = 1) {
   const existing = cart.find(i => i.id === id);
   if (existing) {
     if (existing.qty < stock) {
@@ -386,7 +386,7 @@ function addToCart(id, name, price, stock, companyPrice = 0) {
     // Prefill price with the company price (never labeled as such in the UI —
     // the rep just sees a normal pre-filled Unit Price field they can raise).
     const startingPrice = companyPrice > 0 ? companyPrice : price;
-    cart.push({ id, name, price: startingPrice, stock, qty: 1, disc: 0, companyPrice });
+    cart.push({ id, name, price: startingPrice, stock, qty: 1, disc: 0, companyPrice, piecesPerUnit: piecesPerUnit || 1 });
   }
   searchInput.value = '';
   resultsBox.classList.add('d-none');
@@ -423,8 +423,10 @@ function renderCart() {
         <div class="fs-12 text-muted">Stock: ${item.stock}</div>
       </td>
       <td>
-        <input type="number" class="form-control qty-input" min="1" max="${item.stock}"
+        <input type="number" class="form-control qty-input" min="${(1/item.piecesPerUnit).toFixed(4)}" max="${item.stock}"
+               step="${(1/item.piecesPerUnit).toFixed(4)}"
                value="${item.qty}" oninput="updateQty(${idx}, this.value)">
+        ${item.piecesPerUnit > 1 ? `<button type="button" class="btn btn-link btn-sm p-0 fs-11" onclick="enterByPieces(${idx})">by pcs</button>` : ''}
       </td>
       <td>
         <input type="number" class="form-control price-input" step="0.01" min="0"
@@ -488,10 +490,27 @@ function updateSubmitButtons() {
 }
 
 function updateQty(idx, val) {
-  const qty = parseInt(val) || 1;
-  cart[idx].qty = Math.min(qty, cart[idx].stock);
-  document.getElementById(`lineTotal-${idx}`).textContent = 'GHS ' + lineTotal(cart[idx]).toFixed(2);
+  const item = cart[idx];
+  const minQty = 1 / item.piecesPerUnit;
+  let qty = parseFloat(val) || minQty;
+  qty = Math.min(Math.max(qty, minQty), item.stock);
+  item.qty = Math.round(qty * 1000) / 1000;
+  document.getElementById(`lineTotal-${idx}`).textContent = 'GHS ' + lineTotal(item).toFixed(2);
   recalculate();
+}
+
+// Lets a rep think in individual pieces (e.g. "3 sachets") instead of doing
+// the carton-fraction math themselves — only shown for multi-piece products.
+function enterByPieces(idx) {
+  const item = cart[idx];
+  const maxPieces = Math.round(item.stock * item.piecesPerUnit);
+  const input = prompt(`How many individual pieces of "${item.name}"?\n(1 unit = ${item.piecesPerUnit} pieces, ${maxPieces} pieces available)`);
+  if (input === null) return;
+  const pieces = parseFloat(input);
+  if (!pieces || pieces <= 0) { Toast.show('Enter a valid number of pieces.', 'warning'); return; }
+  if (pieces > maxPieces) { Toast.show(`Only ${maxPieces} pieces available in stock.`, 'warning'); return; }
+  item.qty = Math.round((pieces / item.piecesPerUnit) * 1000) / 1000;
+  renderCart();
 }
 function updatePrice(idx, val) {
   cart[idx].price = parseFloat(val) || 0;

@@ -70,7 +70,7 @@
             <tr>
               <td class="fw-600 fs-13">{{ vs.product.product_name if vs.product else '—' }}</td>
               <td class="text-end">
-                <span class="badge {{ 'bg-danger' if vs.quantity <= 5 else 'bg-success' }}">{{ vs.quantity }}</span>
+                <span class="badge {{ 'bg-danger' if vs.quantity <= 5 else 'bg-success' }}">{{ vs.quantity|qty }}</span>
               </td>
             </tr>
             {% endfor %}

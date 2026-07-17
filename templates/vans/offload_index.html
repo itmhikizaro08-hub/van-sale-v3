@@ -11,7 +11,7 @@
 <div class="row g-3 mb-4">
   <div class="col-6 col-md-4">
     <div class="stat-card primary"><div class="stat-icon"><i class="fas fa-truck-loading"></i></div>
-      <div><div class="stat-label">Units Held</div><div class="stat-value">{{ total_qty }}</div></div>
+      <div><div class="stat-label">Units Held</div><div class="stat-value">{{ total_qty|qty }}</div></div>
     </div>
   </div>
   <div class="col-6 col-md-4">
@@ -35,7 +35,7 @@
               <tr>
                 <td><input type="hidden" name="product_id[]" value="{{ vs.product_id }}"></td>
                 <td class="fw-600 fs-13">{{ vs.product.product_name if vs.product else '—' }}</td>
-                <td class="text-end">{{ vs.quantity }}</td>
+                <td class="text-end">{{ vs.quantity|qty }}</td>
                 <td><input type="number" min="0" max="{{ vs.quantity }}" step="1" class="form-control form-control-sm"
                     name="quantity[]" value="0"></td>
               </tr>

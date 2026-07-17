@@ -10,9 +10,11 @@ class InventoryMovement(db.Model):
     product_id = db.Column(db.Integer, db.ForeignKey('products.id'), nullable=False)
     movement_type = db.Column(db.String(30), nullable=False)
     # stock_in, stock_out, transfer_in, transfer_out, adjustment, damaged, expired, sale, return
-    quantity = db.Column(db.Integer, nullable=False)
-    quantity_before = db.Column(db.Integer, default=0)
-    quantity_after = db.Column(db.Integer, default=0)
+    # Float, not Integer — a 'sale' movement can now record a fractional
+    # quantity when items are sold by the piece (Product.pieces_per_unit).
+    quantity = db.Column(db.Float, nullable=False)
+    quantity_before = db.Column(db.Float, default=0)
+    quantity_after = db.Column(db.Float, default=0)
     van_id = db.Column(db.Integer, db.ForeignKey('vans.id'), nullable=True)
     supplier_id = db.Column(db.Integer, db.ForeignKey('suppliers.id'), nullable=True)
     reference_id = db.Column(db.Integer)  # sale_id, return_id, etc.
@@ -52,7 +54,9 @@ class VanStock(db.Model):
     van_id       = db.Column(db.Integer, db.ForeignKey('vans.id'),     nullable=False)
     sales_rep_id = db.Column(db.Integer, db.ForeignKey('users.id'),    nullable=True)
     product_id   = db.Column(db.Integer, db.ForeignKey('products.id'), nullable=False)
-    quantity     = db.Column(db.Integer, default=0)
+    # Float, not Integer — a rep's van can end up with a fractional amount of
+    # a multi-piece unit once some pieces have been sold off it.
+    quantity     = db.Column(db.Float, default=0)
     updated_at   = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     van       = db.relationship('Van',     foreign_keys=[van_id])

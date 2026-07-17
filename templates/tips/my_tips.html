@@ -6,7 +6,7 @@
 <div class="card mb-3"><div class="card-body py-2"><form method="GET" class="row g-2 align-items-end"><div class="col-md-4"><label class="form-label">From</label><input type="date" name="start" class="form-control" value="{{ start }}"></div><div class="col-md-4"><label class="form-label">To</label><input type="date" name="end" class="form-control" value="{{ end }}"></div><div class="col-md-4"><button type="submit" class="btn btn-primary w-100"><i class="fas fa-filter me-1"></i>Filter</button></div></form></div></div>
 <div class="row g-3 mb-4">
   <div class="col-6 col-md-4"><div class="stat-card success"><div class="stat-icon"><i class="fas fa-coins"></i></div><div><div class="stat-label">Total Tips Earned</div><div class="stat-value">GHS {{ "%.2f"|format(total_tip) }}</div></div></div></div>
-  <div class="col-6 col-md-4"><div class="stat-card primary"><div class="stat-icon"><i class="fas fa-shopping-cart"></i></div><div><div class="stat-label">Units with Tips</div><div class="stat-value">{{ total_qty }}</div></div></div></div>
+  <div class="col-6 col-md-4"><div class="stat-card primary"><div class="stat-icon"><i class="fas fa-shopping-cart"></i></div><div><div class="stat-label">Units with Tips</div><div class="stat-value">{{ total_qty|qty }}</div></div></div></div>
   <div class="col-6 col-md-4"><div class="stat-card info"><div class="stat-icon"><i class="fas fa-chart-line"></i></div><div><div class="stat-label">Sales Value</div><div class="stat-value">GHS {{ "%.2f"|format(total_sales_value) }}</div></div></div></div>
 </div>
 <div class="card"><div class="card-body p-0"><div class="table-responsive">
@@ -22,7 +22,7 @@
       <td class="text-end text-muted">GHS {{ "%.2f"|format(item.official_price) }}</td>
       <td class="text-end"><span class="badge bg-success">+ GHS {{ "%.2f"|format(item.tip_amount) }}</span></td>
       <td class="text-end fw-600">GHS {{ "%.2f"|format(item.unit_price) }}</td>
-      <td class="text-end">{{ item.quantity }}</td>
+      <td class="text-end">{{ item.quantity|qty }}</td>
       <td class="text-end fw-700 text-success">GHS {{ "%.2f"|format(item.tip_line_total) }}</td>
     </tr>
     {% endfor %}

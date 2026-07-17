@@ -30,7 +30,7 @@
         {% for row in suggestions %}
         <tr>
           <td class="fw-600">{{ row.product.product_name }}</td>
-          <td class="text-end">{{ row.product.stock_quantity }}</td>
+          <td class="text-end">{{ row.product.stock_quantity|qty }}</td>
           <td class="text-end">{{ row.daily_velocity }}</td>
           <td class="text-end"><span class="badge {{ 'bg-danger' if row.days_left <= 5 else 'bg-warning text-dark' }}">{{ row.days_left }} days</span></td>
           <td class="text-end fw-700 text-primary">{{ row.suggested_qty }}</td>
@@ -50,7 +50,7 @@
     <p class="text-muted fs-13">These are at or below their reorder level, but haven't sold in the last {{ lookback_days }} days — there's not enough recent activity to estimate how urgent restocking actually is. Check the regular <a href="{{ url_for('products.low_stock') }}">Low Stock</a> page for these.</p>
     <div class="d-flex flex-wrap gap-2">
       {% for p in no_movement %}
-      <span class="badge bg-secondary fs-12">{{ p.product_name }} ({{ p.stock_quantity }})</span>
+      <span class="badge bg-secondary fs-12">{{ p.product_name }} ({{ p.stock_quantity|qty }})</span>
       {% endfor %}
     </div>
   </div>

@@ -156,7 +156,7 @@
                   <tr>
                     <td class="fw-600">{{ vs.product.product_name if vs.product else '—' }}</td>
                     <td class="text-muted fs-12">{{ vs.sales_rep.full_name if vs.sales_rep else '—' }}</td>
-                    <td class="text-end">{{ vs.quantity }}</td>
+                    <td class="text-end">{{ vs.quantity|qty }}</td>
                     <td class="text-end">GHS {{ "%.2f"|format(vs.quantity * (vs.product.cost_price if vs.product else 0)) }}</td>
                   </tr>
                   {% endfor %}
