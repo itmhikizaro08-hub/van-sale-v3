@@ -40,7 +40,7 @@
     <span><i class="fas fa-receipt me-2"></i>Today's Payments</span>
     <a href="{{ url_for('payments.index') }}" class="btn btn-outline-secondary btn-sm">View All</a>
   </div>
-  <div class="card-body p-0">
+  <div class="card-body p-0"><div class="table-responsive">
     <table class="table table-hover mb-0">
       <thead><tr><th>Ref</th><th>Customer</th><th class="text-end">Amount</th><th>Method</th></tr></thead>
       <tbody>
@@ -55,7 +55,7 @@
         <tr><td colspan="4" class="text-muted text-center py-3">No payments collected yet today</td></tr>
         {% endfor %}
       </tbody>
-    </table>
+    </table></div>
   </div>
 </div>
 {% endblock %}

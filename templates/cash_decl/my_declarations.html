@@ -28,7 +28,7 @@
       <div class="card-header"><i class="fas fa-coins me-2"></i>Submit Cash Declaration</div>
       <form method="POST" action="{{ url_for('cash_decl.submit') }}" id="declareForm">
         <div class="card-body">
-          <table class="table table-sm mb-2">
+          <div class="table-responsive"><table class="table table-sm mb-2">
             <thead><tr><th>Denomination</th><th style="width:110px">Count</th><th class="text-end">Subtotal</th></tr></thead>
             <tbody>
               {% for d in denominations %}
@@ -41,7 +41,7 @@
               {% endfor %}
             </tbody>
             <tfoot><tr><td colspan="2" class="text-end fw-700">Total</td><td class="text-end fw-800 text-success" id="declareTotal">GHS 0.00</td></tr></tfoot>
-          </table>
+          </table></div>
           <div class="mb-2">
             <label class="form-label">Notes</label>
             <textarea name="notes" class="form-control" rows="2" placeholder="Optional"></textarea>
@@ -63,7 +63,7 @@
           <div class="col-5"><label class="form-label mb-1 fs-12">To</label><input type="date" name="end" class="form-control form-control-sm" value="{{ end }}"></div>
           <div class="col-2"><button type="submit" class="btn btn-primary btn-sm w-100"><i class="fas fa-filter"></i></button></div>
         </form>
-        <table class="table table-hover mb-0">
+        <div class="table-responsive"><table class="table table-hover mb-0">
           <thead><tr><th>#</th><th>Date</th><th class="text-end">Declared</th><th>Status</th></tr></thead>
           <tbody>
             {% for d in declarations %}
@@ -77,7 +77,7 @@
             <tr><td colspan="4" class="text-muted text-center py-3">No declarations in this date range</td></tr>
             {% endfor %}
           </tbody>
-        </table>
+        </table></div>
       </div>
     </div>
   </div>

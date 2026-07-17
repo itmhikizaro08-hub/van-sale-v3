@@ -8,6 +8,11 @@
 {% block extra_css %}
 <style>
 .pos-layout { display: grid; grid-template-columns: 1fr 380px; gap: 20px; align-items: start; }
+/* Grid items default to min-width:auto, which lets wide content (the cart
+   table) refuse to shrink and blow out the whole page on narrow screens —
+   min-width:0 lets .table-responsive's own horizontal scroll do its job
+   instead of the entire page scrolling sideways. */
+.pos-layout > * { min-width: 0; }
 @media(max-width:991px) { .pos-layout { grid-template-columns: 1fr; } }
 
 .product-search-results {

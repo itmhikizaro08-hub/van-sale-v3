@@ -24,7 +24,7 @@
   <div class="col-md-8">
     <div class="card">
       <div class="card-header"><i class="fas fa-list me-2"></i>Return Lines ({{ order.items|length }})</div>
-      <div class="card-body p-0">
+      <div class="card-body p-0"><div class="table-responsive">
         <table class="table mb-0">
           <thead><tr><th>#</th><th>Product</th><th>Qty</th><th>Unit Price</th><th>Total</th><th>Reason</th><th>Status</th>
           {% if order.status in ['pending','partial'] and current_user.can_approve_module('returns') %}<th>Action</th>{% endif %}
@@ -53,7 +53,7 @@
             {% endfor %}
           </tbody>
           <tfoot><tr><td colspan="4" class="text-end fw-700">Total Refund</td><td class="fw-800 text-success" colspan="{{ 4 if order.status in ['pending','partial'] and current_user.can_approve_module('returns') else 3 }}">GHS {{ "%.2f"|format(order.total_refund_amount) }}</td></tr></tfoot>
-        </table>
+        </table></div>
       </div>
     </div>
   </div>

@@ -63,7 +63,7 @@
       <div class="card-header"><i class="fas fa-truck me-2"></i>My Van Stock</div>
       <div class="card-body p-0">
         {% if my_van_stock %}
-        <table class="table table-hover mb-0">
+        <div class="table-responsive"><table class="table table-hover mb-0">
           <thead><tr><th>Product</th><th class="text-end">Qty</th></tr></thead>
           <tbody>
             {% for vs in my_van_stock %}
@@ -75,7 +75,7 @@
             </tr>
             {% endfor %}
           </tbody>
-        </table>
+        </table></div>
         {% else %}
         <div class="empty-state py-4"><i class="fas fa-truck" style="font-size:2rem;color:var(--text-muted)"></i><p class="mt-2 text-muted">No van stock loaded yet</p></div>
         {% endif %}
@@ -89,7 +89,7 @@
     <span><i class="fas fa-receipt me-2"></i>My Recent Sales</span>
     <a href="{{ url_for('sales.index') }}" class="btn btn-outline-secondary btn-sm">View All</a>
   </div>
-  <div class="card-body p-0">
+  <div class="card-body p-0"><div class="table-responsive">
     <table class="table table-hover mb-0">
       <thead><tr><th>Invoice</th><th>Customer</th><th class="text-end">Total</th><th>Status</th></tr></thead>
       <tbody>
@@ -104,7 +104,7 @@
         <tr><td colspan="4" class="text-muted text-center py-3">No sales today</td></tr>
         {% endfor %}
       </tbody>
-    </table>
+    </table></div>
   </div>
 </div>
 

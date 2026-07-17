@@ -39,7 +39,7 @@
   <div class="card-header"><i class="fas fa-history me-2"></i>Full History ({{ product.price_history|length }})</div>
   <div class="card-body p-0">
     {% if product.price_history %}
-    <table class="table mb-0">
+    <div class="table-responsive"><table class="table mb-0">
       <thead>
         <tr><th>Date</th><th class="text-end">Old Company Price</th><th class="text-end">New Company Price</th>
             <th class="text-end">Old Cost Price</th><th class="text-end">New Cost Price</th>
@@ -61,7 +61,7 @@
         </tr>
         {% endfor %}
       </tbody>
-    </table>
+    </table></div>
     {% else %}
     <div class="empty-state py-4">
       <i class="fas fa-history" style="font-size:2rem;color:var(--text-muted)"></i>

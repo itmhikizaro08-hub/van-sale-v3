@@ -16,7 +16,7 @@
     </div>
     <div class="text-end"><div class="fw-800 text-danger fs-15">GHS {{ "%.2f"|format(rep_data.total_value) }}</div><div class="text-muted fs-12">{{ rep_data.total_qty|qty }} units</div></div>
   </div>
-  <div class="card-body p-0">
+  <div class="card-body p-0"><div class="table-responsive">
     <table class="table table-hover mb-0">
       <thead><tr><th>Product</th><th>Van</th><th>Qty</th>{% if current_user.see_cost_prices() %}<th class="text-end">Value</th>{% endif %}</tr></thead>
       <tbody>
@@ -29,7 +29,7 @@
         </tr>
         {% endfor %}
       </tbody>
-    </table>
+    </table></div>
   </div>
 </div>
 {% else %}

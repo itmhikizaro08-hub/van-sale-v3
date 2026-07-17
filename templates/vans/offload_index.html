@@ -27,7 +27,7 @@
       <div class="card-header"><i class="fas fa-dolly me-2"></i>Submit Stock Offload</div>
       {% if van_stock %}
       <form method="POST" action="{{ url_for('vans.offload_submit') }}">
-        <div class="card-body p-0">
+        <div class="card-body p-0"><div class="table-responsive">
           <table class="table table-sm mb-0">
             <thead><tr><th></th><th>Product</th><th class="text-end">Held</th><th style="width:110px">Offload Qty</th></tr></thead>
             <tbody>
@@ -41,7 +41,7 @@
               </tr>
               {% endfor %}
             </tbody>
-          </table>
+          </table></div>
         </div>
         <div class="card-body">
           <label class="form-label">Notes</label>
@@ -60,7 +60,7 @@
   <div class="col-md-5">
     <div class="card h-100">
       <div class="card-header"><i class="fas fa-history me-2"></i>My Offloads</div>
-      <div class="card-body p-0">
+      <div class="card-body p-0"><div class="table-responsive">
         <table class="table table-hover mb-0">
           <thead><tr><th>#</th><th>Date</th><th class="text-end">Qty</th><th>Status</th><th></th></tr></thead>
           <tbody>
@@ -76,7 +76,7 @@
             <tr><td colspan="5" class="text-muted text-center py-3">No offloads yet</td></tr>
             {% endfor %}
           </tbody>
-        </table>
+        </table></div>
       </div>
     </div>
   </div>
@@ -87,7 +87,7 @@
 
 <div class="card">
   <div class="card-header"><i class="fas fa-hourglass-half me-2"></i>Pending Offloads</div>
-  <div class="card-body p-0">
+  <div class="card-body p-0"><div class="table-responsive">
     <table class="table table-hover mb-0">
       <thead><tr><th>#</th><th>Rep</th><th>Van</th><th class="text-end">Declared Qty</th><th></th></tr></thead>
       <tbody>
@@ -111,13 +111,13 @@
         <tr><td colspan="5" class="text-muted text-center py-3">No pending offloads</td></tr>
         {% endfor %}
       </tbody>
-    </table>
+    </table></div>
   </div>
 </div>
 
 <div class="card mt-3">
   <div class="card-header"><i class="fas fa-history me-2"></i>Recent Confirmations</div>
-  <div class="card-body p-0">
+  <div class="card-body p-0"><div class="table-responsive">
     <table class="table table-hover mb-0">
       <thead><tr><th>#</th><th>Rep</th><th class="text-end">Declared</th><th class="text-end">Received</th><th>Status</th><th>Confirmed By</th><th></th></tr></thead>
       <tbody>
@@ -135,7 +135,7 @@
         <tr><td colspan="7" class="text-muted text-center py-3">No confirmations yet</td></tr>
         {% endfor %}
       </tbody>
-    </table>
+    </table></div>
   </div>
 </div>
 
@@ -150,10 +150,10 @@
         </div>
         <div class="modal-body">
           <p class="mb-3">Rep: <strong id="cOffloadRep"></strong></p>
-          <table class="table table-sm">
+          <div class="table-responsive"><table class="table table-sm">
             <thead><tr><th>Product</th><th class="text-end">Declared</th><th style="width:110px">Received</th></tr></thead>
             <tbody id="cItemsBody"></tbody>
-          </table>
+          </table></div>
           <div class="mb-2">
             <label class="form-label">Notes</label>
             <textarea name="notes" class="form-control" rows="2" placeholder="Optional — explain any mismatch"></textarea>

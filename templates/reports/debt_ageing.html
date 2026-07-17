@@ -19,7 +19,7 @@
     <span><span class="badge {{ badge }} me-2">{{ label }}</span> {{ buckets[bucket_key]|length }} customers</span>
     <span class="fw-700">GHS {{ "%.2f"|format(totals[bucket_key]) }}</span>
   </div>
-  <div class="card-body p-0">
+  <div class="card-body p-0"><div class="table-responsive">
     <table class="table table-hover mb-0">
       <thead><tr><th>Customer</th><th>Code</th><th>Phone</th><th>Oldest Invoice</th><th>Days</th><th class="text-end">Outstanding</th><th></th></tr></thead>
       <tbody>
@@ -35,7 +35,7 @@
         </tr>
         {% endfor %}
       </tbody>
-    </table>
+    </table></div>
   </div>
 </div>
 {% endif %}

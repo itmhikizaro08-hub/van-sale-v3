@@ -27,7 +27,7 @@
     {% if low_stock %}
     <div class="card h-100">
       <div class="card-header"><i class="fas fa-exclamation-triangle text-warning me-2"></i>Low Stock Alerts</div>
-      <div class="card-body p-0">
+      <div class="card-body p-0"><div class="table-responsive">
         <table class="table table-hover mb-0">
           <thead><tr><th>Product</th><th class="text-center">Stock</th><th class="text-center">Reorder Level</th><th></th></tr></thead>
           <tbody>
@@ -40,7 +40,7 @@
             </tr>
             {% endfor %}
           </tbody>
-        </table>
+        </table></div>
       </div>
     </div>
     {% else %}
