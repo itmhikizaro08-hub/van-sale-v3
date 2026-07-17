@@ -424,7 +424,7 @@ function renderCart() {
       </td>
       <td>
         <input type="number" class="form-control qty-input" min="${(1/item.piecesPerUnit).toFixed(4)}" max="${item.stock}"
-               step="${(1/item.piecesPerUnit).toFixed(4)}"
+               step="any"
                value="${item.qty}" oninput="updateQty(${idx}, this.value)">
         ${item.piecesPerUnit > 1 ? `<button type="button" class="btn btn-link btn-sm p-0 fs-11" onclick="enterByPieces(${idx})">by pcs</button>` : ''}
       </td>

@@ -36,8 +36,7 @@
                 <td><input type="hidden" name="product_id[]" value="{{ vs.product_id }}"></td>
                 <td class="fw-600 fs-13">{{ vs.product.product_name if vs.product else '—' }}</td>
                 <td class="text-end">{{ vs.quantity|qty }}</td>
-                {% set step = (1 / vs.product.pieces_per_unit) if vs.product and vs.product.pieces_per_unit and vs.product.pieces_per_unit > 1 else 1 %}
-                <td><input type="number" min="0" max="{{ vs.quantity }}" step="{{ '%.4f'|format(step) }}" class="form-control form-control-sm"
+                <td><input type="number" min="0" max="{{ vs.quantity }}" step="any" class="form-control form-control-sm"
                     name="quantity[]" value="0"></td>
               </tr>
               {% endfor %}
@@ -101,7 +100,7 @@
             <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#confirmModal"
               data-offload-id="{{ o.id }}" data-offload-number="{{ o.offload_number }}"
               data-offload-rep="{{ o.sales_rep.full_name if o.sales_rep else '—' }}"
-              data-offload-items='[{% for i in o.items %}{"id":{{ i.id }},"name":{{ (i.product.product_name if i.product else "—")|tojson }},"declared":{{ i.quantity_declared }},"step":{{ (1 / i.product.pieces_per_unit) if i.product and i.product.pieces_per_unit and i.product.pieces_per_unit > 1 else 1 }}}{{ ',' if not loop.last }}{% endfor %}]'>
+              data-offload-items='[{% for i in o.items %}{"id":{{ i.id }},"name":{{ (i.product.product_name if i.product else "—")|tojson }},"declared":{{ i.quantity_declared }}}{{ ',' if not loop.last }}{% endfor %}]'>
               <i class="fas fa-check me-1"></i>Confirm
             </button>
           </td>
@@ -181,7 +180,7 @@ document.getElementById('confirmModal')?.addEventListener('show.bs.modal', e => 
     <tr>
       <td class="fs-13">${i.name}</td>
       <td class="text-end">${i.declared}</td>
-      <td><input type="number" min="0" max="${i.declared}" step="${i.step}" class="form-control form-control-sm" name="received_${i.id}" value="${i.declared}"></td>
+      <td><input type="number" min="0" max="${i.declared}" step="any" class="form-control form-control-sm" name="received_${i.id}" value="${i.declared}"></td>
     </tr>`).join('');
 });
 </script>
