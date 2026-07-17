@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>{% block title %}Van Sales V3 ERP{% endblock %} | {{ company_name }}</title>
   <!-- PWA: installable as a standalone app, no browser chrome -->
-  <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
+  <link rel="manifest" href="{{ url_for('pwa_manifest') }}">
   <meta name="theme-color" content="#2563EB">
   <link rel="apple-touch-icon" href="{{ url_for('static', filename='icons/icon-180.png') }}">
   <link rel="icon" type="image/png" sizes="192x192" href="{{ url_for('static', filename='icons/icon-192.png') }}">
@@ -90,6 +90,10 @@
     </div>
 
     <div class="topbar-right">
+      <!-- Install as app (hidden until the browser signals it's installable) -->
+      <button class="btn btn-primary btn-sm d-none" id="installAppBtn" title="Install this app on your device">
+        <i class="fas fa-download me-1"></i>Install App
+      </button>
       <!-- Theme toggle -->
       <button class="topbar-btn" id="themeToggle" title="Toggle theme">
         <i class="fas fa-moon" id="themeIcon"></i>
@@ -156,6 +160,25 @@ if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('/sw.js').catch(() => {});
   });
 }
+
+// The browser only fires this if the PWA install criteria are met (manifest,
+// service worker, HTTPS) AND it isn't already installed — showing our own
+// button instead of relying on the browser's own (easy-to-miss) install icon.
+let deferredInstallPrompt = null;
+const installBtn = document.getElementById('installAppBtn');
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  deferredInstallPrompt = e;
+  installBtn?.classList.remove('d-none');
+});
+installBtn?.addEventListener('click', async () => {
+  if (!deferredInstallPrompt) return;
+  deferredInstallPrompt.prompt();
+  await deferredInstallPrompt.userChoice;
+  deferredInstallPrompt = null;
+  installBtn.classList.add('d-none');
+});
+window.addEventListener('appinstalled', () => installBtn?.classList.add('d-none'));
 </script>
 </body>
 </html>

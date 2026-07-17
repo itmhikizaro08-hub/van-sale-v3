@@ -114,6 +114,30 @@ def create_app():
         from flask import send_from_directory
         return send_from_directory('static', 'sw.js', mimetype='application/javascript')
 
+    # ── PWA manifest — served dynamically (not a static file) so the name a
+    # user sees when installing the app reflects their actual configured
+    # company name, not a hardcoded generic one ─────────────────────────────
+    @app.route('/manifest.json')
+    def pwa_manifest():
+        from flask import jsonify
+        from models.settings import Settings
+        name = Settings.get().company_name or app.config['COMPANY_NAME']
+        return jsonify({
+            'name': name,
+            'short_name': name[:20],
+            'description': f'{name} — Van Sales ERP',
+            'start_url': '/',
+            'scope': '/',
+            'display': 'standalone',
+            'background_color': '#0f172a',
+            'theme_color': '#2563EB',
+            'orientation': 'any',
+            'icons': [
+                {'src': '/static/icons/icon-192.png', 'sizes': '192x192', 'type': 'image/png', 'purpose': 'any maskable'},
+                {'src': '/static/icons/icon-512.png', 'sizes': '512x512', 'type': 'image/png', 'purpose': 'any maskable'}
+            ]
+        })
+
     # ── Friendly error for oversized uploads ───────────────────────────────────
     @app.errorhandler(413)
     def handle_large_upload(e):

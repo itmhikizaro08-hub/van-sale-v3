@@ -1,10 +1,11 @@
 """Settings blueprint — company profile, system settings, role permissions."""
-from flask import Blueprint, render_template, redirect, url_for, flash, request
+import os
+from flask import Blueprint, render_template, redirect, url_for, flash, request, current_app
 from flask_login import login_required, current_user
 from app import db
 from models.settings import Settings, SettingsAuditLog
 from models.user import ROLE_PERMISSIONS, RolePermission, load_role_permissions
-from services.uploads import save_upload
+from services.uploads import save_upload, regenerate_pwa_icons
 
 settings_bp = Blueprint('settings', __name__)
 
@@ -98,6 +99,7 @@ def update_company():
         logo_path = save_upload(logo_file, 'logos')
         if logo_path:
             updates['company_logo'] = logo_path
+            regenerate_pwa_icons(os.path.join(current_app.config['UPLOAD_FOLDER'], logo_path))
         else:
             flash('Logo not updated — use a PNG, JPG, GIF, or WEBP image.', 'warning')
 
