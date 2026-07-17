@@ -1,0 +1,64 @@
+{% extends 'base.html' %}
+{% block title %}{{ offload.offload_number }}{% endblock %}
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{{ url_for('vans.offload_index') }}">Stock Offload</a></li>
+<li class="breadcrumb-item active">{{ offload.offload_number }}</li>
+{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title">{{ offload.offload_number }}</h1>
+    <div class="d-flex align-items-center gap-2 mt-1">
+      <span class="badge {{ offload.status_badge }}">{{ offload.status|title }}</span>
+      <span class="text-muted fs-12">{{ offload.created_at.strftime('%d %B %Y, %H:%M') if offload.created_at else '' }}</span>
+    </div>
+  </div>
+  <button onclick="window.print()" class="btn btn-outline-secondary btn-sm no-print"><i class="fas fa-print me-1"></i>Print</button>
+</div>
+
+<div class="row g-3">
+  <div class="col-md-8">
+    <div class="card">
+      <div class="card-header"><i class="fas fa-boxes me-2"></i>Products ({{ offload.items|length }})</div>
+      <div class="card-body p-0">
+        <table class="table mb-0">
+          <thead><tr><th>#</th><th>Product</th><th>Code</th><th class="text-end">Declared</th><th class="text-end">Received</th></tr></thead>
+          <tbody>
+            {% for item in offload.items %}
+            <tr>
+              <td class="text-muted fs-12">{{ loop.index }}</td>
+              <td class="fw-600">{{ item.product.product_name if item.product else '—' }}</td>
+              <td><code class="fs-12">{{ item.product.product_code if item.product else '' }}</code></td>
+              <td class="text-end fw-700 text-primary">{{ item.quantity_declared|qty }}</td>
+              <td class="text-end fw-700 {{ 'text-danger' if item.quantity_received is not none and item.quantity_received != item.quantity_declared else 'text-success' if item.quantity_received is not none else 'text-muted' }}">
+                {{ item.quantity_received|qty if item.quantity_received is not none else '—' }}
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card">
+      <div class="card-header"><i class="fas fa-info-circle me-2"></i>Offload Details</div>
+      <div class="card-body">
+        <div class="mb-3"><div class="text-muted fs-12">Sales Rep</div><div class="fw-700">{{ offload.sales_rep.full_name if offload.sales_rep else '—' }}</div></div>
+        <div class="mb-3"><div class="text-muted fs-12">Van</div><div class="fw-600">{{ offload.van.van_number if offload.van else '—' }}</div></div>
+        <div class="mb-3"><div class="text-muted fs-12">Submitted</div><div class="fw-600">{{ offload.created_at.strftime('%d %B %Y, %H:%M') if offload.created_at else '—' }}</div></div>
+        {% if offload.confirmed_at %}
+        <div class="mb-3"><div class="text-muted fs-12">Confirmed By</div><div class="fw-600">{{ offload.confirmed_by.full_name if offload.confirmed_by else '—' }}</div></div>
+        <div class="mb-3"><div class="text-muted fs-12">Confirmed</div><div class="fw-600">{{ offload.confirmed_at.strftime('%d %B %Y, %H:%M') }}</div></div>
+        {% else %}
+        <div class="mb-3"><div class="text-muted fs-12">Confirmed By</div><div class="fs-13 text-muted">Awaiting warehouse confirmation</div></div>
+        {% endif %}
+        {% if offload.status == 'discrepancy' %}
+        <div class="mb-3"><i class="fas fa-triangle-exclamation text-danger me-1"></i><span class="fs-13 text-danger">Received quantity didn't match what was declared — the shortfall stays on the rep's stock liability.</span></div>
+        {% endif %}
+        {% if offload.notes %}<div><div class="text-muted fs-12">Notes</div><div class="fs-13">{{ offload.notes }}</div></div>{% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

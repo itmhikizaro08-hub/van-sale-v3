@@ -62,17 +62,18 @@
       <div class="card-header"><i class="fas fa-history me-2"></i>My Offloads</div>
       <div class="card-body p-0">
         <table class="table table-hover mb-0">
-          <thead><tr><th>#</th><th>Date</th><th class="text-end">Qty</th><th>Status</th></tr></thead>
+          <thead><tr><th>#</th><th>Date</th><th class="text-end">Qty</th><th>Status</th><th></th></tr></thead>
           <tbody>
             {% for o in offloads %}
             <tr>
               <td class="fw-600 fs-13">{{ o.offload_number }}</td>
               <td class="text-muted fs-12">{{ o.created_at.strftime('%d %b, %H:%M') if o.created_at else '' }}</td>
-              <td class="text-end fw-600">{{ o.total_declared_qty }}</td>
+              <td class="text-end fw-600">{{ o.total_declared_qty|qty }}</td>
               <td><span class="badge {{ o.status_badge }}">{{ o.status|title }}</span></td>
+              <td><a href="{{ url_for('vans.offload_view', offload_id=o.id) }}" class="btn btn-icon btn-sm btn-outline-primary"><i class="fas fa-eye"></i></a></td>
             </tr>
             {% else %}
-            <tr><td colspan="4" class="text-muted text-center py-3">No offloads yet</td></tr>
+            <tr><td colspan="5" class="text-muted text-center py-3">No offloads yet</td></tr>
             {% endfor %}
           </tbody>
         </table>
@@ -96,7 +97,8 @@
           <td class="fs-13">{{ o.sales_rep.full_name if o.sales_rep else '—' }}</td>
           <td class="fs-13">{{ o.van.van_number if o.van else '—' }}</td>
           <td class="text-end fw-600">{{ o.total_declared_qty|qty }}</td>
-          <td>
+          <td class="d-flex gap-1">
+            <a href="{{ url_for('vans.offload_view', offload_id=o.id) }}" class="btn btn-icon btn-sm btn-outline-primary"><i class="fas fa-eye"></i></a>
             <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#confirmModal"
               data-offload-id="{{ o.id }}" data-offload-number="{{ o.offload_number }}"
               data-offload-rep="{{ o.sales_rep.full_name if o.sales_rep else '—' }}"
@@ -117,7 +119,7 @@
   <div class="card-header"><i class="fas fa-history me-2"></i>Recent Confirmations</div>
   <div class="card-body p-0">
     <table class="table table-hover mb-0">
-      <thead><tr><th>#</th><th>Rep</th><th class="text-end">Declared</th><th class="text-end">Received</th><th>Status</th><th>Confirmed By</th></tr></thead>
+      <thead><tr><th>#</th><th>Rep</th><th class="text-end">Declared</th><th class="text-end">Received</th><th>Status</th><th>Confirmed By</th><th></th></tr></thead>
       <tbody>
         {% for o in recent %}
         <tr>
@@ -127,9 +129,10 @@
           <td class="text-end">{{ (o.items|sum(attribute='quantity_received'))|qty }}</td>
           <td><span class="badge {{ o.status_badge }}">{{ o.status|title }}</span></td>
           <td class="fs-12 text-muted">{{ o.confirmed_by.full_name if o.confirmed_by else '—' }}</td>
+          <td><a href="{{ url_for('vans.offload_view', offload_id=o.id) }}" class="btn btn-icon btn-sm btn-outline-primary"><i class="fas fa-eye"></i></a></td>
         </tr>
         {% else %}
-        <tr><td colspan="6" class="text-muted text-center py-3">No confirmations yet</td></tr>
+        <tr><td colspan="7" class="text-muted text-center py-3">No confirmations yet</td></tr>
         {% endfor %}
       </tbody>
     </table>

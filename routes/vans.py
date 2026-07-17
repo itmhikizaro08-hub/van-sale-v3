@@ -325,6 +325,19 @@ def offload_index():
         pending=pending, recent=recent)
 
 
+@vans_bp.route('/offload/<int:offload_id>')
+@login_required
+@require_module('stock_offload')
+def offload_view(offload_id):
+    offload = StockOffload.query.get_or_404(offload_id)
+
+    if current_user.scope('stock_offload') == 'own' and offload.sales_rep_id != current_user.id:
+        flash('Access denied.', 'danger')
+        return redirect(url_for('vans.offload_index'))
+
+    return render_template('vans/offload_view.html', offload=offload)
+
+
 @vans_bp.route('/offload/submit', methods=['POST'])
 @login_required
 @require_module('stock_offload', need_write=True)
