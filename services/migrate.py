@@ -142,6 +142,8 @@ def _widen_quantity_columns_to_float(conn, engine):
         ('inventory_movements', 'quantity'),
         ('inventory_movements', 'quantity_before'),
         ('inventory_movements', 'quantity_after'),
+        ('stock_offload_items', 'quantity_declared'),
+        ('stock_offload_items', 'quantity_received'),
     ]
     try:
         inspector = inspect(conn)

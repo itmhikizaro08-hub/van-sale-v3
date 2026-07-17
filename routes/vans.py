@@ -337,7 +337,7 @@ def offload_submit():
         if not pid or not qty_str:
             continue
         try:
-            qty = int(qty_str)
+            qty = round(float(qty_str), 3)
         except ValueError:
             flash(f'"{qty_str}" is not a valid quantity.', 'danger')
             return redirect(url_for('vans.offload_index'))
@@ -383,15 +383,15 @@ def offload_confirm(offload_id):
 
     any_mismatch = False
     for item in offload.items:
-        received = request.form.get(f'received_{item.id}', type=int)
+        received = request.form.get(f'received_{item.id}', type=float)
         if received is None:
             received = item.quantity_declared
         # Clamp to [0, declared] — a warehouse manager typing a value larger
         # than what was declared must not be able to inflate warehouse stock
         # beyond what the rep actually said they were returning.
-        received = min(max(0, received), item.quantity_declared)
+        received = round(min(max(0, received), item.quantity_declared), 3)
         item.quantity_received = received
-        if received != item.quantity_declared:
+        if abs(received - item.quantity_declared) > 0.001:
             any_mismatch = True
 
         vs = VanStock.query.filter_by(

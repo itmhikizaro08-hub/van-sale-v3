@@ -102,7 +102,10 @@ class StockOffloadItem(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     offload_id = db.Column(db.Integer, db.ForeignKey('stock_offloads.id'), nullable=False)
     product_id = db.Column(db.Integer, db.ForeignKey('products.id'), nullable=False)
-    quantity_declared = db.Column(db.Integer, nullable=False, default=0)
-    quantity_received = db.Column(db.Integer, nullable=True)
+    # Float, not Integer — a rep can now hold a fractional amount of van
+    # stock after selling by the piece, and must be able to offload exactly
+    # that amount back to the warehouse rather than being stuck rounding down.
+    quantity_declared = db.Column(db.Float, nullable=False, default=0)
+    quantity_received = db.Column(db.Float, nullable=True)
 
     product = db.relationship('Product', foreign_keys=[product_id])
