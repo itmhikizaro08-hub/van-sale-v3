@@ -4,7 +4,12 @@
 {% block content %}
 <div class="page-header">
   <div><h1 class="page-title">Customers</h1></div>
-  {% if current_user.can_write('customers') %}<a href="{{ url_for('customers.add') }}" class="btn btn-primary"><i class="fas fa-plus me-1"></i>Add Customer</a>{% endif %}
+  {% if current_user.can_write('customers') %}
+  <div class="d-flex gap-2">
+    <a href="{{ url_for('customers.import_csv') }}" class="btn btn-outline-secondary"><i class="fas fa-file-csv me-1"></i>Import CSV</a>
+    <a href="{{ url_for('customers.add') }}" class="btn btn-primary"><i class="fas fa-plus me-1"></i>Add Customer</a>
+  </div>
+  {% endif %}
 </div>
 
 <div class="row g-3 mb-3">

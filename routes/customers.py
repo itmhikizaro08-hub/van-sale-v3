@@ -1,4 +1,6 @@
-from flask import Blueprint, render_template, redirect, url_for, flash, request, jsonify
+import csv
+import io
+from flask import Blueprint, render_template, redirect, url_for, flash, request, jsonify, Response
 from flask_login import login_required, current_user
 from app import db
 from models.customer import Customer
@@ -15,6 +17,88 @@ def _next_code():
     last = Customer.query.order_by(Customer.id.desc()).first()
     n = (last.id + 1) if last else 1
     return f'CUST{n:04d}'
+
+
+CUSTOMER_IMPORT_COLUMNS = [
+    'customer_code', 'name', 'phone', 'email', 'address', 'location',
+    'customer_type', 'credit_limit', 'status', 'notes'
+]
+
+
+@customers_bp.route('/import', methods=['GET', 'POST'])
+@login_required
+def import_csv():
+    if not current_user.can_write('customers'):
+        flash('Permission denied.', 'danger')
+        return redirect(url_for('customers.index'))
+
+    if request.method == 'POST':
+        file = request.files.get('file')
+        if not file or not file.filename:
+            flash('Choose a CSV file to upload.', 'warning')
+            return redirect(url_for('customers.import_csv'))
+
+        try:
+            stream = io.StringIO(file.stream.read().decode('utf-8-sig'))
+            reader = csv.DictReader(stream)
+        except Exception:
+            flash('Could not read that file — make sure it is a valid CSV.', 'danger')
+            return redirect(url_for('customers.import_csv'))
+
+        created, skipped, errors = 0, 0, []
+        for i, row in enumerate(reader, start=2):  # row 1 is the header
+            name = (row.get('name') or '').strip()
+            if not name:
+                errors.append(f'Row {i}: missing name — skipped.')
+                continue
+
+            code = (row.get('customer_code') or '').strip() or _next_code()
+            if Customer.query.filter_by(customer_code=code).first():
+                skipped += 1
+                continue
+
+            try:
+                customer = Customer(
+                    customer_code=code,
+                    name=name,
+                    phone=(row.get('phone') or '').strip() or None,
+                    email=(row.get('email') or '').strip() or None,
+                    address=(row.get('address') or '').strip() or None,
+                    location=(row.get('location') or '').strip() or None,
+                    customer_type=(row.get('customer_type') or 'retail').strip(),
+                    credit_limit=float(row.get('credit_limit') or 0),
+                    status=(row.get('status') or 'active').strip(),
+                    notes=(row.get('notes') or '').strip() or None
+                )
+                db.session.add(customer)
+                created += 1
+            except (TypeError, ValueError):
+                errors.append(f'Row {i} ({name}): invalid number in one of the fields — skipped.')
+                continue
+
+        db.session.commit()
+        msg = f'Imported {created} customer(s), skipped {skipped} duplicate(s).'
+        flash(msg, 'success' if created else 'warning')
+        for err in errors[:20]:
+            flash(err, 'warning')
+        return redirect(url_for('customers.index'))
+
+    return render_template('customers/import.html')
+
+
+@customers_bp.route('/import/template.csv')
+@login_required
+def import_template():
+    if not current_user.can_write('customers'):
+        flash('Permission denied.', 'danger')
+        return redirect(url_for('customers.index'))
+
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(CUSTOMER_IMPORT_COLUMNS)
+    writer.writerow(['', 'Sample Customer', '0241234567', '', '', '', 'retail', '1000', 'active', ''])
+    return Response(output.getvalue(), mimetype='text/csv',
+        headers={'Content-Disposition': 'attachment; filename=customers_import_template.csv'})
 
 
 @customers_bp.route('/')

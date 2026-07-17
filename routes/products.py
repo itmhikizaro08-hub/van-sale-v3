@@ -1,4 +1,6 @@
-from flask import Blueprint, render_template, redirect, url_for, flash, request, jsonify
+import csv
+import io
+from flask import Blueprint, render_template, redirect, url_for, flash, request, jsonify, Response
 from flask_login import login_required, current_user
 from app import db
 from models.product import Product, Category
@@ -11,6 +13,101 @@ def _next_code():
     last = Product.query.order_by(Product.id.desc()).first()
     n = (last.id + 1) if last else 1
     return f'PRD{n:04d}'
+
+
+PRODUCT_IMPORT_COLUMNS = [
+    'product_code', 'product_name', 'category', 'brand', 'unit',
+    'cost_price', 'selling_price', 'wholesale_price', 'reorder_level',
+    'pieces_per_unit', 'stock_quantity', 'tax_rate'
+]
+
+
+@products_bp.route('/import', methods=['GET', 'POST'])
+@login_required
+def import_csv():
+    if not current_user.can_write('products'):
+        flash('Permission denied.', 'danger')
+        return redirect(url_for('products.index'))
+
+    if request.method == 'POST':
+        file = request.files.get('file')
+        if not file or not file.filename:
+            flash('Choose a CSV file to upload.', 'warning')
+            return redirect(url_for('products.import_csv'))
+
+        try:
+            stream = io.StringIO(file.stream.read().decode('utf-8-sig'))
+            reader = csv.DictReader(stream)
+        except Exception:
+            flash('Could not read that file — make sure it is a valid CSV.', 'danger')
+            return redirect(url_for('products.import_csv'))
+
+        created, skipped, errors = 0, 0, []
+        for i, row in enumerate(reader, start=2):  # row 1 is the header
+            name = (row.get('product_name') or '').strip()
+            if not name:
+                errors.append(f'Row {i}: missing product_name — skipped.')
+                continue
+
+            code = (row.get('product_code') or '').strip() or _next_code()
+            if Product.query.filter_by(product_code=code).first():
+                skipped += 1
+                continue
+
+            category_obj = None
+            cat_name = (row.get('category') or '').strip()
+            if cat_name:
+                category_obj = Category.query.filter_by(name=cat_name).first()
+                if not category_obj:
+                    category_obj = Category(name=cat_name)
+                    db.session.add(category_obj)
+                    db.session.flush()
+
+            try:
+                product = Product(
+                    product_code=code,
+                    product_name=name,
+                    category_id=category_obj.id if category_obj else None,
+                    brand=(row.get('brand') or '').strip() or None,
+                    unit=(row.get('unit') or 'piece').strip(),
+                    cost_price=float(row.get('cost_price') or 0),
+                    selling_price=float(row.get('selling_price') or 0),
+                    wholesale_price=float(row.get('wholesale_price') or 0),
+                    reorder_level=int(float(row.get('reorder_level') or Settings.get().default_reorder_level or 10)),
+                    pieces_per_unit=int(float(row.get('pieces_per_unit') or 1)),
+                    stock_quantity=float(row.get('stock_quantity') or 0),
+                    tax_rate=float(row.get('tax_rate') or 0),
+                    status='active'
+                )
+                db.session.add(product)
+                created += 1
+            except (TypeError, ValueError) as e:
+                errors.append(f'Row {i} ({name}): invalid number in one of the fields — skipped.')
+                continue
+
+        db.session.commit()
+        msg = f'Imported {created} product(s), skipped {skipped} duplicate(s).'
+        flash(msg, 'success' if created else 'warning')
+        for err in errors[:20]:
+            flash(err, 'warning')
+        return redirect(url_for('products.index'))
+
+    return render_template('products/import.html')
+
+
+@products_bp.route('/import/template.csv')
+@login_required
+def import_template():
+    if not current_user.can_write('products'):
+        flash('Permission denied.', 'danger')
+        return redirect(url_for('products.index'))
+
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(PRODUCT_IMPORT_COLUMNS)
+    writer.writerow(['', 'Sample Product', 'Beverages', '', 'piece', '10.00', '15.00', '13.00', '10', '1', '0', '0'])
+    return Response(output.getvalue(), mimetype='text/csv',
+        headers={'Content-Disposition': 'attachment; filename=products_import_template.csv'})
 
 
 @products_bp.route('/')

@@ -1,0 +1,29 @@
+{% extends 'base.html' %}{% block title %}Import Products{% endblock %}{% block content %}
+<div class="page-header"><h1 class="page-title">Import Products</h1></div>
+<div class="row justify-content-center"><div class="col-md-7">
+<div class="card">
+  <div class="card-body">
+    <p class="text-muted fs-13">
+      Upload a CSV file to add many products at once. Existing products (matched by
+      Product Code) are skipped, not overwritten — safe to re-run.
+    </p>
+    <a href="{{ url_for('products.import_template') }}" class="btn btn-outline-secondary btn-sm mb-3">
+      <i class="fas fa-download me-1"></i>Download CSV Template
+    </a>
+    <form method="POST" enctype="multipart/form-data">
+      <div class="mb-3">
+        <label class="form-label">CSV File</label>
+        <input type="file" name="file" accept=".csv" class="form-control" required>
+      </div>
+      <div class="alert alert-info fs-13">
+        <b>Columns:</b> product_code (optional — auto-generated if blank), product_name (required),
+        category, brand, unit, cost_price, selling_price, wholesale_price, reorder_level,
+        pieces_per_unit, stock_quantity, tax_rate.
+      </div>
+      <button type="submit" class="btn btn-primary"><i class="fas fa-upload me-1"></i>Upload &amp; Import</button>
+      <a href="{{ url_for('products.index') }}" class="btn btn-outline-secondary">Cancel</a>
+    </form>
+  </div>
+</div>
+</div></div>
+{% endblock %}
