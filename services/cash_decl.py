@@ -4,12 +4,28 @@ Collected/Declared reset to the current calendar month for the headline
 figures (so reps and cashiers see "this month's" activity, not a
 years-long running total). The Balance never resets — money a rep still
 owes doesn't disappear just because the month rolled over.
+
+Once a cashier verifies a declaration, the physically-counted amount
+becomes the authoritative figure for that declaration — even when it
+doesn't match what the rep originally declared (a "discrepancy"). Using
+the stale declared_amount forever would let an over-declaration inflate
+what looks "handed over" and understate what the rep still owes, so
+every aggregate below sums the *effective* amount (see
+CashDeclaration.effective_amount), not the raw declared_amount.
 """
 from datetime import datetime, timedelta
 from app import db
-from sqlalchemy import func
+from sqlalchemy import func, case
 from models.payment import Payment
 from models.cash_declaration import CashDeclaration
+
+# SUM(effective_amount) expressed in SQL so it can be aggregated directly
+# without pulling every declaration row into Python.
+_EFFECTIVE_AMOUNT = case(
+    (CashDeclaration.status.in_(['verified', 'discrepancy']) & CashDeclaration.counted_amount.isnot(None),
+     CashDeclaration.counted_amount),
+    else_=CashDeclaration.declared_amount
+)
 
 
 def _month_start(dt=None):
@@ -24,7 +40,7 @@ def rep_cash_balance(rep_id):
         Payment.received_by_id == rep_id, Payment.payment_method == 'cash',
         Payment.payment_date >= month_start, Payment.status != 'void'
     ).scalar() or 0
-    declared_month = db.session.query(func.sum(CashDeclaration.declared_amount)).filter(
+    declared_month = db.session.query(func.sum(_EFFECTIVE_AMOUNT)).filter(
         CashDeclaration.sales_rep_id == rep_id,
         CashDeclaration.created_at >= month_start
     ).scalar() or 0
@@ -33,7 +49,7 @@ def rep_cash_balance(rep_id):
         Payment.received_by_id == rep_id, Payment.payment_method == 'cash',
         Payment.status != 'void'
     ).scalar() or 0
-    declared_all = db.session.query(func.sum(CashDeclaration.declared_amount)).filter(
+    declared_all = db.session.query(func.sum(_EFFECTIVE_AMOUNT)).filter(
         CashDeclaration.sales_rep_id == rep_id
     ).scalar() or 0
 
@@ -54,7 +70,7 @@ def rep_cash_summary_range(rep_id, start, end):
         Payment.payment_date >= start, Payment.payment_date <= end_bound,
         Payment.status != 'void'
     ).scalar() or 0
-    declared = db.session.query(func.sum(CashDeclaration.declared_amount)).filter(
+    declared = db.session.query(func.sum(_EFFECTIVE_AMOUNT)).filter(
         CashDeclaration.sales_rep_id == rep_id,
         CashDeclaration.created_at >= start, CashDeclaration.created_at <= end_bound
     ).scalar() or 0
@@ -82,7 +98,7 @@ def rep_cash_monthly_history(rep_id, months=6):
             Payment.payment_date >= cursor, Payment.payment_date < next_month,
             Payment.status != 'void'
         ).scalar() or 0
-        declared = db.session.query(func.sum(CashDeclaration.declared_amount)).filter(
+        declared = db.session.query(func.sum(_EFFECTIVE_AMOUNT)).filter(
             CashDeclaration.sales_rep_id == rep_id,
             CashDeclaration.created_at >= cursor, CashDeclaration.created_at < next_month
         ).scalar() or 0

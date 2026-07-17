@@ -42,6 +42,16 @@ class CashDeclaration(db.Model):
         return {'pending': 'bg-warning text-dark', 'verified': 'bg-success',
                 'discrepancy': 'bg-danger'}.get(self.status, 'bg-secondary')
 
+    @property
+    def effective_amount(self):
+        """What actually counts toward the rep's liability: the cashier's
+        physically-counted amount once verified (even if it doesn't match
+        what the rep declared), or the self-reported declared_amount while
+        still pending and uncounted."""
+        if self.status in ('verified', 'discrepancy') and self.counted_amount is not None:
+            return self.counted_amount
+        return self.declared_amount
+
     def __repr__(self):
         return f'<CashDeclaration {self.declaration_number} GHS {self.declared_amount}>'
 
