@@ -186,6 +186,9 @@ def new():
 @returns_bp.route('/<int:order_id>')
 @login_required
 def view(order_id):
+    if not current_user.can_access('returns'):
+        flash('Access denied.', 'danger')
+        return redirect(url_for('dashboard.index'))
     from models.v4_models import ReturnOrder
     order = ReturnOrder.query.get_or_404(order_id)
     if current_user.scope('returns') == 'own' and order.received_by_rep_id != current_user.id:
@@ -197,6 +200,8 @@ def view(order_id):
 @returns_bp.route('/api/customer-sales/<int:customer_id>')
 @login_required
 def customer_sales(customer_id):
+    if not current_user.can_write('returns'):
+        return jsonify([]), 403
     from models.sale import Sale
     sales = Sale.query.filter_by(
         customer_id=customer_id, status='completed'
@@ -211,6 +216,8 @@ def customer_sales(customer_id):
 @returns_bp.route('/api/sale-items/<int:sale_id>')
 @login_required
 def sale_items(sale_id):
+    if not current_user.can_write('returns'):
+        return jsonify([]), 403
     from models.sale import Sale, SaleItem
     sale = Sale.query.get_or_404(sale_id)
     return jsonify([{

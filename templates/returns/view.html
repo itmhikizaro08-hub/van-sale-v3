@@ -14,6 +14,7 @@
     </div>
   </div>
   <div class="d-flex gap-2">
+    <button onclick="window.print()" class="btn btn-outline-secondary btn-sm no-print"><i class="fas fa-print me-1"></i>Print</button>
     {% if order.status in ['pending','partial'] and current_user.can_approve_module('returns') %}
     <button class="btn btn-success btn-sm" data-action-url="{{ url_for('returns.approve', order_id=order.id) }}" data-confirm="Approve all pending lines?" data-success-msg="Approved!"><i class="fas fa-check me-1"></i>Approve All</button>
     <button class="btn btn-outline-danger btn-sm" data-action-url="{{ url_for('returns.reject', order_id=order.id) }}" data-confirm="Reject all?" data-success-msg="Rejected."><i class="fas fa-times me-1"></i>Reject All</button>
@@ -62,9 +63,17 @@
       <div class="card-header"><i class="fas fa-info-circle me-2"></i>Return Info</div>
       <div class="card-body">
         <div class="mb-2"><div class="text-muted fs-12">Customer</div><div class="fw-700">{{ order.customer.name if order.customer else '—' }}</div></div>
+        <div class="mb-2"><div class="text-muted fs-12">Date</div><div class="fw-600">{{ order.created_at.strftime('%d %B %Y, %H:%M') if order.created_at else '—' }}</div></div>
+        {% if order.sale %}
+        <div class="mb-2"><div class="text-muted fs-12">Original Sale</div><a href="{{ url_for('invoices.view', sale_id=order.sale.id) }}" class="fw-600">{{ order.sale.invoice_number }}</a></div>
+        {% endif %}
         <div class="mb-2"><div class="text-muted fs-12">Received By</div><div class="fw-600">{{ order.received_by_rep.full_name if order.received_by_rep else '—' }}</div></div>
         <div class="mb-2"><div class="text-muted fs-12">Destination</div><span class="badge {{ order.destination_badge }}">{{ order.return_destination|replace('_',' ')|title }}</span></div>
         <div class="mb-2"><div class="text-muted fs-12">Refund Method</div><div class="fw-600">{{ order.refund_method|replace('_',' ')|title }}</div></div>
+        {% if order.approved_by %}
+        <div class="mb-2"><div class="text-muted fs-12">Resolved By</div><div class="fw-600">{{ order.approved_by.full_name }}</div></div>
+        <div class="mb-2"><div class="text-muted fs-12">Resolved</div><div class="fw-600">{{ order.approved_at.strftime('%d %B %Y, %H:%M') if order.approved_at else '—' }}</div></div>
+        {% endif %}
         {% if order.reference_note %}<div class="mb-2"><div class="text-muted fs-12"><i class="fas fa-book text-info me-1"></i>Ref Note</div><div class="fw-600 text-info">{{ order.reference_note }}</div></div>{% endif %}
         {% if order.notes %}<div><div class="text-muted fs-12">Notes</div><div class="fs-13">{{ order.notes }}</div></div>{% endif %}
       </div>
