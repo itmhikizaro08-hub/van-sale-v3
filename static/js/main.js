@@ -301,6 +301,33 @@ document.addEventListener('click', async e => {
   }
 });
 
+// ── Notification bell dropdown: mark-as-read inline ────
+document.addEventListener('click', async e => {
+  const btn = e.target.closest('.notif-read-btn');
+  if (!btn) return;
+  e.preventDefault();
+  btn.disabled = true;
+  try {
+    await apiCall(`/notifications/${btn.dataset.id}/read`, 'POST');
+    btn.closest('.notif-item')?.remove();
+
+    const badge = document.getElementById('notifBadge');
+    if (badge) {
+      const remaining = Math.max(0, parseInt(badge.textContent, 10) - 1);
+      if (remaining > 0) badge.textContent = remaining;
+      else badge.remove();
+    }
+
+    const list = document.getElementById('notifDropdownList');
+    if (list && !list.querySelector('.notif-item')) {
+      list.innerHTML = '<div class="px-3 py-4 text-center text-muted fs-13">You\'re all caught up!</div>';
+    }
+  } catch {
+    Toast.show('Failed to mark read.', 'danger');
+    btn.disabled = false;
+  }
+});
+
 // ── Init on DOM ready ──────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
   ThemeManager.init();

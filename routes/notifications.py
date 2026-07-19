@@ -14,6 +14,17 @@ def index():
         flash('Access denied.', 'danger')
         return redirect(url_for('dashboard.index'))
 
+    # Alerts used to only refresh when someone clicked "Refresh" - nothing
+    # ever called this on its own, so low-stock/overdue/license/missed-visit
+    # alerts silently went stale. Auto-run it on every page view instead;
+    # it's idempotent (dedupes by title) and cheap. Isolate failures so a
+    # bad row can't take down the whole page.
+    from services.notification_service import check_all_notifications
+    try:
+        check_all_notifications()
+    except Exception:
+        db.session.rollback()
+
     start = request.args.get('start', (datetime.utcnow() - timedelta(days=30)).strftime('%Y-%m-%d'))
     end   = request.args.get('end',   datetime.utcnow().strftime('%Y-%m-%d'))
 
@@ -28,9 +39,17 @@ def index():
     unread_count = sum(1 for n in notifications if n.id not in read_ids)
     resolved_count = sum(1 for n in notifications if n.is_read)
 
+    # Separate from unread_count above: that one is scoped to the date
+    # filter (defaults to 30 days), so an old unread notification could
+    # leave "Mark All Read" hidden while the topbar bell still shows a
+    # badge. This one matches what mark_all_read() actually operates on.
+    all_ids = {n.id for n in Notification.query.with_entities(Notification.id).all()}
+    global_unread_count = len(all_ids - read_ids)
+
     return render_template('notifications/index.html', notifications=notifications,
         read_ids=read_ids, start=start, end=end,
-        total_count=len(notifications), unread_count=unread_count, resolved_count=resolved_count)
+        total_count=len(notifications), unread_count=unread_count, resolved_count=resolved_count,
+        global_unread_count=global_unread_count)
 
 
 @notifications_bp.route('/<int:notif_id>/read', methods=['POST'])
@@ -85,4 +104,4 @@ def generate():
 
     from services.notification_service import check_all_notifications
     count = check_all_notifications()
-    return jsonify({'generated': count})
+    return jsonify({'success': True, 'generated': count})

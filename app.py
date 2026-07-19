@@ -167,16 +167,20 @@ def create_app():
         from models.notification import Notification, NotificationRead
         from models.settings import Settings
         unread_count = 0
+        recent_notifications = []
         if current_user.is_authenticated and current_user.can_access('notifications'):
             read_ids = {r.notification_id for r in
                         NotificationRead.query.filter_by(user_id=current_user.id).all()}
             total_ids = {n.id for n in Notification.query.with_entities(Notification.id).all()}
             unread_count = len(total_ids - read_ids)
+            recent = Notification.query.order_by(Notification.created_at.desc()).limit(30).all()
+            recent_notifications = [n for n in recent if n.id not in read_ids][:6]
         settings = Settings.get()
         return dict(
             company_name=settings.company_name or app.config['COMPANY_NAME'],
             company_logo=settings.company_logo,
-            unread_notifications=unread_count
+            unread_notifications=unread_count,
+            recent_notifications=recent_notifications
         )
 
     # ── Create DB tables ───────────────────────────────────────────────────────

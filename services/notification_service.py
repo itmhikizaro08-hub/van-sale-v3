@@ -4,7 +4,7 @@ from models.notification import Notification
 from models.product import Product
 from models.customer import Customer
 from models.van import Driver
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 
 
 def check_all_notifications():
@@ -12,6 +12,7 @@ def check_all_notifications():
     count += _check_low_stock()
     count += _check_outstanding()
     count += _check_license_expiry()
+    count += _check_missed_visits()
     return count
 
 
@@ -71,4 +72,28 @@ def _check_license_expiry():
                 'license_expiry', 'fa-id-card', '/drivers'
             ):
                 count += 1
+    return count
+
+
+def _check_missed_visits():
+    """A visit is logged 'planned' the moment it's scheduled (visit_date is
+    the creation time, not a future date - see visits.add()); if it's still
+    'planned' a day later, the rep never checked in and it was missed."""
+    from models.van import CustomerVisit
+    cutoff = datetime.utcnow() - timedelta(hours=24)
+    visits = CustomerVisit.query.filter(
+        CustomerVisit.status == 'planned',
+        CustomerVisit.visit_date < cutoff
+    ).all()
+    count = 0
+    for v in visits:
+        v.status = 'missed'
+        customer = Customer.query.get(v.customer_id)
+        name = customer.name if customer else f'Customer #{v.customer_id}'
+        if _add_notification(
+            f'Missed Visit: {name}',
+            f"A visit to {name} planned for {v.visit_date.strftime('%d %b %Y')} was never checked in.",
+            'missed_visit', 'fa-calendar-times', '/visits/'
+        ):
+            count += 1
     return count
