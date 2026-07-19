@@ -16,13 +16,15 @@
   <button onclick="window.print()" class="btn btn-outline-secondary btn-sm no-print"><i class="fas fa-print me-1"></i>Print</button>
 </div>
 
+{% set confirmable = offload.status == 'pending' and current_user.can_approve_module('stock_offload') %}
 <div class="row g-3">
   <div class="col-md-8">
     <div class="card">
+      {% if confirmable %}<form method="POST" action="{{ url_for('vans.offload_confirm', offload_id=offload.id) }}" id="confirmViewForm">{% endif %}
       <div class="card-header"><i class="fas fa-boxes me-2"></i>Products ({{ offload.items|length }})</div>
       <div class="card-body p-0"><div class="table-responsive">
         <table class="table mb-0">
-          <thead><tr><th>#</th><th>Product</th><th>Code</th><th class="text-end">Declared</th><th class="text-end">Received</th></tr></thead>
+          <thead><tr><th>#</th><th>Product</th><th>Code</th><th class="text-end">Declared</th><th class="text-end" style="{{ 'width:160px' if confirmable }}">Received</th>{% if confirmable %}<th></th>{% endif %}</tr></thead>
           <tbody>
             {% for item in offload.items %}
             <tr>
@@ -30,14 +32,34 @@
               <td class="fw-600">{{ item.product.product_name if item.product else '—' }}</td>
               <td><code class="fs-12">{{ item.product.product_code if item.product else '' }}</code></td>
               <td class="text-end fw-700 text-primary">{{ item.quantity_declared|qty }}</td>
+              {% if confirmable %}
+              <td class="text-end">
+                <input type="number" min="0" max="{{ item.quantity_declared }}" step="any"
+                  class="form-control form-control-sm text-end received-input" style="display:inline-block"
+                  name="received_{{ item.id }}" data-declared="{{ item.quantity_declared }}"
+                  value="{{ item.quantity_declared }}" oninput="checkMismatch(this)">
+              </td>
+              <td class="text-center"><span class="badge bg-danger d-none mismatch-badge" title="Doesn't match declared">Mismatch</span></td>
+              {% else %}
               <td class="text-end fw-700 {{ 'text-danger' if item.quantity_received is not none and item.quantity_received != item.quantity_declared else 'text-success' if item.quantity_received is not none else 'text-muted' }}">
                 {{ item.quantity_received|qty if item.quantity_received is not none else '—' }}
               </td>
+              {% endif %}
             </tr>
             {% endfor %}
           </tbody>
         </table></div>
       </div>
+      {% if confirmable %}
+      <div class="card-body">
+        <label class="form-label">Notes</label>
+        <textarea name="notes" class="form-control" rows="2" placeholder="Optional — explain any discrepancy"></textarea>
+      </div>
+      <div class="card-footer">
+        <button type="submit" class="btn btn-primary"><i class="fas fa-check-circle me-1"></i>Confirm Offload</button>
+      </div>
+      </form>
+      {% endif %}
     </div>
   </div>
   <div class="col-md-4">
@@ -61,4 +83,14 @@
     </div>
   </div>
 </div>
+{% endblock %}
+{% block extra_js %}
+<script>
+function checkMismatch(input) {
+  const declared = parseFloat(input.dataset.declared);
+  const received = parseFloat(input.value || 0);
+  const badge = input.closest('tr').querySelector('.mismatch-badge');
+  if (badge) badge.classList.toggle('d-none', received === declared);
+}
+</script>
 {% endblock %}

@@ -155,7 +155,7 @@
         <div class="modal-body">
           <p class="mb-3">Rep: <strong id="cOffloadRep"></strong></p>
           <div class="table-responsive"><table class="table table-sm">
-            <thead><tr><th>Product</th><th class="text-end">Declared</th><th style="width:110px">Received</th></tr></thead>
+            <thead><tr><th>Product</th><th class="text-end">Declared</th><th style="width:110px">Received</th><th></th></tr></thead>
             <tbody id="cItemsBody"></tbody>
           </table></div>
           <div class="mb-2">
@@ -205,8 +205,17 @@ document.getElementById('confirmModal')?.addEventListener('show.bs.modal', e => 
     <tr>
       <td class="fs-13">${i.name}</td>
       <td class="text-end">${i.declared}</td>
-      <td><input type="number" min="0" max="${i.declared}" step="any" class="form-control form-control-sm" name="received_${i.id}" value="${i.declared}"></td>
+      <td><input type="number" min="0" max="${i.declared}" step="any" class="form-control form-control-sm"
+        name="received_${i.id}" data-declared="${i.declared}" value="${i.declared}" oninput="checkModalMismatch(this)"></td>
+      <td class="text-center"><span class="badge bg-danger d-none mismatch-badge" title="Doesn't match declared">Mismatch</span></td>
     </tr>`).join('');
 });
+
+function checkModalMismatch(input) {
+  const declared = parseFloat(input.dataset.declared);
+  const received = parseFloat(input.value || 0);
+  const badge = input.closest('tr').querySelector('.mismatch-badge');
+  if (badge) badge.classList.toggle('d-none', received === declared);
+}
 </script>
 {% endblock %}
