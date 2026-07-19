@@ -1,0 +1,103 @@
+{% extends 'base.html' %}{% block title %}Bulk SMS{% endblock %}{% block content %}
+<div class="page-header">
+  <div><h1 class="page-title">Bulk SMS</h1><p class="page-subtitle">Send the same message to many customers at once</p></div>
+  <a href="{{ url_for('sms.index') }}" class="btn btn-outline-secondary btn-sm"><i class="fas fa-arrow-left me-1"></i>Back</a>
+</div>
+<div class="row g-3">
+  <div class="col-md-5">
+    <div class="card h-100">
+      <div class="card-header d-flex align-items-center justify-content-between">
+        <span><i class="fas fa-users me-2"></i>Recipients (<span id="selectedCount">0</span> selected)</span>
+        <div class="d-flex gap-2">
+          <button type="button" class="btn btn-sm btn-outline-secondary" onclick="toggleAll(true)">All</button>
+          <button type="button" class="btn btn-sm btn-outline-secondary" onclick="toggleAll(false)">None</button>
+        </div>
+      </div>
+      <div class="card-body p-2">
+        <input type="text" id="custSearch" class="form-control form-control-sm mb-2" placeholder="Search customers...">
+        <div style="max-height:360px;overflow-y:auto">
+          {% for c in customers %}
+          <label class="d-flex align-items-center gap-2 py-1 px-2 cust-row" style="cursor:pointer" data-name="{{ c.name|lower }}">
+            <input type="checkbox" class="form-check-input cust-check" value="{{ c.id }}" onchange="updateCount()">
+            <span class="fs-13">{{ c.name }}</span>
+            <span class="text-muted fs-12 ms-auto">{{ c.phone }}</span>
+          </label>
+          {% else %}
+          <p class="text-muted text-center py-3 mb-0">No active customers with a phone number on file.</p>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-7">
+    <div class="card">
+      <div class="card-header"><i class="fas fa-sms me-2"></i>Message</div>
+      <div class="card-body">
+        <textarea id="bulkMessage" class="form-control" rows="6" maxlength="480" placeholder="Type your message..." oninput="updateCounter()"></textarea>
+        <div class="form-text d-flex justify-content-between">
+          <span id="charCounter">0 / 160 characters</span>
+          <span id="segmentCounter">1 credit per recipient</span>
+        </div>
+      </div>
+      <div class="card-footer">
+        <button type="button" class="btn btn-primary" id="sendBtn" onclick="sendBulk()"><i class="fas fa-paper-plane me-1"></i>Send to Selected</button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script>
+function toggleAll(checked) {
+  document.querySelectorAll('.cust-check').forEach(cb => {
+    if (cb.closest('.cust-row').style.display !== 'none') cb.checked = checked;
+  });
+  updateCount();
+}
+
+function updateCount() {
+  document.getElementById('selectedCount').textContent = document.querySelectorAll('.cust-check:checked').length;
+}
+
+document.getElementById('custSearch').addEventListener('input', function() {
+  const q = this.value.trim().toLowerCase();
+  document.querySelectorAll('.cust-row').forEach(row => {
+    row.style.display = row.dataset.name.includes(q) ? '' : 'none';
+  });
+});
+
+function updateCounter() {
+  const len = document.getElementById('bulkMessage').value.length;
+  const segments = Math.max(1, Math.ceil(len / 160));
+  document.getElementById('charCounter').textContent = `${len} / ${segments * 160} characters`;
+  document.getElementById('segmentCounter').textContent = `${segments} credit${segments > 1 ? 's' : ''} per recipient`;
+}
+
+async function sendBulk() {
+  const message = document.getElementById('bulkMessage').value.trim();
+  const customerIds = [...document.querySelectorAll('.cust-check:checked')].map(cb => parseInt(cb.value));
+  if (!message) { Toast.show('Enter a message first.', 'warning'); return; }
+  if (!customerIds.length) { Toast.show('Select at least one customer.', 'warning'); return; }
+  if (!confirmAction(`Send this message to ${customerIds.length} customer(s)?`)) return;
+
+  const btn = document.getElementById('sendBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Sending...';
+  try {
+    const res = await apiCall('/sms/bulk', 'POST', {message, customer_ids: customerIds});
+    if (res.success) {
+      Toast.show(res.message || 'Sent.', 'success');
+      setTimeout(() => location.href = "{{ url_for('sms.index') }}", 1200);
+    } else {
+      Toast.show(res.error || 'Failed to send.', 'danger');
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fas fa-paper-plane me-1"></i>Send to Selected';
+    }
+  } catch (e) {
+    Toast.show(e.message || 'Network error.', 'danger');
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-paper-plane me-1"></i>Send to Selected';
+  }
+}
+</script>
+{% endblock %}

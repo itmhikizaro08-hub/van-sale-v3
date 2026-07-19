@@ -45,6 +45,18 @@ def send():
     return render_template('sms/send.html', customers=customers)
 
 
+@sms_bp.route('/bulk', methods=['GET'])
+@login_required
+def bulk_form():
+    if not current_user.can_write('sms'):
+        flash('Permission denied.', 'danger')
+        return redirect(url_for('sms.index'))
+    customers = Customer.query.filter_by(status='active').filter(
+        Customer.phone.isnot(None), Customer.phone != ''
+    ).order_by(Customer.name).all()
+    return render_template('sms/bulk.html', customers=customers)
+
+
 @sms_bp.route('/bulk', methods=['POST'])
 @login_required
 def bulk():
@@ -52,8 +64,12 @@ def bulk():
     if not current_user.can_write('sms'):
         return jsonify({'error': 'Permission denied'}), 403
     data = request.get_json()
-    message = data.get('message')
+    message = (data.get('message') or '').strip()
     customer_ids = data.get('customer_ids', [])
+    if not message:
+        return jsonify({'error': 'Message is required.'}), 400
+    if not customer_ids:
+        return jsonify({'error': 'Select at least one customer.'}), 400
     sent, failed = 0, 0
     for cid in customer_ids:
         customer = Customer.query.get(cid)
@@ -62,7 +78,8 @@ def bulk():
                 sent += 1
             else:
                 failed += 1
-    return jsonify({'sent': sent, 'failed': failed})
+    return jsonify({'success': True, 'sent': sent, 'failed': failed,
+                     'message': f'Sent {sent} message(s){f", {failed} failed" if failed else ""}.'})
 
 
 @sms_bp.route('/overdue-reminders', methods=['POST'])
@@ -71,4 +88,6 @@ def overdue_reminders():
     if not current_user.can_write('sms'):
         return jsonify({'error': 'Permission denied'}), 403
     count = send_overdue_reminders()
-    return jsonify({'sent': count})
+    return jsonify({'success': True, 'sent': count,
+                     'message': f'Sent {count} overdue reminder(s).' if count
+                                else 'No customers with an outstanding balance — nothing to send.'})

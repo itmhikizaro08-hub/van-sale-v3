@@ -1,8 +1,44 @@
 {% extends 'base.html' %}{% block title %}Send SMS{% endblock %}{% block content %}
-<div class="page-header"><h1 class="page-title">Send SMS</h1></div>
+<div class="page-header">
+  <div><h1 class="page-title">Send SMS</h1></div>
+  <a href="{{ url_for('sms.index') }}" class="btn btn-outline-secondary btn-sm"><i class="fas fa-arrow-left me-1"></i>Back</a>
+</div>
 <div class="row justify-content-center"><div class="col-md-6">
 <form method="POST"><div class="card"><div class="card-body">
-  <div class="mb-3"><label class="form-label">Phone Number *</label><input type="text" name="phone" class="form-control" required placeholder="+233XXXXXXXXX"></div>
-  <div class="mb-3"><label class="form-label">Message *</label><textarea name="message" class="form-control" rows="4" required maxlength="160"></textarea><div class="form-text">Max 160 characters for 1 credit.</div></div>
+  <div class="mb-3">
+    <label class="form-label">Customer (optional)</label>
+    <select id="custSel" class="form-select">
+      <option value="">— Type a number manually, or pick a customer —</option>
+      {% for c in customers %}
+      <option value="{{ c.id }}" data-phone="{{ c.phone or '' }}" data-name="{{ c.name }}">{{ c.name }}{{ ' (' + c.phone + ')' if c.phone else ' — no phone on file' }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <input type="hidden" name="recipient_name" id="recipientName">
+  <div class="mb-3"><label class="form-label">Phone Number *</label><input type="text" name="phone" id="phoneInput" class="form-control" required placeholder="+233XXXXXXXXX"></div>
+  <div class="mb-3">
+    <label class="form-label">Message *</label>
+    <textarea name="message" id="messageInput" class="form-control" rows="4" required maxlength="480" oninput="updateCounter()"></textarea>
+    <div class="form-text d-flex justify-content-between">
+      <span id="charCounter">0 / 160 characters</span>
+      <span id="segmentCounter">1 credit</span>
+    </div>
+  </div>
 </div><div class="card-footer d-flex gap-2"><button type="submit" class="btn btn-primary"><i class="fas fa-paper-plane me-1"></i>Send</button><a href="{{ url_for('sms.index') }}" class="btn btn-outline-secondary">Cancel</a></div></div></form>
 </div></div>{% endblock %}
+{% block extra_js %}
+<script>
+document.getElementById('custSel').addEventListener('change', function() {
+  const opt = this.selectedOptions[0];
+  document.getElementById('phoneInput').value = opt.dataset.phone || '';
+  document.getElementById('recipientName').value = opt.value ? (opt.dataset.name || '') : '';
+});
+
+function updateCounter() {
+  const len = document.getElementById('messageInput').value.length;
+  const segments = Math.max(1, Math.ceil(len / 160));
+  document.getElementById('charCounter').textContent = `${len} / ${segments * 160} characters`;
+  document.getElementById('segmentCounter').textContent = `${segments} credit${segments > 1 ? 's' : ''}`;
+}
+</script>
+{% endblock %}
