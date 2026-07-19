@@ -2,9 +2,20 @@
 <div class="page-header"><h1 class="page-title">{{ 'Edit' if van else 'Add' }} Van</h1></div>
 <div class="row justify-content-center"><div class="col-md-6">
 <form method="POST"><div class="card"><div class="card-body">
-  <div class="mb-3"><label class="form-label">Van Number *</label><input type="text" name="van_number" class="form-control" value="{{ van.van_number if van else '' }}" required placeholder="e.g. VAN-001"></div>
-  <div class="mb-3"><label class="form-label">Registration Number</label><input type="text" name="registration_number" class="form-control" value="{{ van.registration_number if van else '' }}"></div>
-  <div class="mb-3"><label class="form-label">Driver</label><select name="driver_id" class="form-select"><option value="">— No Driver —</option>{% for d in drivers %}<option value="{{ d.id }}" {{ 'selected' if van and van.driver_id == d.id }}>{{ d.name }}</option>{% endfor %}</select></div>
-  <div class="mb-3"><label class="form-label">Status</label><select name="status" class="form-select"><option value="active" {{ 'selected' if not van or van.status=='active' }}>Active</option><option value="inactive" {{ 'selected' if van and van.status=='inactive' }}>Inactive</option></select></div>
+  <div class="row">
+    <div class="col-md-6 mb-3"><label class="form-label">Van Number *</label><input type="text" name="van_number" class="form-control" value="{{ van.van_number if van else '' }}" required placeholder="e.g. VAN-001"></div>
+    <div class="col-md-6 mb-3"><label class="form-label">Registration Number</label><input type="text" name="registration_number" class="form-control" value="{{ van.registration_number if van else '' }}"></div>
+  </div>
+  <div class="row">
+    <div class="col-md-5 mb-3"><label class="form-label">Make</label><input type="text" name="make" class="form-control" placeholder="e.g. Toyota" value="{{ van.make if van else '' }}"></div>
+    <div class="col-md-5 mb-3"><label class="form-label">Model</label><input type="text" name="model" class="form-control" placeholder="e.g. Hiace" value="{{ van.model if van else '' }}"></div>
+    <div class="col-md-2 mb-3"><label class="form-label">Year</label><input type="number" name="year" class="form-control" min="1980" max="2100" value="{{ van.year if van else '' }}"></div>
+  </div>
+  <div class="row">
+    <div class="col-md-6 mb-3"><label class="form-label">Driver</label><select name="driver_id" class="form-select"><option value="">— No Driver —</option>{% for d in drivers %}<option value="{{ d.id }}" {{ 'selected' if van and van.driver_id == d.id }}>{{ d.name }}</option>{% endfor %}</select></div>
+    <div class="col-md-6 mb-3"><label class="form-label">Route</label><select name="route_id" class="form-select"><option value="">— No Route —</option>{% for r in routes %}<option value="{{ r.id }}" {{ 'selected' if van and van.route_id == r.id }}>{{ r.route_name }}</option>{% endfor %}</select></div>
+  </div>
+  <div class="mb-3"><label class="form-label">Status</label><select name="status" class="form-select"><option value="active" {{ 'selected' if not van or van.status=='active' }}>Active</option><option value="inactive" {{ 'selected' if van and van.status=='inactive' }}>Inactive</option><option value="maintenance" {{ 'selected' if van and van.status=='maintenance' }}>Maintenance</option></select></div>
+  <div class="mb-2"><label class="form-label">Notes</label><textarea name="notes" class="form-control" rows="2">{{ van.notes if van else '' }}</textarea></div>
 </div><div class="card-footer d-flex gap-2"><button type="submit" class="btn btn-primary"><i class="fas fa-save me-1"></i>Save</button><a href="{{ url_for('vans.index') }}" class="btn btn-outline-secondary">Cancel</a></div></div></form>
 </div></div>{% endblock %}

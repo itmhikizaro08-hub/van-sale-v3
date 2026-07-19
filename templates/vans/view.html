@@ -12,7 +12,7 @@
       <h1 class="page-title mb-0">{{ van.van_number }}</h1>
       <div class="d-flex align-items-center gap-2 mt-1">
         <code class="fs-12">{{ van.registration_number or '—' }}</code>
-        <span class="badge {{ 'bg-success' if van.status == 'active' else 'bg-secondary' }}">{{ van.status|title }}</span>
+        <span class="badge {{ van.status_badge }}">{{ van.status|title }}</span>
       </div>
     </div>
   </div>

@@ -52,8 +52,14 @@ def add():
     drivers = Driver.query.filter_by(status='active').all()
     routes = Route.query.filter_by(status='active').all()
     if request.method == 'POST':
+        van_number = request.form['van_number'].strip()
+        existing = Van.query.filter(db.func.lower(Van.van_number) == van_number.lower()).first()
+        if existing:
+            flash(f'A van numbered "{van_number}" already exists. Edit it instead, or use a different number.', 'warning')
+            return redirect(url_for('vans.add'))
+
         van = Van(
-            van_number=request.form['van_number'],
+            van_number=van_number,
             registration_number=request.form.get('registration_number'),
             make=request.form.get('make'),
             model=request.form.get('model'),
@@ -119,7 +125,15 @@ def edit(van_id):
     drivers = Driver.query.filter_by(status='active').all()
     routes = Route.query.filter_by(status='active').all()
     if request.method == 'POST':
-        van.van_number = request.form['van_number']
+        van_number = request.form['van_number'].strip()
+        existing = Van.query.filter(
+            Van.id != van.id, db.func.lower(Van.van_number) == van_number.lower()
+        ).first()
+        if existing:
+            flash(f'A van numbered "{van_number}" already exists.', 'warning')
+            return redirect(url_for('vans.edit', van_id=van.id))
+
+        van.van_number = van_number
         van.registration_number = request.form.get('registration_number')
         van.make = request.form.get('make')
         van.model = request.form.get('model')
@@ -132,6 +146,17 @@ def edit(van_id):
         flash('Van updated!', 'success')
         return redirect(url_for('vans.view', van_id=van.id))
     return render_template('vans/form.html', van=van, drivers=drivers, routes=routes)
+
+
+@vans_bp.route('/<int:van_id>/delete', methods=['POST'])
+@login_required
+def delete(van_id):
+    if not current_user.can_write('vans'):
+        return jsonify({'error': 'Permission denied'}), 403
+    van = Van.query.get_or_404(van_id)
+    van.status = 'inactive'
+    db.session.commit()
+    return jsonify({'success': True})
 
 
 @vans_bp.route('/stock')

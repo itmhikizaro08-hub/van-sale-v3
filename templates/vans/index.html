@@ -32,12 +32,16 @@
       <td class="fs-12">{{ v.registration_number or '—' }}</td>
       <td class="fs-12">{{ v.driver.name if v.driver else '—' }}</td>
       <td class="fs-12 text-muted">{{ v.route.route_name if v.route else '—' }}</td>
-      <td><span class="badge {{ 'bg-success' if v.status == 'active' else 'bg-secondary' }}">{{ v.status|title }}</span></td>
+      <td><span class="badge {{ v.status_badge }}">{{ v.status|title }}</span></td>
       <td>
         <div class="d-flex gap-1">
           <a href="{{ url_for('vans.view', van_id=v.id) }}" class="btn btn-icon btn-sm btn-outline-primary"><i class="fas fa-eye"></i></a>
           {% if current_user.can_write('vans') %}
           <a href="{{ url_for('vans.edit', van_id=v.id) }}" class="btn btn-icon btn-sm btn-outline-secondary"><i class="fas fa-edit"></i></a>
+          <button class="btn btn-icon btn-sm btn-outline-danger" title="Delete"
+                  data-action-url="{{ url_for('vans.delete', van_id=v.id) }}"
+                  data-confirm="Delete {{ v.van_number }}? It will be marked inactive; loading/offload/stock history is kept."
+                  data-success-msg="Van deleted."><i class="fas fa-trash"></i></button>
           {% endif %}
         </div>
       </td>
