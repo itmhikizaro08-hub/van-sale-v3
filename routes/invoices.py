@@ -57,6 +57,9 @@ def view(sale_id):
 @login_required
 def pdf(sale_id):
     sale = Sale.query.get_or_404(sale_id)
+    if not current_user.can_access('invoices'):
+        flash('Access denied.', 'danger')
+        return redirect(url_for('dashboard.index'))
     if current_user.scope('invoices') == 'own' and sale.sales_rep_id != current_user.id:
         flash('Access denied.', 'danger')
         return redirect(url_for('invoices.index'))
