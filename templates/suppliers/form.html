@@ -9,5 +9,8 @@
   <div class="mb-3"><label class="form-label">Address</label><textarea name="address" class="form-control" rows="2">{{ supplier.address if supplier else '' }}</textarea></div>
   <div class="mb-3"><label class="form-label">Payment Terms</label><input type="text" name="payment_terms" class="form-control" placeholder="e.g. Net 30, COD" value="{{ supplier.payment_terms if supplier else '' }}"></div>
   <div class="mb-3"><label class="form-label">Notes</label><textarea name="notes" class="form-control" rows="2">{{ supplier.notes if supplier else '' }}</textarea></div>
+  {% if supplier %}
+  <div class="mb-2"><label class="form-label">Status</label><select name="status" class="form-select"><option value="active" {{ 'selected' if supplier.status=='active' }}>Active</option><option value="inactive" {{ 'selected' if supplier.status=='inactive' }}>Inactive</option></select></div>
+  {% endif %}
 </div><div class="card-footer d-flex gap-2"><button type="submit" class="btn btn-primary"><i class="fas fa-save me-1"></i>Save</button><a href="{{ url_for('suppliers.index') }}" class="btn btn-outline-secondary">Cancel</a></div></div></form>
 </div></div>{% endblock %}

@@ -113,4 +113,19 @@ def supplier_statement_rows(supplier, start, end):
         dt = p.payment_date.strftime('%Y-%m-%d %H:%M:%S') if p.payment_date else ''
         events.append((dt, f'Payment {p.payment_number}', 0.0, round(p.amount or 0, 2)))
 
+    # An approved supplier-return line reduces outstanding_balance the same
+    # way a payment does (routes/returns.py's _supplier_bulk_resolve /
+    # supplier_approve_line) - only approved lines ever touched the balance,
+    # so pending/rejected lines are excluded here too.
+    from models.supplier_return import SupplierReturn
+    returns = SupplierReturn.query.filter(SupplierReturn.supplier_id == supplier.id).all()
+    for r in returns:
+        dt = r.approved_at.strftime('%Y-%m-%d %H:%M:%S') if r.approved_at else \
+             (r.created_at.strftime('%Y-%m-%d %H:%M:%S') if r.created_at else '')
+        for item in r.items:
+            if item.line_status != 'approved':
+                continue
+            name = item.product.product_name if item.product else 'item'
+            events.append((dt, f'Return {r.return_number} — {name} x{item.quantity}', 0.0, round(item.line_total or 0, 2)))
+
     return _running_balance(events, start, end_bound)

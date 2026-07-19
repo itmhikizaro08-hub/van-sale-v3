@@ -31,12 +31,19 @@
       <td class="fs-12">{{ s.contact_person or '—' }}</td>
       <td class="fs-12">{{ s.phone or '—' }}</td>
       <td class="text-end {{ 'text-danger fw-600' if s.outstanding_balance > 0 else 'text-muted' }}">GHS {{ "%.2f"|format(s.outstanding_balance) }}</td>
-      <td><span class="badge {{ 'bg-success' if s.status == 'active' else 'bg-secondary' }}">{{ s.status|title }}</span></td>
+      <td><span class="badge {{ s.status_badge }}">{{ s.status|title }}</span></td>
       <td>
         <div class="d-flex gap-1">
           <a href="{{ url_for('suppliers.view', supplier_id=s.id) }}" class="btn btn-icon btn-sm btn-outline-primary"><i class="fas fa-eye"></i></a>
           {% if s.outstanding_balance > 0 and current_user.can_write('suppliers') %}
           <a href="{{ url_for('suppliers.pay', supplier_id=s.id) }}" class="btn btn-sm btn-success"><i class="fas fa-money-bill me-1"></i>Pay</a>
+          {% endif %}
+          {% if current_user.can_write('suppliers') %}
+          <a href="{{ url_for('suppliers.edit', supplier_id=s.id) }}" class="btn btn-icon btn-sm btn-outline-secondary"><i class="fas fa-edit"></i></a>
+          <button class="btn btn-icon btn-sm btn-outline-danger" title="Delete"
+                  data-action-url="{{ url_for('suppliers.delete', supplier_id=s.id) }}"
+                  data-confirm="Delete {{ s.name }}? They will be marked inactive; delivery and payment history is kept."
+                  data-success-msg="Supplier deleted."><i class="fas fa-trash"></i></button>
           {% endif %}
         </div>
       </td>

@@ -12,7 +12,7 @@
       <h1 class="page-title mb-0">{{ supplier.name }}</h1>
       <div class="d-flex align-items-center gap-2 mt-1">
         <code class="fs-12">{{ supplier.supplier_code }}</code>
-        <span class="badge {{ 'bg-success' if supplier.status == 'active' else 'bg-secondary' }}">{{ supplier.status|title }}</span>
+        <span class="badge {{ supplier.status_badge }}">{{ supplier.status|title }}</span>
       </div>
     </div>
   </div>
@@ -51,6 +51,14 @@
       <div class="stat-icon"><i class="fas fa-hand-holding-usd"></i></div>
       <div><div class="stat-label">Total Paid</div><div class="stat-value" style="font-size:16px">GHS {{ "%.2f"|format(total_paid) }}</div>
         {% if pending_count > 0 %}<div class="stat-trend">{{ pending_count }} pending approval</div>{% endif %}
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="stat-card warning">
+      <div class="stat-icon"><i class="fas fa-undo-alt"></i></div>
+      <div><div class="stat-label">Returned</div><div class="stat-value" style="font-size:16px">GHS {{ "%.2f"|format(total_returned) }}</div>
+        <div class="stat-trend">{{ returns|length }} return order(s)</div>
       </div>
     </div>
   </div>
@@ -100,6 +108,11 @@
           <li class="nav-item">
             <a class="nav-link" data-bs-toggle="tab" href="#paymentsTab">
               <i class="fas fa-money-bill me-1"></i>Payments ({{ payments|length }})
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" data-bs-toggle="tab" href="#returnsTab">
+              <i class="fas fa-undo-alt me-1"></i>Returns ({{ returns|length }})
             </a>
           </li>
         </ul>
@@ -169,6 +182,33 @@
             </div>
             {% else %}
             <div class="empty-state py-5"><i class="fas fa-money-bill-wave" style="font-size:2.5rem;color:var(--text-muted)"></i><h6 class="mt-3">No payments yet</h6><p class="text-muted">Payments made to this supplier will show up here.</p></div>
+            {% endif %}
+          </div>
+
+          <div class="tab-pane fade p-0" id="returnsTab">
+            {% if returns %}
+            <div class="p-3 pb-0">
+              <input type="text" class="form-control form-control-sm tab-search" data-target="returnTableBody" placeholder="Search return #, ref note...">
+            </div>
+            <div class="table-responsive">
+              <table class="table table-hover mb-0">
+                <thead><tr><th>Return #</th><th>Date</th><th class="text-end">Items</th><th class="text-end">Value</th><th>Ref Note</th><th>Status</th></tr></thead>
+                <tbody id="returnTableBody">
+                  {% for r in returns %}
+                  <tr>
+                    <td><a href="{{ url_for('returns.supplier_view', return_id=r.id) }}" class="fw-600">{{ r.return_number }}</a></td>
+                    <td class="text-muted fs-12">{{ r.created_at.strftime('%d %b %Y') if r.created_at else '' }}</td>
+                    <td class="text-end">{{ r.items|length }}</td>
+                    <td class="text-end fw-600">GHS {{ "%.2f"|format(r.total_value) }}</td>
+                    <td>{% if r.reference_note %}<span class="ref-note-badge"><i class="fas fa-book me-1"></i>{{ r.reference_note[:20] }}</span>{% else %}<span class="text-muted fs-12">—</span>{% endif %}</td>
+                    <td><span class="badge {{ r.status_badge }}">{{ r.status|title }}</span></td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+            {% else %}
+            <div class="empty-state py-5"><i class="fas fa-undo-alt" style="font-size:2.5rem;color:var(--text-muted)"></i><h6 class="mt-3">No returns yet</h6><p class="text-muted">Goods sent back to this supplier will show up here.</p></div>
             {% endif %}
           </div>
         </div>

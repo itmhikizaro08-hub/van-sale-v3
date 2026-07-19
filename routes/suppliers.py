@@ -53,9 +53,18 @@ def add():
         return redirect(url_for('suppliers.index'))
 
     if request.method == 'POST':
+        name = request.form['name'].strip()
+        existing = Supplier.query.filter(
+            Supplier.status == 'active', db.func.lower(Supplier.name) == name.lower()
+        ).first()
+        if existing:
+            flash(f'A supplier named "{name}" already exists ({existing.supplier_code}). '
+                  f'Edit it instead, or use a different name.', 'warning')
+            return redirect(url_for('suppliers.add'))
+
         s = Supplier(
             supplier_code=_next_code(),
-            name=request.form['name'],
+            name=name,
             contact_person=request.form.get('contact_person'),
             phone=request.form.get('phone'),
             email=request.form.get('email'),
@@ -94,12 +103,22 @@ def view(supplier_id):
         SupplierPayment.payment_date <= end + ' 23:59:59'
     ).order_by(SupplierPayment.payment_date.desc()).limit(200).all()
 
+    from models.supplier_return import SupplierReturn
+    returns = SupplierReturn.query.filter(
+        SupplierReturn.supplier_id == supplier_id,
+        SupplierReturn.created_at >= start,
+        SupplierReturn.created_at <= end + ' 23:59:59'
+    ).order_by(SupplierReturn.created_at.desc()).limit(200).all()
+
     total_units = sum(m.quantity for m in deliveries)
     total_value = round(sum(
         m.quantity * (m.product.cost_price if m.product else 0) for m in deliveries
     ), 2)
     total_paid = round(sum(p.amount for p in payments if p.status == 'approved'), 2)
     pending_count = sum(1 for p in payments if p.status == 'pending')
+    total_returned = round(sum(
+        item.line_total for r in returns for item in r.items if item.line_status == 'approved'
+    ), 2)
 
     # Deliveries sharing a reference_id came from the same batch submission —
     # group them into one row per delivery instead of one row per product line.
@@ -120,9 +139,10 @@ def view(supplier_id):
     delivery_count = len(delivery_batches)
 
     return render_template('suppliers/view.html', supplier=s, deliveries=deliveries,
-        delivery_batches=delivery_batches, payments=payments,
+        delivery_batches=delivery_batches, payments=payments, returns=returns,
         total_units=total_units, total_value=total_value, total_paid=total_paid,
-        pending_count=pending_count, delivery_count=delivery_count, start=start, end=end)
+        total_returned=total_returned, pending_count=pending_count,
+        delivery_count=delivery_count, start=start, end=end)
 
 
 @suppliers_bp.route('/deliveries/<int:batch_ref>')
@@ -318,14 +338,35 @@ def edit(supplier_id):
 
     s = Supplier.query.get_or_404(supplier_id)
     if request.method == 'POST':
-        s.name = request.form['name']
+        name = request.form['name'].strip()
+        existing = Supplier.query.filter(
+            Supplier.id != s.id, Supplier.status == 'active',
+            db.func.lower(Supplier.name) == name.lower()
+        ).first()
+        if existing:
+            flash(f'A supplier named "{name}" already exists ({existing.supplier_code}).', 'warning')
+            return redirect(url_for('suppliers.edit', supplier_id=s.id))
+
+        s.name = name
         s.contact_person = request.form.get('contact_person')
         s.phone = request.form.get('phone')
         s.email = request.form.get('email')
         s.address = request.form.get('address')
         s.payment_terms = request.form.get('payment_terms')
         s.notes = request.form.get('notes')
+        s.status = request.form.get('status', 'active')
         db.session.commit()
         flash('Supplier updated!', 'success')
         return redirect(url_for('suppliers.index'))
     return render_template('suppliers/form.html', supplier=s)
+
+
+@suppliers_bp.route('/<int:supplier_id>/delete', methods=['POST'])
+@login_required
+def delete(supplier_id):
+    if not current_user.can_write('suppliers'):
+        return jsonify({'error': 'Permission denied'}), 403
+    s = Supplier.query.get_or_404(supplier_id)
+    s.status = 'inactive'
+    db.session.commit()
+    return jsonify({'success': True})
