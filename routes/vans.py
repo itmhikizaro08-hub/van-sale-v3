@@ -179,15 +179,20 @@ def stock():
 @login_required
 @require_module('loading')
 def loading_index():
+    route_id = request.args.get('route_id', type=int)
+    routes = []
     if current_user.scope('loading') == 'own':
         sheets = LoadingSheet.query.filter_by(
             sales_rep_id=current_user.id
         ).order_by(LoadingSheet.created_at.desc()).limit(100).all()
     else:
-        sheets = LoadingSheet.query.order_by(
-            LoadingSheet.created_at.desc()).limit(100).all()
+        q = LoadingSheet.query.join(Van, LoadingSheet.van_id == Van.id)
+        if route_id:
+            q = q.filter(Van.route_id == route_id)
+        sheets = q.order_by(LoadingSheet.created_at.desc()).limit(100).all()
+        routes = Route.query.filter_by(status='active').order_by(Route.route_name).all()
 
-    return render_template('vans/loading_index.html', sheets=sheets)
+    return render_template('vans/loading_index.html', sheets=sheets, routes=routes, route_id=route_id)
 
 
 @vans_bp.route('/loading/new', methods=['GET', 'POST'])

@@ -43,6 +43,7 @@
       <div class="card-body">
         <div class="mb-3"><div class="text-muted fs-12">Sales Rep</div><div class="fw-700">{{ sheet.sales_rep.full_name if sheet.sales_rep else '—' }}</div></div>
         <div class="mb-3"><div class="text-muted fs-12">Van</div><div class="fw-600">{{ sheet.van.van_number if sheet.van else '—' }}</div></div>
+        <div class="mb-3"><div class="text-muted fs-12">Route</div><div class="fw-600">{{ sheet.van.route.route_name if sheet.van and sheet.van.route else '—' }}</div></div>
         <div class="mb-3"><div class="text-muted fs-12">Issued By</div><div class="fw-600">{{ sheet.issued_by.full_name if sheet.issued_by else '—' }}</div></div>
         <div class="mb-3"><div class="text-muted fs-12">Date</div><div class="fw-600">{{ sheet.loading_date.strftime('%d %B %Y') if sheet.loading_date else '—' }}</div></div>
         {% if sheet.reference_note %}
