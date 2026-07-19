@@ -459,6 +459,54 @@ a:hover { color: var(--brand-dark); }
 .stat-card.teal      { --card-accent: #14b8a6; --card-accent-2: #0d9488; --card-accent-bg: #f0fdfa; }
 .stat-card.orange    { --card-accent: #f97316; --card-accent-2: #ea580c; --card-accent-bg: #fff7ed; }
 
+/* Standalone accent variants (reused by quick-action tiles, not tied to .stat-card) */
+.accent-primary { --card-accent: #2563EB; --card-accent-2: #1d4ed8; }
+.accent-success { --card-accent: #10b981; --card-accent-2: #059669; }
+.accent-danger  { --card-accent: #ef4444; --card-accent-2: #dc2626; }
+.accent-warning { --card-accent: #f59e0b; --card-accent-2: #d97706; }
+.accent-info    { --card-accent: #3b82f6; --card-accent-2: #2563eb; }
+.accent-purple  { --card-accent: #8b5cf6; --card-accent-2: #7c3aed; }
+.accent-teal    { --card-accent: #14b8a6; --card-accent-2: #0d9488; }
+.accent-orange  { --card-accent: #f97316; --card-accent-2: #ea580c; }
+.accent-neutral { --card-accent: #64748b; --card-accent-2: #475569; }
+
+/* ── Quick action tiles (dashboard shortcut buttons) ────────────── */
+.quick-actions-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(112px, 1fr));
+  gap: 10px;
+}
+.quick-action-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 16px 10px;
+  border-radius: var(--radius-sm);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--text);
+  text-decoration: none;
+  text-align: center;
+  font-size: 12.5px;
+  font-weight: 600;
+  transition: transform .15s ease, box-shadow .15s ease, border-color .15s ease;
+}
+.quick-action-tile:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow);
+  border-color: var(--card-accent, var(--brand));
+  color: var(--text);
+}
+.quick-action-tile i {
+  width: 38px; height: 38px;
+  border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 16px; color: #fff;
+  background: linear-gradient(135deg, var(--card-accent, var(--brand)), var(--card-accent-2, var(--brand-dark)));
+}
+
 /* ══════════════════════════════════════════════════════════════
    TABLES (DataTables override)
    ══════════════════════════════════════════════════════════════ */

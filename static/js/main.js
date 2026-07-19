@@ -255,6 +255,69 @@ async function loadChart(canvasId, url, type, label, options = {}) {
   }
 }
 
+// ── Server-rendered trend line chart (dashboard KPI trends) ───
+// Was duplicated near-verbatim across every dashboard template with only
+// the color/label changing; centralized here with a nicer gradient fill
+// and hidden-until-hover points, replacing the old flat-fill line style.
+function hexToRgba(hex, alpha) {
+  const h = hex.replace('#', '');
+  const r = parseInt(h.substring(0, 2), 16), g = parseInt(h.substring(2, 4), 16), b = parseInt(h.substring(4, 6), 16);
+  return `rgba(${r},${g},${b},${alpha})`;
+}
+
+function createTrendChart(canvasId, labels, values, color = '#2563EB', label = 'Value') {
+  const canvas = document.getElementById(canvasId);
+  if (!canvas) return null;
+  const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+  const gridColor = isDark ? 'rgba(255,255,255,.07)' : 'rgba(0,0,0,.06)';
+
+  const ctx = canvas.getContext('2d');
+  const height = canvas.parentElement ? canvas.parentElement.clientHeight : 240;
+  const gradient = ctx.createLinearGradient(0, 0, 0, height || 240);
+  gradient.addColorStop(0, hexToRgba(color, 0.28));
+  gradient.addColorStop(1, hexToRgba(color, 0.02));
+
+  return new Chart(canvas, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [{
+        label,
+        data: values,
+        borderColor: color,
+        backgroundColor: gradient,
+        borderWidth: 2.5,
+        tension: 0.4,
+        fill: true,
+        pointRadius: 0,
+        pointHoverRadius: 5,
+        pointHoverBackgroundColor: color,
+        pointHoverBorderColor: '#fff',
+        pointHoverBorderWidth: 2
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: 'rgba(15,23,42,.92)',
+          padding: 10,
+          cornerRadius: 8,
+          displayColors: false,
+          callbacks: { label: c => 'GHS ' + c.raw.toLocaleString() }
+        }
+      },
+      scales: {
+        x: { grid: { display: false } },
+        y: { beginAtZero: true, grid: { color: gridColor }, ticks: { callback: v => 'GHS ' + v.toLocaleString() } }
+      }
+    }
+  });
+}
+
 // ── Search with debounce ───────────────────────────────
 function debounce(fn, wait = 300) {
   let t;

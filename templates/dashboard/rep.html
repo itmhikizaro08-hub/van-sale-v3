@@ -112,14 +112,15 @@
 <div class="row g-3 mt-1">
   <div class="col-12">
     <div class="card">
+      <div class="card-header"><i class="fas fa-bolt me-2"></i>Quick Actions</div>
       <div class="card-body">
-        <div class="d-flex gap-2 flex-wrap">
-          <a href="{{ url_for('sales.new_sale') }}" class="btn btn-success"><i class="fas fa-bolt me-1"></i>Quick Sale</a>
-          <a href="{{ url_for('visits.today') }}" class="btn btn-primary"><i class="fas fa-map-pin me-1"></i>Today's Route</a>
-          <a href="{{ url_for('payments.add') }}" class="btn btn-info text-white"><i class="fas fa-money-bill me-1"></i>Record Payment</a>
-          <a href="{{ url_for('returns.new') }}" class="btn btn-warning text-dark"><i class="fas fa-undo me-1"></i>Return</a>
-          <a href="{{ url_for('cash_decl.index') }}" class="btn btn-outline-danger"><i class="fas fa-cash-register me-1"></i>Declare Cash</a>
-          <a href="{{ url_for('vans.offload_index') }}" class="btn btn-outline-info"><i class="fas fa-dolly me-1"></i>Offload Stock</a>
+        <div class="quick-actions-grid">
+          <a href="{{ url_for('sales.new_sale') }}" class="quick-action-tile accent-success"><i class="fas fa-bolt"></i><span>Quick Sale</span></a>
+          <a href="{{ url_for('visits.today') }}" class="quick-action-tile accent-primary"><i class="fas fa-map-pin"></i><span>Today's Route</span></a>
+          <a href="{{ url_for('payments.add') }}" class="quick-action-tile accent-info"><i class="fas fa-money-bill"></i><span>Record Payment</span></a>
+          <a href="{{ url_for('returns.new') }}" class="quick-action-tile accent-warning"><i class="fas fa-undo"></i><span>Return</span></a>
+          <a href="{{ url_for('cash_decl.index') }}" class="quick-action-tile accent-danger"><i class="fas fa-cash-register"></i><span>Declare Cash</span></a>
+          <a href="{{ url_for('vans.offload_index') }}" class="quick-action-tile accent-teal"><i class="fas fa-dolly"></i><span>Offload Stock</span></a>
         </div>
       </div>
     </div>
@@ -128,31 +129,6 @@
 {% endblock %}
 {% block extra_js %}
 <script>
-new Chart(document.getElementById('salesTrendChart'), {
-  type: 'line',
-  data: {
-    labels: {{ trend_labels|tojson }},
-    datasets: [{
-      label: 'Sales',
-      data: {{ trend_values|tojson }},
-      borderColor: '#2563EB',
-      backgroundColor: 'rgba(37,99,235,.12)',
-      borderWidth: 2,
-      tension: 0.4,
-      fill: true,
-      pointRadius: 3,
-      pointHoverRadius: 5
-    }]
-  },
-  options: {
-    responsive: true,
-    maintainAspectRatio: false,
-    plugins: {
-      legend: { display: false },
-      tooltip: { callbacks: { label: ctx => 'GHS ' + ctx.raw.toLocaleString() } }
-    },
-    scales: { y: { beginAtZero: true, ticks: { callback: v => 'GHS ' + v.toLocaleString() } } }
-  }
-});
+createTrendChart('salesTrendChart', {{ trend_labels|tojson }}, {{ trend_values|tojson }}, '#2563EB', 'My Sales');
 </script>
 {% endblock %}

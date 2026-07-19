@@ -50,13 +50,18 @@
 </div>
 
 <div class="row g-3">
-  <div class="col-12"><div class="card"><div class="card-body d-flex gap-2 flex-wrap">
-    <a href="{{ url_for('vans.loading_new') }}" class="btn btn-primary"><i class="fas fa-clipboard-list me-1"></i>Loading Sheet</a>
-    <a href="{{ url_for('inventory.index') }}" class="btn btn-outline-primary"><i class="fas fa-warehouse me-1"></i>Inventory</a>
-    <a href="{{ url_for('vans.offload_index') }}" class="btn btn-outline-warning"><i class="fas fa-dolly me-1"></i>Stock Offloads</a>
-    <a href="{{ url_for('returns.index') }}" class="btn btn-outline-warning"><i class="fas fa-undo me-1"></i>Returns</a>
-    <a href="{{ url_for('reports.inventory_report') }}" class="btn btn-outline-info"><i class="fas fa-chart-bar me-1"></i>Stock Report</a>
-  </div></div></div>
+  <div class="col-12"><div class="card">
+    <div class="card-header"><i class="fas fa-bolt me-2"></i>Quick Actions</div>
+    <div class="card-body">
+      <div class="quick-actions-grid">
+        <a href="{{ url_for('vans.loading_new') }}" class="quick-action-tile accent-primary"><i class="fas fa-clipboard-list"></i><span>Loading Sheet</span></a>
+        <a href="{{ url_for('inventory.index') }}" class="quick-action-tile accent-teal"><i class="fas fa-warehouse"></i><span>Inventory</span></a>
+        <a href="{{ url_for('vans.offload_index') }}" class="quick-action-tile accent-warning"><i class="fas fa-dolly"></i><span>Stock Offloads</span></a>
+        <a href="{{ url_for('returns.index') }}" class="quick-action-tile accent-orange"><i class="fas fa-undo"></i><span>Returns</span></a>
+        <a href="{{ url_for('reports.inventory_report') }}" class="quick-action-tile accent-info"><i class="fas fa-chart-bar"></i><span>Stock Report</span></a>
+      </div>
+    </div>
+  </div></div>
 </div>
 {% endblock %}
 {% block extra_js %}
@@ -70,13 +75,17 @@ new Chart(document.getElementById('stockHealthChart'), {
     datasets: [{
       data: [{{ healthy }}, {{ low_only }}, {{ out_of_stock }}],
       backgroundColor: ['#10b981', '#f59e0b', '#ef4444'],
-      borderWidth: 0
+      borderWidth: 3,
+      borderColor: getComputedStyle(document.documentElement).getPropertyValue('--bg-card').trim() || '#fff',
+      borderRadius: 6,
+      spacing: 3,
+      hoverOffset: 6
     }]
   },
   options: {
     responsive: true,
     maintainAspectRatio: false,
-    cutout: '65%',
+    cutout: '68%',
     plugins: { legend: { position: 'bottom' } }
   }
 });
