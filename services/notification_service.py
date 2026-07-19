@@ -78,11 +78,15 @@ def _check_license_expiry():
 def _check_missed_visits():
     """A visit is logged 'planned' the moment it's scheduled (visit_date is
     the creation time, not a future date - see visits.add()); if it's still
-    'planned' a day later, the rep never checked in and it was missed."""
+    'planned' with no check-in a day later, the rep never showed up and it
+    was missed. A visit that has been checked in but not yet checked out
+    stays 'planned' too (status only flips to 'completed' at checkout) -
+    exclude those, they're in progress, not missed."""
     from models.van import CustomerVisit
     cutoff = datetime.utcnow() - timedelta(hours=24)
     visits = CustomerVisit.query.filter(
         CustomerVisit.status == 'planned',
+        CustomerVisit.check_in_time.is_(None),
         CustomerVisit.visit_date < cutoff
     ).all()
     count = 0

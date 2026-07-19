@@ -68,7 +68,6 @@ def checkin(visit_id):
     visit.check_in_time = datetime.utcnow()
     visit.gps_latitude = data.get('lat')
     visit.gps_longitude = data.get('lng')
-    visit.status = 'completed'
     visit.customer.last_visit_date = datetime.utcnow()
     db.session.commit()
     return jsonify({'success': True})
@@ -82,10 +81,13 @@ def checkout(visit_id):
     visit = CustomerVisit.query.get_or_404(visit_id)
     if current_user.scope('visits') == 'own' and visit.sales_rep_id != current_user.id:
         return jsonify({'error': 'Access denied'}), 403
+    if not visit.check_in_time:
+        return jsonify({'error': 'Visit must be checked in first.'}), 400
     data = request.get_json() or {}
     visit.check_out_time = datetime.utcnow()
     visit.outcome = data.get('outcome', 'no_sale')
     visit.notes = data.get('notes', visit.notes)
+    visit.status = 'completed'
     db.session.commit()
     return jsonify({'success': True})
 

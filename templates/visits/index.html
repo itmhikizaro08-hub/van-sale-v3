@@ -33,21 +33,102 @@
 
 <div class="card"><div class="card-body p-0"><div class="table-responsive">
 <table class="table table-hover dt-table mb-0" id="visitsTable">
-  <thead><tr><th>Customer</th><th>Rep</th><th>Date</th><th>Status</th><th>Outcome</th><th class="text-end">Duration</th><th>GPS</th></tr></thead>
+  <thead><tr><th>Customer</th><th>Rep</th><th>Date</th><th>Status</th><th>Outcome</th><th class="text-end">Duration</th><th>GPS</th><th></th></tr></thead>
   <tbody>
     {% for v in visits %}
     <tr>
       <td class="fw-600">{{ v.customer.name if v.customer else '—' }}</td>
       <td class="fs-12">{{ v.sales_rep.full_name if v.sales_rep else '—' }}</td>
       <td class="text-muted fs-12">{{ v.visit_date.strftime('%d %b %Y %H:%M') if v.visit_date else '' }}</td>
-      <td><span class="badge {{ v.status_badge }}">{{ v.status|title }}</span></td>
+      <td><span class="badge {{ v.status_badge }}">{{ v.status|title }}</span>{% if v.status == 'planned' and v.check_in_time %}<div class="fs-11 text-muted mt-1">Checked in {{ v.check_in_time.strftime('%H:%M') }}</div>{% endif %}</td>
       <td>{% if v.outcome %}<span class="badge bg-info text-dark">{{ v.outcome|replace('_',' ')|title }}</span>{% else %}—{% endif %}</td>
       <td class="text-end fs-12">{% if v.duration_minutes is not none %}{{ v.duration_minutes }} min{% else %}—{% endif %}</td>
       <td class="fs-12 text-muted">{% if v.gps_latitude %}{{ "%.4f"|format(v.gps_latitude) }}, {{ "%.4f"|format(v.gps_longitude) }}{% else %}—{% endif %}</td>
+      <td class="text-nowrap">
+        {% if current_user.can_write('visits') %}
+          {% if v.status == 'planned' and not v.check_in_time %}
+          <button type="button" class="btn btn-sm btn-outline-primary checkin-btn" data-id="{{ v.id }}"><i class="fas fa-sign-in-alt me-1"></i>Check In</button>
+          {% elif v.status == 'planned' and v.check_in_time and not v.check_out_time %}
+          <button type="button" class="btn btn-sm btn-outline-success" data-bs-toggle="modal" data-bs-target="#checkoutModal" data-visit-id="{{ v.id }}"><i class="fas fa-flag-checkered me-1"></i>Check Out</button>
+          {% endif %}
+        {% endif %}
+      </td>
     </tr>
     {% endfor %}
   </tbody>
 </table>
 </div></div></div>
+
+<div class="modal fade" id="checkoutModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="fas fa-flag-checkered me-2"></i>Check Out</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-3">
+          <label class="form-label">Outcome</label>
+          <select id="checkoutOutcome" class="form-select">
+            <option value="sale_made">Sale Made</option>
+            <option value="no_sale">No Sale</option>
+            <option value="not_home">Not Home</option>
+            <option value="refused">Refused</option>
+          </select>
+        </div>
+        <div class="mb-2">
+          <label class="form-label">Notes</label>
+          <textarea id="checkoutNotes" class="form-control" rows="2" placeholder="Optional"></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-primary" id="checkoutSubmitBtn"><i class="fas fa-save me-1"></i>Check Out</button>
+      </div>
+    </div>
+  </div>
+</div>
 {% endblock %}
-{% block extra_js %}<script>$(document).ready(() => initDataTable('#visitsTable', {order:[[2,'desc']]}));</script>{% endblock %}
+{% block extra_js %}
+<script>
+$(document).ready(() => initDataTable('#visitsTable', {order:[[2,'desc']]}));
+
+document.querySelectorAll('.checkin-btn').forEach(btn => {
+  btn.addEventListener('click', function () {
+    this.disabled = true;
+    this.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+    const send = coords => apiCall(`/visits/${this.dataset.id}/checkin`, 'POST', coords || {})
+      .then(res => {
+        if (res.success) { Toast.show('Checked in.', 'success'); setTimeout(() => location.reload(), 600); }
+        else { Toast.show(res.error || 'Failed.', 'danger'); this.disabled = false; this.innerHTML = '<i class="fas fa-sign-in-alt me-1"></i>Check In'; }
+      })
+      .catch(() => { Toast.show('Network error.', 'danger'); this.disabled = false; this.innerHTML = '<i class="fas fa-sign-in-alt me-1"></i>Check In'; });
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        pos => send({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+        () => send(null),
+        { timeout: 4000 }
+      );
+    } else {
+      send(null);
+    }
+  });
+});
+
+let checkoutVisitId = null;
+document.getElementById('checkoutModal')?.addEventListener('show.bs.modal', e => {
+  checkoutVisitId = e.relatedTarget.dataset.visitId;
+});
+document.getElementById('checkoutSubmitBtn')?.addEventListener('click', async function () {
+  this.disabled = true;
+  try {
+    const res = await apiCall(`/visits/${checkoutVisitId}/checkout`, 'POST', {
+      outcome: document.getElementById('checkoutOutcome').value,
+      notes: document.getElementById('checkoutNotes').value
+    });
+    if (res.success) { Toast.show('Checked out.', 'success'); setTimeout(() => location.reload(), 600); }
+    else { Toast.show(res.error || 'Failed.', 'danger'); this.disabled = false; }
+  } catch { Toast.show('Network error.', 'danger'); this.disabled = false; }
+});
+</script>
+{% endblock %}
