@@ -3,9 +3,22 @@
 <div class="row justify-content-center"><div class="col-md-6">
 <form method="POST"><div class="card"><div class="card-body">
   <div class="mb-3"><label class="form-label">Full Name *</label><input type="text" name="name" class="form-control" value="{{ driver.name if driver else '' }}" required></div>
-  <div class="mb-3"><label class="form-label">Phone</label><input type="text" name="phone" class="form-control" value="{{ driver.phone if driver else '' }}"></div>
-  <div class="mb-3"><label class="form-label">License Number</label><input type="text" name="license_number" class="form-control" value="{{ driver.license_number if driver else '' }}"></div>
-  <div class="mb-3"><label class="form-label">Status</label><select name="status" class="form-select"><option value="active" {{ 'selected' if not driver or driver.status=='active' }}>Active</option><option value="inactive" {{ 'selected' if driver and driver.status=='inactive' }}>Inactive</option></select></div>
+  <div class="row">
+    <div class="col-md-6 mb-3"><label class="form-label">Phone</label><input type="text" name="phone" class="form-control" value="{{ driver.phone if driver else '' }}"></div>
+    <div class="col-md-6 mb-3"><label class="form-label">Email</label><input type="email" name="email" class="form-control" value="{{ driver.email if driver else '' }}"></div>
+  </div>
+  <div class="row">
+    <div class="col-md-4 mb-3"><label class="form-label">License Number</label><input type="text" name="license_number" class="form-control" value="{{ driver.license_number if driver else '' }}"></div>
+    <div class="col-md-4 mb-3"><label class="form-label">License Class</label><input type="text" name="license_class" class="form-control" placeholder="e.g. C" value="{{ driver.license_class if driver else '' }}"></div>
+    <div class="col-md-4 mb-3">
+      <label class="form-label">License Expiry</label>
+      <input type="date" name="license_expiry" class="form-control" value="{{ driver.license_expiry.strftime('%Y-%m-%d') if driver and driver.license_expiry else '' }}">
+      <div class="form-text">Drives the License Alert notification — leave blank to skip that check.</div>
+    </div>
+  </div>
+  <div class="mb-3"><label class="form-label">Address</label><textarea name="address" class="form-control" rows="2">{{ driver.address if driver else '' }}</textarea></div>
+  <div class="mb-3"><label class="form-label">Status</label><select name="status" class="form-select"><option value="active" {{ 'selected' if not driver or driver.status=='active' }}>Active</option><option value="inactive" {{ 'selected' if driver and driver.status=='inactive' }}>Inactive</option><option value="suspended" {{ 'selected' if driver and driver.status=='suspended' }}>Suspended</option></select></div>
+  <div class="mb-2"><label class="form-label">Notes</label><textarea name="notes" class="form-control" rows="2">{{ driver.notes if driver else '' }}</textarea></div>
 </div><div class="card-footer d-flex gap-2">
   <button type="submit" class="btn btn-primary"><i class="fas fa-save me-1"></i>Save</button>
   <a href="{{ url_for('drivers.index') }}" class="btn btn-outline-secondary">Cancel</a>
