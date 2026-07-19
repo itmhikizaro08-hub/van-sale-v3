@@ -132,9 +132,18 @@ def add():
     sales_reps = User.query.filter(User.role.in_(['sales_rep', 'supervisor', 'manager'])).all()
 
     if request.method == 'POST':
+        name = request.form['name'].strip()
+        existing = Customer.query.filter(
+            Customer.status == 'active', db.func.lower(Customer.name) == name.lower()
+        ).first()
+        if existing:
+            flash(f'A customer named "{name}" already exists ({existing.customer_code}). '
+                  f'Edit it instead, or use a different name.', 'warning')
+            return redirect(url_for('customers.add'))
+
         customer = Customer(
             customer_code=_next_code(),
-            name=request.form['name'],
+            name=name,
             phone=request.form.get('phone'),
             email=request.form.get('email'),
             address=request.form.get('address'),
@@ -250,7 +259,16 @@ def edit(customer_id):
     sales_reps = User.query.filter(User.role.in_(['sales_rep', 'supervisor', 'manager'])).all()
 
     if request.method == 'POST':
-        customer.name = request.form['name']
+        name = request.form['name'].strip()
+        existing = Customer.query.filter(
+            Customer.id != customer.id, Customer.status == 'active',
+            db.func.lower(Customer.name) == name.lower()
+        ).first()
+        if existing:
+            flash(f'A customer named "{name}" already exists ({existing.customer_code}).', 'warning')
+            return redirect(url_for('customers.edit', customer_id=customer.id))
+
+        customer.name = name
         customer.phone = request.form.get('phone')
         customer.email = request.form.get('email')
         customer.address = request.form.get('address')
@@ -281,8 +299,7 @@ def delete(customer_id):
         return jsonify({'error': 'Access denied'}), 403
     customer.status = 'inactive'
     db.session.commit()
-    flash('Customer deactivated.', 'success')
-    return redirect(url_for('customers.index'))
+    return jsonify({'success': True})
 
 
 @customers_bp.route('/search')
