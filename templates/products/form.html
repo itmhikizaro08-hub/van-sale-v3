@@ -1,10 +1,10 @@
 {% extends 'base.html' %}{% block title %}{{ 'Edit' if product else 'Add' }} Product{% endblock %}{% block content %}
 <div class="page-header"><h1 class="page-title">{{ 'Edit' if product else 'Add' }} Product</h1></div>
 <div class="row justify-content-center"><div class="col-md-7">
-<form method="POST"><div class="card"><div class="card-body">
+<form method="POST" onsubmit="this.querySelector('button[type=submit]').disabled = true;"><div class="card"><div class="card-body">
   <div class="row g-3">
     <div class="col-md-6"><label class="form-label">Product Name *</label><input type="text" name="product_name" class="form-control" value="{{ product.product_name if product else '' }}" required></div>
-    <div class="col-md-6"><label class="form-label">Product Code *</label><input type="text" name="product_code" class="form-control" value="{{ product.product_code if product else '' }}" required></div>
+    <div class="col-md-6"><label class="form-label">Product Code</label><input type="text" class="form-control" value="{{ product.product_code if product else 'Auto-generated after save' }}" readonly><div class="form-text">Assigned automatically — can't be changed.</div></div>
     <div class="col-md-6"><label class="form-label">Category</label><select name="category_id" class="form-select"><option value="">— None —</option>{% for c in categories %}<option value="{{ c.id }}" {{ 'selected' if product and product.category_id == c.id }}>{{ c.name }}</option>{% endfor %}</select></div>
     <div class="col-md-6"><label class="form-label">Unit</label><select name="unit" class="form-select">{% set u = product.unit if product else 'piece' %}<option value="piece" {{ 'selected' if u == 'piece' }}>Piece</option><option value="box" {{ 'selected' if u == 'box' }}>Box</option><option value="pack" {{ 'selected' if u == 'pack' }}>Pack</option><option value="kg" {{ 'selected' if u == 'kg' }}>KG</option><option value="litre" {{ 'selected' if u == 'litre' }}>Litre</option><option value="carton" {{ 'selected' if u == 'carton' }}>Carton</option></select></div>
     <div class="col-md-6"><label class="form-label">Cost Price (GHS)</label><div class="input-group"><span class="input-group-text">GHS</span><input type="number" step="0.01" name="cost_price" class="form-control" value="{{ product.cost_price if product else '0.00' }}"></div></div>

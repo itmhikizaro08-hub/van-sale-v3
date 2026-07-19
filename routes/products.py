@@ -43,10 +43,14 @@ def import_csv():
             return redirect(url_for('products.import_csv'))
 
         created, skipped, errors = 0, 0, []
+        seen_names = {p.product_name.lower() for p in Product.query.filter_by(status='active').all()}
         for i, row in enumerate(reader, start=2):  # row 1 is the header
             name = (row.get('product_name') or '').strip()
             if not name:
                 errors.append(f'Row {i}: missing product_name — skipped.')
+                continue
+            if name.lower() in seen_names:
+                skipped += 1
                 continue
 
             code = (row.get('product_code') or '').strip() or _next_code()
@@ -80,6 +84,7 @@ def import_csv():
                     status='active'
                 )
                 db.session.add(product)
+                seen_names.add(name.lower())
                 created += 1
             except (TypeError, ValueError) as e:
                 errors.append(f'Row {i} ({name}): invalid number in one of the fields — skipped.')
@@ -138,9 +143,21 @@ def add():
     categories = Category.query.order_by(Category.name).all()
 
     if request.method == 'POST':
+        name = request.form['product_name'].strip()
+        # Guards against both a genuine typo'd duplicate and an accidental
+        # double-submit (double-click / slow network resubmission) creating
+        # two active products with the same name under different codes.
+        existing = Product.query.filter(
+            Product.status == 'active', db.func.lower(Product.product_name) == name.lower()
+        ).first()
+        if existing:
+            flash(f'A product named "{name}" already exists ({existing.product_code}). '
+                  f'Edit it instead, or use a different name.', 'warning')
+            return redirect(url_for('products.add'))
+
         product = Product(
             product_code=_next_code(),
-            product_name=request.form['product_name'],
+            product_name=name,
             category_id=request.form.get('category_id') or None,
             brand=request.form.get('brand'),
             description=request.form.get('description'),
@@ -174,7 +191,16 @@ def edit(product_id):
     categories = Category.query.order_by(Category.name).all()
 
     if request.method == 'POST':
-        product.product_name = request.form['product_name']
+        name = request.form['product_name'].strip()
+        existing = Product.query.filter(
+            Product.status == 'active', Product.id != product.id,
+            db.func.lower(Product.product_name) == name.lower()
+        ).first()
+        if existing:
+            flash(f'A product named "{name}" already exists ({existing.product_code}).', 'warning')
+            return redirect(url_for('products.edit', product_id=product.id))
+
+        product.product_name = name
         product.category_id = request.form.get('category_id') or None
         product.brand = request.form.get('brand')
         product.description = request.form.get('description')
