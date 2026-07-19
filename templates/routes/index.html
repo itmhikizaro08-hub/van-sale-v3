@@ -1,5 +1,26 @@
-{% extends 'base.html' %}{% block title %}Routes{% endblock %}{% block breadcrumb %}<li class="breadcrumb-item active">Routes</li>{% endblock %}{% block content %}
+{% extends 'base.html' %}{% block title %}Routes{% endblock %}{% block breadcrumb %}<li class="breadcrumb-item active">Routes</li>{% endblock %}
+{% block extra_css %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="" />
+<style>#allCustomersMap { height: 450px; z-index: 0; }</style>
+{% endblock %}
+{% block content %}
 <div class="page-header"><div><h1 class="page-title">Route Management</h1></div>{% if current_user.can_write('routes') %}<a href="{{ url_for('routes.add') }}" class="btn btn-primary"><i class="fas fa-plus me-1"></i>Add Route</a>{% endif %}</div>
+
+<div class="card mb-3">
+  <div class="card-header d-flex justify-content-between align-items-center" style="cursor:pointer" data-bs-toggle="collapse" data-bs-target="#allCustomersMapCollapse" aria-expanded="false">
+    <span><i class="fas fa-map-marked-alt me-2"></i>All Customers Map</span>
+    <span class="text-muted fs-12">{{ customers_geo|length }} customer(s) with a GPS pin <i class="fas fa-chevron-down ms-1" id="mapChevron"></i></span>
+  </div>
+  <div class="collapse" id="allCustomersMapCollapse">
+    <div class="card-body p-0">
+      {% if customers_geo %}
+      <div id="allCustomersMap"></div>
+      {% else %}
+      <div class="empty-state py-5"><i class="fas fa-map-marked-alt" style="font-size:2.5rem;color:var(--text-muted)"></i><h6 class="mt-3">No GPS pins yet</h6><p class="text-muted">None of your active customers have a saved GPS location.</p></div>
+      {% endif %}
+    </div>
+  </div>
+</div>
 
 <div class="row g-3 mb-3">
   <div class="col-6 col-md-4">
@@ -32,4 +53,45 @@
 </table>
 </div></div></div>
 {% endblock %}
-{% block extra_js %}<script>$(document).ready(() => initDataTable('#routesTable'));</script>{% endblock %}
+{% block extra_js %}
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+<script>
+$(document).ready(() => initDataTable('#routesTable'));
+
+const allCustomersMapCollapse = document.getElementById('allCustomersMapCollapse');
+const mapChevron = document.getElementById('mapChevron');
+allCustomersMapCollapse?.addEventListener('show.bs.collapse', () => mapChevron?.classList.replace('fa-chevron-down', 'fa-chevron-up'));
+allCustomersMapCollapse?.addEventListener('hide.bs.collapse', () => mapChevron?.classList.replace('fa-chevron-up', 'fa-chevron-down'));
+
+let allCustomersMapInited = false;
+allCustomersMapCollapse?.addEventListener('shown.bs.collapse', () => {
+  if (allCustomersMapInited) return;
+  const customers = {{ customers_geo|tojson }};
+  if (!customers.length) return;
+  allCustomersMapInited = true;
+
+  const map = L.map('allCustomersMap');
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '&copy; OpenStreetMap contributors',
+    maxZoom: 19
+  }).addTo(map);
+
+  const markers = customers.map(c => {
+    const marker = L.marker([c.lat, c.lng]).addTo(map);
+    marker.bindPopup(
+      `<strong>${c.name}</strong><br>${c.route ? c.route + '<br>' : ''}${c.address || ''}<br>${c.phone || ''}` +
+      `<br>Outstanding: GHS ${c.outstanding.toFixed(2)}` +
+      `<br><a href="${c.url}">View customer</a>`
+    );
+    return marker;
+  });
+
+  if (markers.length === 1) {
+    map.setView([customers[0].lat, customers[0].lng], 14);
+  } else {
+    const group = L.featureGroup(markers);
+    map.fitBounds(group.getBounds().pad(0.15));
+  }
+});
+</script>
+{% endblock %}

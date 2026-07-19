@@ -19,8 +19,23 @@ def index():
     active_count = sum(1 for r in routes if r.status == 'active')
     total_customers = sum(r.customers.count() for r in routes)
 
+    customers_geo = [
+        {
+            'name': c.name,
+            'phone': c.phone or '',
+            'address': c.address or c.location or '',
+            'lat': c.gps_latitude,
+            'lng': c.gps_longitude,
+            'outstanding': c.outstanding_balance,
+            'route': c.route.route_name if c.route else None,
+            'url': url_for('customers.view', customer_id=c.id)
+        }
+        for c in Customer.query.filter_by(status='active').all()
+        if c.gps_latitude and c.gps_longitude
+    ]
+
     return render_template('routes/index.html', routes=routes,
-        active_count=active_count, total_customers=total_customers)
+        active_count=active_count, total_customers=total_customers, customers_geo=customers_geo)
 
 
 @routes_bp.route('/add', methods=['GET', 'POST'])
