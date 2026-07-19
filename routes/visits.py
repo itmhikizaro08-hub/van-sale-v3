@@ -28,8 +28,22 @@ def index():
 
     completed_count = sum(1 for v in visits if v.status == 'completed')
 
+    visits_geo = [
+        {
+            'customer': v.customer.name if v.customer else 'Unknown',
+            'rep': v.sales_rep.full_name if v.sales_rep else '—',
+            'date': v.visit_date.strftime('%d %b %Y %H:%M') if v.visit_date else '',
+            'status': v.status,
+            'outcome': (v.outcome or '').replace('_', ' ').title(),
+            'lat': v.gps_latitude,
+            'lng': v.gps_longitude,
+            'url': url_for('customers.view', customer_id=v.customer_id)
+        }
+        for v in visits if v.gps_latitude and v.gps_longitude
+    ]
+
     return render_template('visits/index.html', visits=visits, start=start, end=end,
-        completed_count=completed_count)
+        completed_count=completed_count, visits_geo=visits_geo)
 
 
 @visits_bp.route('/add', methods=['GET', 'POST'])
