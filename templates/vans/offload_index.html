@@ -24,9 +24,12 @@
 <div class="row g-3">
   <div class="col-md-7">
     <div class="card">
-      <div class="card-header"><i class="fas fa-dolly me-2"></i>Submit Stock Offload</div>
+      <div class="card-header d-flex align-items-center justify-content-between">
+        <span><i class="fas fa-dolly me-2"></i>Submit Stock Offload</span>
+        {% if van_stock %}<button type="button" class="btn btn-outline-secondary btn-sm" onclick="offloadAll()">Offload All</button>{% endif %}
+      </div>
       {% if van_stock %}
-      <form method="POST" action="{{ url_for('vans.offload_submit') }}">
+      <form method="POST" action="{{ url_for('vans.offload_submit') }}" id="offloadForm">
         <div class="card-body p-0"><div class="table-responsive">
           <table class="table table-sm mb-0">
             <thead><tr><th></th><th>Product</th><th class="text-end">Held</th><th style="width:110px">Offload Qty</th></tr></thead>
@@ -36,8 +39,8 @@
                 <td><input type="hidden" name="product_id[]" value="{{ vs.product_id }}"></td>
                 <td class="fw-600 fs-13">{{ vs.product.product_name if vs.product else '—' }}</td>
                 <td class="text-end">{{ vs.quantity|qty }}</td>
-                <td><input type="number" min="0" max="{{ vs.quantity }}" step="any" class="form-control form-control-sm"
-                    name="quantity[]" value="0"></td>
+                <td><input type="number" min="0" max="{{ vs.quantity }}" step="any" class="form-control form-control-sm offload-qty"
+                    data-max="{{ vs.quantity }}" name="quantity[]" value="0" oninput="updateOffloadTotal()"></td>
               </tr>
               {% endfor %}
             </tbody>
@@ -47,7 +50,8 @@
           <label class="form-label">Notes</label>
           <textarea name="notes" class="form-control" rows="2" placeholder="Optional"></textarea>
         </div>
-        <div class="card-footer">
+        <div class="card-footer d-flex align-items-center justify-content-between">
+          <span class="fs-13 text-muted">Total to offload: <strong id="offloadTotal" class="text-dark">0</strong> units</span>
           <button type="submit" class="btn btn-success"><i class="fas fa-paper-plane me-1"></i>Submit for Confirmation</button>
         </div>
       </form>
@@ -61,7 +65,7 @@
     <div class="card h-100">
       <div class="card-header"><i class="fas fa-history me-2"></i>My Offloads</div>
       <div class="card-body p-0"><div class="table-responsive">
-        <table class="table table-hover mb-0">
+        <table class="table table-hover dt-table mb-0" id="myOffloadsTable">
           <thead><tr><th>#</th><th>Date</th><th class="text-end">Qty</th><th>Status</th><th></th></tr></thead>
           <tbody>
             {% for o in offloads %}
@@ -88,7 +92,7 @@
 <div class="card">
   <div class="card-header"><i class="fas fa-hourglass-half me-2"></i>Pending Offloads</div>
   <div class="card-body p-0"><div class="table-responsive">
-    <table class="table table-hover mb-0">
+    <table class="table table-hover dt-table mb-0" id="pendingOffloadsTable">
       <thead><tr><th>#</th><th>Rep</th><th>Van</th><th class="text-end">Declared Qty</th><th></th></tr></thead>
       <tbody>
         {% for o in pending %}
@@ -118,7 +122,7 @@
 <div class="card mt-3">
   <div class="card-header"><i class="fas fa-history me-2"></i>Recent Confirmations</div>
   <div class="card-body p-0"><div class="table-responsive">
-    <table class="table table-hover mb-0">
+    <table class="table table-hover dt-table mb-0" id="recentOffloadsTable">
       <thead><tr><th>#</th><th>Rep</th><th class="text-end">Declared</th><th class="text-end">Received</th><th>Status</th><th>Confirmed By</th><th></th></tr></thead>
       <tbody>
         {% for o in recent %}
@@ -172,6 +176,24 @@
 {% endblock %}
 {% block extra_js %}
 <script>
+$(document).ready(() => {
+  if (document.getElementById('myOffloadsTable')) initDataTable('#myOffloadsTable', {order:[[1,'desc']]});
+  if (document.getElementById('pendingOffloadsTable')) initDataTable('#pendingOffloadsTable');
+  if (document.getElementById('recentOffloadsTable')) initDataTable('#recentOffloadsTable');
+});
+
+function offloadAll() {
+  document.querySelectorAll('.offload-qty').forEach(input => { input.value = input.dataset.max; });
+  updateOffloadTotal();
+}
+
+function updateOffloadTotal() {
+  const total = [...document.querySelectorAll('.offload-qty')]
+    .reduce((sum, input) => sum + (parseFloat(input.value) || 0), 0);
+  const el = document.getElementById('offloadTotal');
+  if (el) el.textContent = total;
+}
+
 document.getElementById('confirmModal')?.addEventListener('show.bs.modal', e => {
   const btn = e.relatedTarget;
   const offloadId = btn.dataset.offloadId;
