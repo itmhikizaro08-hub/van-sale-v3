@@ -5,7 +5,10 @@
 <li class="breadcrumb-item active">Rep Statement</li>
 {% endblock %}
 {% block content %}
-<div class="page-header"><h1 class="page-title">Sales Rep Statement</h1></div>
+<div class="page-header">
+  <h1 class="page-title">Sales Rep Statement</h1>
+  {% if rep %}<button onclick="window.print()" class="btn btn-outline-secondary btn-sm no-print"><i class="fas fa-print me-1"></i>Print</button>{% endif %}
+</div>
 
 <div class="card mb-3"><div class="card-body py-2">
   <form method="GET" class="row g-2 align-items-end">
@@ -76,6 +79,29 @@
       </div>
     </div>
   </div>
+</div>
+
+<div class="card mt-3">
+  <div class="card-header"><i class="fas fa-receipt me-2"></i>Sales This Period ({{ sales_count }})</div>
+  <div class="card-body p-0"><div class="table-responsive">
+    <table class="table table-hover mb-0">
+      <thead><tr><th>Invoice</th><th>Date</th><th>Customer</th><th class="text-end">Total</th><th class="text-end">Tips</th><th>Status</th></tr></thead>
+      <tbody>
+        {% for s in sales %}
+        <tr>
+          <td><a href="{{ url_for('invoices.view', sale_id=s.id) }}" class="fw-600">{{ s.invoice_number }}</a></td>
+          <td class="text-muted fs-12">{{ s.sale_date.strftime('%d %b %Y') if s.sale_date else '' }}</td>
+          <td class="fs-13">{{ s.customer.name if s.customer else '—' }}</td>
+          <td class="text-end fw-600">GHS {{ "%.2f"|format(s.total_amount) }}</td>
+          <td class="text-end {{ 'text-success fw-600' if s.total_tips_amount > 0 else 'text-muted' }}">{{ "GHS %.2f"|format(s.total_tips_amount) if s.total_tips_amount > 0 else '—' }}</td>
+          <td><span class="badge {{ s.payment_badge }}">{{ s.payment_status|title }}</span></td>
+        </tr>
+        {% else %}
+        <tr><td colspan="6" class="text-muted text-center py-3">No sales in this date range</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div></div>
 </div>
 {% endif %}
 {% endblock %}

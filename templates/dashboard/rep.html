@@ -121,6 +121,9 @@
           <a href="{{ url_for('returns.new') }}" class="quick-action-tile accent-warning"><i class="fas fa-undo"></i><span>Return</span></a>
           <a href="{{ url_for('cash_decl.index') }}" class="quick-action-tile accent-danger"><i class="fas fa-cash-register"></i><span>Declare Cash</span></a>
           <a href="{{ url_for('vans.offload_index') }}" class="quick-action-tile accent-teal"><i class="fas fa-dolly"></i><span>Offload Stock</span></a>
+          {% if current_user.can_access('reports') %}
+          <a href="{{ url_for('reports.rep_statement') }}" class="quick-action-tile accent-purple"><i class="fas fa-file-invoice-dollar"></i><span>My Statement</span></a>
+          {% endif %}
         </div>
       </div>
     </div>

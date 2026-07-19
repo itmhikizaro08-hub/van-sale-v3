@@ -379,7 +379,7 @@ def rep_statement():
     sales = Sale.query.filter(
         Sale.sales_rep_id == rep.id, Sale.status == 'completed',
         Sale.sale_date >= start, Sale.sale_date <= end_bound
-    ).all()
+    ).order_by(Sale.sale_date.desc()).all()
     sales_count = len(sales)
     sales_total = round(sum(s.total_amount or 0 for s in sales), 2)
     company_sales_total = round(sum(s.company_sales_total or 0 for s in sales), 2)
@@ -408,7 +408,7 @@ def rep_statement():
 
     return render_template('reports/rep_statement.html', reps=reps, rep=rep,
         own_scope=(current_user.scope('reports') == 'own'), start=start, end=end,
-        sales_count=sales_count, sales_total=sales_total,
+        sales=sales, sales_count=sales_count, sales_total=sales_total,
         company_sales_total=company_sales_total, tips_total=tips_total,
         cash=cash, offload_count=offload_count, offload_value=offload_value,
         liability_value=liability_value, liability_qty=liability_qty)
