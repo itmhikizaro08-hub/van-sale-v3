@@ -1,0 +1,62 @@
+{% extends 'base.html' %}
+{% block title %}Supplier Returns{% endblock %}
+{% block breadcrumb %}<li class="breadcrumb-item"><a href="{{ url_for('returns.index') }}">Returns</a></li><li class="breadcrumb-item active">Supplier Returns</li>{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div><h1 class="page-title">Supplier Returns</h1><p class="page-subtitle">Goods sent back to a supplier — damaged, expired, wrong item, or quality issue</p></div>
+  {% if current_user.can_write('procurement') %}
+  <a href="{{ url_for('returns.supplier_new') }}" class="btn btn-warning text-dark"><i class="fas fa-plus me-1"></i>New Supplier Return</a>
+  {% endif %}
+</div>
+
+<div class="btn-group mb-3" role="group">
+  <a href="{{ url_for('returns.index') }}" class="btn btn-outline-primary"><i class="fas fa-user me-1"></i>Customer Returns</a>
+  <a href="{{ url_for('returns.supplier_index') }}" class="btn btn-primary"><i class="fas fa-truck-ramp-box me-1"></i>Supplier Returns</a>
+</div>
+
+<div class="row g-3 mb-4">
+  <div class="col-6 col-md-3"><div class="stat-card warning"><div class="stat-icon"><i class="fas fa-clock"></i></div><div><div class="stat-label">Pending</div><div class="stat-value">{{ returns|selectattr('status','eq','pending')|list|length }}</div></div></div></div>
+  <div class="col-6 col-md-3"><div class="stat-card success"><div class="stat-icon"><i class="fas fa-check"></i></div><div><div class="stat-label">Approved</div><div class="stat-value">{{ returns|selectattr('status','eq','approved')|list|length }}</div></div></div></div>
+  <div class="col-6 col-md-3"><div class="stat-card info"><div class="stat-icon"><i class="fas fa-adjust"></i></div><div><div class="stat-label">Partial</div><div class="stat-value">{{ returns|selectattr('status','eq','partial')|list|length }}</div></div></div></div>
+  <div class="col-6 col-md-3"><div class="stat-card danger"><div class="stat-icon"><i class="fas fa-times"></i></div><div><div class="stat-label">Rejected</div><div class="stat-value">{{ returns|selectattr('status','eq','rejected')|list|length }}</div></div></div></div>
+</div>
+
+<div class="card mb-3"><div class="card-body py-2">
+  <form method="GET" class="row g-2 align-items-end">
+    <div class="col-md-4"><label class="form-label">From</label><input type="date" name="start" class="form-control" value="{{ start }}"></div>
+    <div class="col-md-4"><label class="form-label">To</label><input type="date" name="end" class="form-control" value="{{ end }}"></div>
+    <div class="col-md-4"><button type="submit" class="btn btn-primary w-100"><i class="fas fa-filter me-1"></i>Filter</button></div>
+  </form>
+</div></div>
+
+<div class="card"><div class="card-body p-0"><div class="table-responsive">
+<table class="table table-hover dt-table mb-0" id="supplierReturnsTable">
+  <thead><tr><th>Return #</th><th>Supplier</th><th>Date</th><th>Lines</th><th>Total Value</th><th>Ref Note</th><th>Status</th><th></th></tr></thead>
+  <tbody>
+    {% for r in returns %}
+    <tr>
+      <td><a href="{{ url_for('returns.supplier_view', return_id=r.id) }}" class="fw-600">{{ r.return_number }}</a></td>
+      <td>{{ r.supplier.name if r.supplier else '—' }}</td>
+      <td class="text-muted fs-12">{{ r.created_at.strftime('%d %b %Y') if r.created_at else '' }}</td>
+      <td><span class="badge bg-secondary">{{ r.items|length }}</span></td>
+      <td class="fw-600">GHS {{ "%.2f"|format(r.total_value) }}</td>
+      <td>{% if r.reference_note %}<span class="ref-note-badge"><i class="fas fa-book me-1"></i>{{ r.reference_note[:20] }}</span>{% else %}<span class="text-muted fs-12">—</span>{% endif %}</td>
+      <td><span class="badge {{ r.status_badge }}">{{ r.status|title }}</span></td>
+      <td>
+        <div class="d-flex gap-1">
+          <a href="{{ url_for('returns.supplier_view', return_id=r.id) }}" class="btn btn-icon btn-sm btn-outline-primary"><i class="fas fa-eye"></i></a>
+          {% if r.status in ['pending','partial'] and current_user.can_approve_module('procurement') %}
+          <button class="btn btn-icon btn-sm btn-outline-success" data-action-url="{{ url_for('returns.supplier_approve', return_id=r.id) }}" data-confirm="Approve all pending lines?" data-success-msg="Approved!"><i class="fas fa-check"></i></button>
+          <button class="btn btn-icon btn-sm btn-outline-danger" data-action-url="{{ url_for('returns.supplier_reject', return_id=r.id) }}" data-confirm="Reject all pending lines?" data-success-msg="Rejected."><i class="fas fa-times"></i></button>
+          {% endif %}
+        </div>
+      </td>
+    </tr>
+    {% else %}
+    <tr><td colspan="8" class="text-muted text-center py-4">No supplier returns yet</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div></div></div>
+{% endblock %}
+{% block extra_js %}<script>$(document).ready(() => initDataTable('#supplierReturnsTable', {order:[[2,'desc']]}));</script>{% endblock %}

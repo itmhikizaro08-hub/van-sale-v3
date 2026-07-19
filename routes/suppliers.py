@@ -100,12 +100,52 @@ def view(supplier_id):
     ), 2)
     total_paid = round(sum(p.amount for p in payments if p.status == 'approved'), 2)
     pending_count = sum(1 for p in payments if p.status == 'pending')
-    # Deliveries sharing a reference_id came from the same batch submission.
-    delivery_count = len({m.reference_id or m.id for m in deliveries})
 
-    return render_template('suppliers/view.html', supplier=s, deliveries=deliveries, payments=payments,
+    # Deliveries sharing a reference_id came from the same batch submission —
+    # group them into one row per delivery instead of one row per product line.
+    batches = {}
+    for m in deliveries:
+        batch_ref = m.reference_id or m.id
+        b = batches.setdefault(batch_ref, {
+            'batch_ref': batch_ref, 'created_at': m.created_at,
+            'reference_note': m.reference_note, 'item_count': 0,
+            'total_qty': 0, 'total_value': 0.0,
+        })
+        b['item_count'] += 1
+        b['total_qty'] += m.quantity
+        b['total_value'] += m.quantity * (m.product.cost_price if m.product else 0)
+    delivery_batches = sorted(batches.values(), key=lambda b: b['created_at'] or datetime.min, reverse=True)
+    for b in delivery_batches:
+        b['total_value'] = round(b['total_value'], 2)
+    delivery_count = len(delivery_batches)
+
+    return render_template('suppliers/view.html', supplier=s, deliveries=deliveries,
+        delivery_batches=delivery_batches, payments=payments,
         total_units=total_units, total_value=total_value, total_paid=total_paid,
         pending_count=pending_count, delivery_count=delivery_count, start=start, end=end)
+
+
+@suppliers_bp.route('/deliveries/<int:batch_ref>')
+@login_required
+def delivery_view(batch_ref):
+    if not current_user.can_access('suppliers'):
+        flash('Access denied.', 'danger')
+        return redirect(url_for('dashboard.index'))
+
+    items = InventoryMovement.query.filter(
+        InventoryMovement.movement_type == 'stock_in',
+        (InventoryMovement.reference_id == batch_ref) |
+        ((InventoryMovement.reference_id.is_(None)) & (InventoryMovement.id == batch_ref))
+    ).order_by(InventoryMovement.id).all()
+    if not items:
+        flash('Delivery not found.', 'danger')
+        return redirect(url_for('suppliers.index'))
+
+    supplier = items[0].supplier
+    total_value = round(sum(m.quantity * (m.product.cost_price if m.product else 0) for m in items), 2)
+
+    return render_template('suppliers/delivery_view.html', batch_ref=batch_ref,
+        items=items, supplier=supplier, total_value=total_value)
 
 
 @suppliers_bp.route('/<int:supplier_id>/statement')

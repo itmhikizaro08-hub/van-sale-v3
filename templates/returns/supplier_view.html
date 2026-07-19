@@ -1,0 +1,92 @@
+{% extends 'base.html' %}
+{% block title %}{{ ret.return_number }}{% endblock %}
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{{ url_for('returns.index') }}">Returns</a></li>
+<li class="breadcrumb-item"><a href="{{ url_for('returns.supplier_index') }}">Supplier Returns</a></li>
+<li class="breadcrumb-item active">{{ ret.return_number }}</li>
+{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title">{{ ret.return_number }}</h1>
+    <div class="d-flex gap-2 mt-1">
+      <span class="badge {{ ret.status_badge }}">{{ ret.status|title }}</span>
+    </div>
+  </div>
+  <div class="d-flex gap-2">
+    {% if ret.status in ['pending','partial'] and current_user.can_approve_module('procurement') %}
+    <button class="btn btn-success btn-sm" data-action-url="{{ url_for('returns.supplier_approve', return_id=ret.id) }}" data-confirm="Approve all pending lines?" data-success-msg="Approved!"><i class="fas fa-check me-1"></i>Approve All</button>
+    <button class="btn btn-outline-danger btn-sm" data-action-url="{{ url_for('returns.supplier_reject', return_id=ret.id) }}" data-confirm="Reject all?" data-success-msg="Rejected."><i class="fas fa-times me-1"></i>Reject All</button>
+    {% endif %}
+  </div>
+</div>
+<div class="row g-3">
+  <div class="col-md-8">
+    <div class="card">
+      <div class="card-header"><i class="fas fa-list me-2"></i>Return Lines ({{ ret.items|length }})</div>
+      <div class="card-body p-0"><div class="table-responsive">
+        <table class="table mb-0">
+          <thead><tr><th>#</th><th>Product</th><th>Qty</th><th>Cost/Unit</th><th>Total</th><th>Reason</th><th>Status</th>
+          {% if ret.status in ['pending','partial'] and current_user.can_approve_module('procurement') %}<th>Action</th>{% endif %}
+          </tr></thead>
+          <tbody>
+            {% for item in ret.items %}
+            <tr>
+              <td class="text-muted fs-12">{{ loop.index }}</td>
+              <td class="fw-600">{{ item.product.product_name if item.product else '—' }}</td>
+              <td>{{ item.quantity|qty }}</td>
+              <td>GHS {{ "%.2f"|format(item.unit_cost) }}</td>
+              <td class="fw-600">GHS {{ "%.2f"|format(item.line_total) }}</td>
+              <td><span class="badge {{ item.reason_badge }}">{{ item.reason|replace('_',' ')|title }}</span></td>
+              <td><span class="badge {{ item.line_status_badge }}">{{ item.line_status|title }}</span></td>
+              {% if ret.status in ['pending','partial'] and current_user.can_approve_module('procurement') %}
+              <td>
+                {% if item.line_status == 'pending' %}
+                <div class="d-flex gap-1">
+                  <button class="btn btn-icon btn-sm btn-success" onclick="approveLine({{ ret.id }}, {{ item.id }})"><i class="fas fa-check"></i></button>
+                  <button class="btn btn-icon btn-sm btn-outline-danger" onclick="rejectLine({{ ret.id }}, {{ item.id }})"><i class="fas fa-times"></i></button>
+                </div>
+                {% else %}<span class="text-muted fs-12">Done</span>{% endif %}
+              </td>
+              {% endif %}
+            </tr>
+            {% endfor %}
+          </tbody>
+          <tfoot><tr><td colspan="4" class="text-end fw-700">Total Value</td><td class="fw-800 text-success" colspan="{{ 4 if ret.status in ['pending','partial'] and current_user.can_approve_module('procurement') else 3 }}">GHS {{ "%.2f"|format(ret.total_value) }}</td></tr></tfoot>
+        </table></div>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card">
+      <div class="card-header"><i class="fas fa-info-circle me-2"></i>Return Info</div>
+      <div class="card-body">
+        <div class="mb-2"><div class="text-muted fs-12">Supplier</div><div class="fw-700"><a href="{{ url_for('suppliers.view', supplier_id=ret.supplier.id) }}">{{ ret.supplier.name if ret.supplier else '—' }}</a></div></div>
+        <div class="mb-2"><div class="text-muted fs-12">Submitted By</div><div class="fw-600">{{ ret.created_by.full_name if ret.created_by else '—' }}</div></div>
+        {% if ret.approved_by %}
+        <div class="mb-2"><div class="text-muted fs-12">Processed By</div><div class="fw-600">{{ ret.approved_by.full_name }}</div></div>
+        <div class="mb-2"><div class="text-muted fs-12">Processed</div><div class="fw-600">{{ ret.approved_at.strftime('%d %B %Y, %H:%M') if ret.approved_at else '—' }}</div></div>
+        {% endif %}
+        {% if ret.reference_note %}<div class="mb-2"><div class="text-muted fs-12"><i class="fas fa-book text-info me-1"></i>Ref Note</div><div class="fw-600 text-info">{{ ret.reference_note }}</div></div>{% endif %}
+        {% if ret.notes %}<div><div class="text-muted fs-12">Notes</div><div class="fs-13">{{ ret.notes }}</div></div>{% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script>
+async function approveLine(returnId, itemId) {
+  if (!confirmAction('Approve this line?')) return;
+  const res = await apiCall(`/returns/supplier/${returnId}/approve-line/${itemId}`, 'POST');
+  if (res.success) { Toast.show('Line approved.', 'success'); setTimeout(() => location.reload(), 900); }
+  else Toast.show(res.error || 'Failed.', 'danger');
+}
+async function rejectLine(returnId, itemId) {
+  if (!confirmAction('Reject this line?')) return;
+  const res = await apiCall(`/returns/supplier/${returnId}/reject-line/${itemId}`, 'POST');
+  if (res.success) { Toast.show('Line rejected.', 'info'); setTimeout(() => location.reload(), 900); }
+  else Toast.show(res.error || 'Failed.', 'danger');
+}
+</script>
+{% endblock %}

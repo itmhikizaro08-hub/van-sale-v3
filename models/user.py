@@ -149,7 +149,7 @@ ROLE_PERMISSIONS = {
         'returns':       ('all',  True,  False),   # receive returns
         'notes':         ('none', False, False),
         'suppliers':     ('all',  False, False),   # view only
-        'procurement':   ('all',  True,  False),   # create GRNs
+        'procurement':   ('all',  True,  False),   # submit supplier returns
         'expenses':      ('none', False, False),
         'reports':       ('all',  False, False),   # stock reports only
         'tips':          ('none', False, False),
@@ -397,7 +397,8 @@ class User(UserMixin, db.Model):
                                  'url': 'payments.index', 'bp': 'payments'})
         if self.can_access('returns'):
             sales_items.append({'label': 'Returns', 'icon': 'fas fa-undo-alt',
-                                 'url': 'returns.index', 'bp': 'returns'})
+                                 'url': 'returns.index', 'bp': 'returns',
+                                 'match_endpoints': ['returns.index', 'returns.new', 'returns.view']})
         if self.can_access('notes') and self.role in ('admin', 'manager'):
             sales_items.append({'label': 'Credit/Debit Notes', 'icon': 'fas fa-receipt',
                                  'url': 'notes.index', 'bp': 'notes'})
@@ -472,8 +473,9 @@ class User(UserMixin, db.Model):
             money_items.append({'label': 'Suppliers', 'icon': 'fas fa-industry',
                                  'url': 'suppliers.index', 'bp': 'suppliers'})
         if self.can_access('procurement'):
-            money_items.append({'label': 'Procurement', 'icon': 'fas fa-file-contract',
-                                 'url': 'procurement.index', 'bp': 'procurement'})
+            money_items.append({'label': 'Supplier Returns', 'icon': 'fas fa-truck-ramp-box',
+                                 'url': 'returns.supplier_index', 'bp': 'returns',
+                                 'match_endpoints': ['returns.supplier_index', 'returns.supplier_new', 'returns.supplier_view']})
         if self.can_access('expenses'):
             money_items.append({'label': 'Expenses', 'icon': 'fas fa-receipt',
                                  'url': 'expenses.index', 'bp': 'expenses'})

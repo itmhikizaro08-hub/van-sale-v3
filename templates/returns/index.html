@@ -8,6 +8,13 @@
   <a href="{{ url_for('returns.new') }}" class="btn btn-warning text-dark"><i class="fas fa-plus me-1"></i>New Return</a>
   {% endif %}
 </div>
+
+{% if current_user.can_access('procurement') %}
+<div class="btn-group mb-3" role="group">
+  <a href="{{ url_for('returns.index') }}" class="btn btn-primary"><i class="fas fa-user me-1"></i>Customer Returns</a>
+  <a href="{{ url_for('returns.supplier_index') }}" class="btn btn-outline-primary"><i class="fas fa-truck-ramp-box me-1"></i>Supplier Returns</a>
+</div>
+{% endif %}
 <div class="row g-3 mb-4">
   <div class="col-6 col-md-3"><div class="stat-card warning"><div class="stat-icon"><i class="fas fa-clock"></i></div><div><div class="stat-label">Pending</div><div class="stat-value">{{ orders|selectattr('status','eq','pending')|list|length }}</div></div></div></div>
   <div class="col-6 col-md-3"><div class="stat-card success"><div class="stat-icon"><i class="fas fa-check"></i></div><div><div class="stat-label">Approved</div><div class="stat-value">{{ orders|selectattr('status','eq','approved')|list|length }}</div></div></div></div>

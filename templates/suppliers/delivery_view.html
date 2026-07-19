@@ -1,0 +1,56 @@
+{% extends 'base.html' %}
+{% block title %}Delivery DEL-{{ '%05d'|format(batch_ref) }}{% endblock %}
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{{ url_for('suppliers.index') }}">Suppliers</a></li>
+<li class="breadcrumb-item"><a href="{{ url_for('suppliers.view', supplier_id=supplier.id) }}">{{ supplier.name }}</a></li>
+<li class="breadcrumb-item active">Delivery DEL-{{ '%05d'|format(batch_ref) }}</li>
+{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title">Delivery DEL-{{ '%05d'|format(batch_ref) }}</h1>
+    <p class="page-subtitle">{{ items[0].created_at.strftime('%d %B %Y, %H:%M') if items[0].created_at else '' }}</p>
+  </div>
+  <button onclick="window.print()" class="btn btn-outline-secondary btn-sm no-print"><i class="fas fa-print me-1"></i>Print</button>
+</div>
+
+<div class="row g-3">
+  <div class="col-md-8">
+    <div class="card">
+      <div class="card-header"><i class="fas fa-boxes me-2"></i>Products Received ({{ items|length }})</div>
+      <div class="card-body p-0"><div class="table-responsive">
+        <table class="table mb-0">
+          <thead><tr><th>#</th><th>Product</th><th>Code</th><th class="text-end">Qty</th><th class="text-end">Cost/Unit</th><th class="text-end">Value</th></tr></thead>
+          <tbody>
+            {% for m in items %}
+            <tr>
+              <td class="text-muted fs-12">{{ loop.index }}</td>
+              <td class="fw-600">{{ m.product.product_name if m.product else '—' }}</td>
+              <td><code class="fs-12">{{ m.product.product_code if m.product else '' }}</code></td>
+              <td class="text-end fw-700 text-primary">{{ m.quantity|qty }}</td>
+              <td class="text-end text-muted">GHS {{ "%.2f"|format(m.product.cost_price if m.product else 0) }}</td>
+              <td class="text-end fw-600">GHS {{ "%.2f"|format(m.quantity * (m.product.cost_price if m.product else 0)) }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+          <tfoot><tr><td colspan="5" class="text-end fw-700">Total Value</td><td class="text-end fw-800 text-primary">GHS {{ "%.2f"|format(total_value) }}</td></tr></tfoot>
+        </table></div>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card">
+      <div class="card-header"><i class="fas fa-info-circle me-2"></i>Delivery Details</div>
+      <div class="card-body">
+        <div class="mb-3"><div class="text-muted fs-12">Supplier</div><div class="fw-700"><a href="{{ url_for('suppliers.view', supplier_id=supplier.id) }}">{{ supplier.name }}</a></div></div>
+        <div class="mb-3"><div class="text-muted fs-12">Received</div><div class="fw-600">{{ items[0].created_at.strftime('%d %B %Y, %H:%M') if items[0].created_at else '—' }}</div></div>
+        <div class="mb-3"><div class="text-muted fs-12">Received By</div><div class="fw-600">{{ items[0].created_by.full_name if items[0].created_by else '—' }}</div></div>
+        {% if items[0].reference_note %}
+        <div class="mb-3"><div class="text-muted fs-12"><i class="fas fa-book text-info me-1"></i>Reference Note</div><div class="fw-600 text-info">{{ items[0].reference_note }}</div></div>
+        {% endif %}
+        {% if items[0].notes %}<div><div class="text-muted fs-12">Notes</div><div class="fs-13">{{ items[0].notes }}</div></div>{% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

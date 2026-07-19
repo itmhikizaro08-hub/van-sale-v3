@@ -94,7 +94,7 @@
         <ul class="nav nav-tabs border-0 px-3 pt-2" id="supplierTabs">
           <li class="nav-item">
             <a class="nav-link active" data-bs-toggle="tab" href="#deliveriesTab">
-              <i class="fas fa-truck-loading me-1"></i>Deliveries ({{ deliveries|length }})
+              <i class="fas fa-truck-loading me-1"></i>Deliveries ({{ delivery_batches|length }})
             </a>
           </li>
           <li class="nav-item">
@@ -107,21 +107,24 @@
       <div class="card-body p-0">
         <div class="tab-content">
           <div class="tab-pane fade show active p-0" id="deliveriesTab">
-            {% if deliveries %}
+            {% if delivery_batches %}
             <div class="p-3 pb-0">
-              <input type="text" class="form-control form-control-sm tab-search" data-target="deliveryTableBody" placeholder="Search product, date, ref note...">
+              <input type="text" class="form-control form-control-sm tab-search" data-target="deliveryTableBody" placeholder="Search date, ref note...">
             </div>
             <div class="table-responsive">
               <table class="table table-hover mb-0">
-                <thead><tr><th>Date</th><th>Product</th><th class="text-end">Qty</th><th class="text-end">Value</th><th>Ref Note</th></tr></thead>
+                <thead><tr><th>Delivery</th><th class="text-end">Products</th><th class="text-end">Qty</th><th class="text-end">Value</th><th>Ref Note</th></tr></thead>
                 <tbody id="deliveryTableBody">
-                  {% for m in deliveries %}
+                  {% for b in delivery_batches %}
                   <tr>
-                    <td class="text-muted fs-12">{{ m.created_at.strftime('%d %b %Y %H:%M') if m.created_at else '' }}</td>
-                    <td class="fw-600">{{ m.product.product_name if m.product else '—' }}</td>
-                    <td class="text-end">{{ m.quantity|qty }}</td>
-                    <td class="text-end fw-600">GHS {{ "%.2f"|format(m.quantity * (m.product.cost_price if m.product else 0)) }}</td>
-                    <td>{% if m.reference_note %}<span class="ref-note-badge"><i class="fas fa-book me-1"></i>{{ m.reference_note[:20] }}</span>{% else %}<span class="text-muted fs-12">—</span>{% endif %}</td>
+                    <td>
+                      <a href="{{ url_for('suppliers.delivery_view', batch_ref=b.batch_ref) }}" class="fw-600">DEL-{{ '%05d'|format(b.batch_ref) }}</a>
+                      <div class="text-muted fs-12">{{ b.created_at.strftime('%d %b %Y %H:%M') if b.created_at else '' }}</div>
+                    </td>
+                    <td class="text-end">{{ b.item_count }}</td>
+                    <td class="text-end">{{ b.total_qty|qty }}</td>
+                    <td class="text-end fw-600">GHS {{ "%.2f"|format(b.total_value) }}</td>
+                    <td>{% if b.reference_note %}<span class="ref-note-badge"><i class="fas fa-book me-1"></i>{{ b.reference_note[:20] }}</span>{% else %}<span class="text-muted fs-12">—</span>{% endif %}</td>
                   </tr>
                   {% endfor %}
                 </tbody>

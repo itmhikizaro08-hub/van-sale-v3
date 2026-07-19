@@ -84,3 +84,13 @@ def next_supplier_payment_number():
     last = SupplierPayment.query.order_by(SupplierPayment.id.desc()).first()
     n = (last.id + 1) if last else 1
     return f'SPAY-{n:05d}'
+
+
+def next_supplier_return_number():
+    try:
+        from models.supplier_return import SupplierReturn
+        last = SupplierReturn.query.order_by(SupplierReturn.id.desc()).first()
+        n = (last.id + 1) if last else 1
+    except Exception:
+        n = 1
+    return f'SR-{n:05d}'
