@@ -43,7 +43,12 @@ def profit_loss():
         Sale.sale_date >= start, Sale.sale_date <= end_bound
     ).all()
 
-    gross_revenue = round(sum(s.total_amount for s in sales), 2)
+    # Company revenue is official_price × qty, NOT total_amount — total_amount
+    # is what the customer paid, which can include a rep's tip markup on top
+    # of the official price. That markup belongs to the rep, not the company,
+    # so it must never be counted as revenue or flow into profit here.
+    gross_revenue = round(sum(s.company_sales_total for s in sales), 2)
+    tips_total = round(sum(s.total_tips_amount or 0 for s in sales), 2)
 
     # COGS: quantity sold × each product's CURRENT cost price. There's no
     # historical cost snapshot per sale item (unlike official_price for
@@ -89,7 +94,7 @@ def profit_loss():
     for s in sales:
         if s.sale_date:
             day = s.sale_date.date()
-            daily_revenue[day] = daily_revenue.get(day, 0) + s.total_amount
+            daily_revenue[day] = daily_revenue.get(day, 0) + s.company_sales_total
     for e in expenses:
         if e.expense_date:
             day = e.expense_date.date()
@@ -103,7 +108,7 @@ def profit_loss():
         gross_revenue=gross_revenue, total_credits=total_credits, net_revenue=net_revenue,
         cogs=cogs, gross_profit=gross_profit, gross_margin_pct=gross_margin_pct,
         expenses_by_category=expenses_by_category, total_expenses=total_expenses,
-        net_profit=net_profit, net_margin_pct=net_margin_pct,
+        net_profit=net_profit, net_margin_pct=net_margin_pct, tips_total=tips_total,
         trend_labels=trend_labels, revenue_trend=revenue_trend, expense_trend=expense_trend)
 
 
