@@ -1,9 +1,9 @@
 {% extends 'base.html' %}
-{% block title %}Profit & Loss{% endblock %}
+{% block title %}Profit & Loss Analysis{% endblock %}
 {% block breadcrumb %}<li class="breadcrumb-item"><a href="{{ url_for('reports.index') }}">Reports</a></li><li class="breadcrumb-item active">Profit & Loss</li>{% endblock %}
 {% block content %}
 <div class="page-header">
-  <div><h1 class="page-title">Profit & Loss</h1><p class="page-subtitle">{{ start }} to {{ end }}</p></div>
+  <div><h1 class="page-title">Profit & Loss Analysis</h1><p class="page-subtitle">{{ start }} to {{ end }}</p></div>
   <button onclick="window.print()" class="btn btn-outline-secondary btn-sm no-print"><i class="fas fa-print me-1"></i>Print</button>
 </div>
 
@@ -34,6 +34,21 @@
   <div class="col-6 col-md-3">
     <div class="stat-card {{ 'success' if net_profit >= 0 else 'danger' }}"><div class="stat-icon"><i class="fas fa-{{ 'arrow-trend-up' if net_profit >= 0 else 'arrow-trend-down' }}"></i></div>
       <div><div class="stat-label">Net Profit</div><div class="stat-value" style="font-size:18px">GHS {{ "%.2f"|format(net_profit) }}</div><div class="stat-trend">{{ net_margin_pct }}% margin</div></div>
+    </div>
+  </div>
+</div>
+
+<div class="row g-3 mb-3 no-print">
+  <div class="col-md-8">
+    <div class="card h-100">
+      <div class="card-header"><i class="fas fa-chart-area me-2"></i>Revenue vs Expenses Trend</div>
+      <div class="card-body"><div style="height:220px"><canvas id="plTrendChart"></canvas></div></div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card h-100">
+      <div class="card-header"><i class="fas fa-chart-pie me-2"></i>Expenses by Category</div>
+      <div class="card-body"><div style="height:220px"><canvas id="expenseCategoryChart"></canvas></div></div>
     </div>
   </div>
 </div>
@@ -72,4 +87,35 @@
     <p class="text-muted fs-12 mb-0"><i class="fas fa-info-circle me-1"></i>Cost of Goods Sold uses each product's <strong>current</strong> cost price — there's no historical snapshot of cost at the time of each sale, so this is a close approximation, not an audited figure. If cost prices have changed recently, older periods in this report will drift slightly from what was true at the time.</p>
   </div>
 </div>
+{% endblock %}
+{% block extra_js %}
+<script>
+new Chart(document.getElementById('plTrendChart'), {
+  type: 'line',
+  data: {
+    labels: {{ trend_labels|tojson }},
+    datasets: [
+      { label: 'Revenue', data: {{ revenue_trend|tojson }}, borderColor: '#16a34a', backgroundColor: 'transparent', tension: 0.35, borderWidth: 2 },
+      { label: 'Expenses', data: {{ expense_trend|tojson }}, borderColor: '#ef4444', backgroundColor: 'transparent', tension: 0.35, borderWidth: 2 }
+    ]
+  },
+  options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 10.5 } } } },
+    scales: { y: { beginAtZero: true } } }
+});
+
+const expCatLabels = {{ expenses_by_category|map(attribute=0)|list|tojson }};
+const expCatValues = {{ expenses_by_category|map(attribute=1)|list|tojson }};
+if (expCatLabels.length) {
+  new Chart(document.getElementById('expenseCategoryChart'), {
+    type: 'doughnut',
+    data: {
+      labels: expCatLabels.map(c => c.replace(/_/g, ' ').replace(/\b\w/g, ch => ch.toUpperCase())),
+      datasets: [{ data: expCatValues, backgroundColor: CHART_COLORS, borderWidth: 3,
+        borderColor: getComputedStyle(document.documentElement).getPropertyValue('--bg-card').trim() || '#fff',
+        borderRadius: 6, spacing: 3, hoverOffset: 6 }]
+    },
+    options: { responsive: true, maintainAspectRatio: false, cutout: '65%', plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 10.5 } } } } }
+  });
+}
+</script>
 {% endblock %}

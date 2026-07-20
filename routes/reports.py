@@ -85,11 +85,26 @@ def profit_loss():
     net_profit = round(gross_profit - total_expenses, 2)
     net_margin_pct = round(net_profit / net_revenue * 100, 1) if net_revenue > 0 else 0
 
+    daily_revenue, daily_expense = {}, {}
+    for s in sales:
+        if s.sale_date:
+            day = s.sale_date.date()
+            daily_revenue[day] = daily_revenue.get(day, 0) + s.total_amount
+    for e in expenses:
+        if e.expense_date:
+            day = e.expense_date.date()
+            daily_expense[day] = daily_expense.get(day, 0) + e.amount
+    all_days = sorted(set(daily_revenue) | set(daily_expense))
+    trend_labels   = [d.strftime('%d %b') for d in all_days]
+    revenue_trend  = [round(daily_revenue.get(d, 0), 2) for d in all_days]
+    expense_trend  = [round(daily_expense.get(d, 0), 2) for d in all_days]
+
     return render_template('reports/profit_loss.html', start=start, end=end,
         gross_revenue=gross_revenue, total_credits=total_credits, net_revenue=net_revenue,
         cogs=cogs, gross_profit=gross_profit, gross_margin_pct=gross_margin_pct,
         expenses_by_category=expenses_by_category, total_expenses=total_expenses,
-        net_profit=net_profit, net_margin_pct=net_margin_pct)
+        net_profit=net_profit, net_margin_pct=net_margin_pct,
+        trend_labels=trend_labels, revenue_trend=revenue_trend, expense_trend=expense_trend)
 
 
 # ── Sales Report ──────────────────────────────────────────────────────────────
@@ -396,8 +411,20 @@ def rep_liability():
         liabilities.append({'rep': rep, 'items': rows, 'total_value': total_value,
                             'total_qty': total_qty, 'vans': vans_held})
     total_value = round(sum(r['total_value'] for r in liabilities), 2)
+
+    by_rep = sorted(
+        [(l['rep'].full_name, l['total_value']) for l in liabilities],
+        key=lambda x: x[1], reverse=True
+    )
+    product_map = {}
+    for l in liabilities:
+        for item in l['items']:
+            pname = item.product.product_name if item.product else 'Unknown'
+            product_map[pname] = product_map.get(pname, 0) + item.quantity * (item.product.cost_price if item.product else 0)
+    by_product = sorted(product_map.items(), key=lambda x: x[1], reverse=True)[:10]
+
     return render_template('reports/rep_liability.html',
-        liabilities=liabilities, total_value=total_value)
+        liabilities=liabilities, total_value=total_value, by_rep=by_rep, by_product=by_product)
 
 
 # ── Sales Rep Statement ─────────────────────────────────────────────────────────

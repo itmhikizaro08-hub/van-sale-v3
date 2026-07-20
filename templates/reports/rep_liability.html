@@ -1,11 +1,26 @@
 {% extends 'base.html' %}
-{% block title %}Rep Stock Liability{% endblock %}
+{% block title %}Rep Stock Liability Analysis{% endblock %}
 {% block breadcrumb %}<li class="breadcrumb-item"><a href="{{ url_for('reports.index') }}">Reports</a></li><li class="breadcrumb-item active">Rep Liability</li>{% endblock %}
 {% block content %}
-<div class="page-header"><div><h1 class="page-title">Rep Stock Liability</h1><p class="page-subtitle">Current field custody — as of now</p></div><button onclick="window.print()" class="btn btn-outline-secondary btn-sm no-print"><i class="fas fa-print me-1"></i>Print</button></div>
-<div class="row g-3 mb-4">
+<div class="page-header"><div><h1 class="page-title">Rep Stock Liability Analysis</h1><p class="page-subtitle">Current field custody — as of now</p></div><button onclick="window.print()" class="btn btn-outline-secondary btn-sm no-print"><i class="fas fa-print me-1"></i>Print</button></div>
+<div class="row g-3 mb-3">
   <div class="col-md-4"><div class="stat-card danger"><div class="stat-icon"><i class="fas fa-id-badge"></i></div><div><div class="stat-label">Reps with Stock</div><div class="stat-value">{{ liabilities|length }}</div></div></div></div>
   <div class="col-md-4"><div class="stat-card warning"><div class="stat-icon"><i class="fas fa-coins"></i></div><div><div class="stat-label">Total Field Value</div><div class="stat-value" style="font-size:16px">GHS {{ "%.2f"|format(total_value) }}</div></div></div></div>
+</div>
+
+<div class="row g-3 mb-3 no-print">
+  <div class="col-md-6">
+    <div class="card h-100">
+      <div class="card-header"><i class="fas fa-chart-pie me-2"></i>Value by Rep</div>
+      <div class="card-body"><div style="height:200px"><canvas id="repLiabilityChart"></canvas></div></div>
+    </div>
+  </div>
+  <div class="col-md-6">
+    <div class="card h-100">
+      <div class="card-header"><i class="fas fa-box me-2"></i>Top Products in Field</div>
+      <div class="card-body p-0"><div class="table-responsive"><table class="table table-sm mb-0"><thead><tr><th>Product</th><th class="text-end">Value</th></tr></thead><tbody>{% for name, val in by_product %}<tr><td class="fw-600 fs-13">{{ name }}</td><td class="text-end fw-700">GHS {{ "%.2f"|format(val) }}</td></tr>{% else %}<tr><td colspan="2" class="text-muted text-center py-3">No data</td></tr>{% endfor %}</tbody></table></div></div>
+    </div>
+  </div>
 </div>
 {% for rep_data in liabilities %}
 <div class="card mb-3">
@@ -35,4 +50,22 @@
 {% else %}
 <div class="empty-state"><i class="fas fa-id-badge"></i><h5>No reps with field stock</h5></div>
 {% endfor %}
+{% endblock %}
+{% block extra_js %}
+<script>
+const repLiabLabels = {{ by_rep|map(attribute=0)|list|tojson }};
+const repLiabValues = {{ by_rep|map(attribute=1)|list|tojson }};
+if (repLiabLabels.length) {
+  new Chart(document.getElementById('repLiabilityChart'), {
+    type: 'doughnut',
+    data: {
+      labels: repLiabLabels,
+      datasets: [{ data: repLiabValues, backgroundColor: CHART_COLORS, borderWidth: 3,
+        borderColor: getComputedStyle(document.documentElement).getPropertyValue('--bg-card').trim() || '#fff',
+        borderRadius: 6, spacing: 3, hoverOffset: 6 }]
+    },
+    options: { responsive: true, maintainAspectRatio: false, cutout: '65%', plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 10.5 } } } } }
+  });
+}
+</script>
 {% endblock %}
