@@ -5,6 +5,7 @@ from app import db
 from models.notification import Expense
 from models.van import Van
 from services.sequence import next_expense_number
+from services.uploads import save_upload
 
 expenses_bp = Blueprint('expenses', __name__)
 
@@ -31,9 +32,10 @@ def index():
 
     total_approved = round(sum(e.amount for e in expenses if e.status == 'approved'), 2)
     pending_count = sum(1 for e in expenses if e.status == 'pending')
+    rejected_count = sum(1 for e in expenses if e.status == 'rejected')
 
     return render_template('expenses/index.html', expenses=expenses, total=total_approved,
-        pending_count=pending_count, start=start, end=end)
+        pending_count=pending_count, rejected_count=rejected_count, start=start, end=end)
 
 
 @expenses_bp.route('/add', methods=['GET', 'POST'])
@@ -45,6 +47,7 @@ def add():
 
     vans = Van.query.filter_by(status='active').all()
     if request.method == 'POST':
+        receipt_path = save_upload(request.files.get('receipt_image'), 'receipts')
         expense = Expense(
             expense_number=next_expense_number(),
             category=request.form['category'],
@@ -52,6 +55,7 @@ def add():
             amount=float(request.form.get('amount') or 0),
             van_id=request.form.get('van_id') or None,
             reference_note=request.form.get('reference_note'),
+            receipt_image=receipt_path,
             created_by_id=current_user.id
         )
         db.session.add(expense)
@@ -67,7 +71,23 @@ def approve(expense_id):
     if not current_user.can_approve_module('expenses'):
         return jsonify({'error': 'Permission denied'}), 403
     expense = Expense.query.get_or_404(expense_id)
+    if expense.status != 'pending':
+        return jsonify({'error': 'Already processed'}), 400
     expense.status = 'approved'
+    expense.approved_by_id = current_user.id
+    db.session.commit()
+    return jsonify({'success': True})
+
+
+@expenses_bp.route('/<int:expense_id>/reject', methods=['POST'])
+@login_required
+def reject(expense_id):
+    if not current_user.can_approve_module('expenses'):
+        return jsonify({'error': 'Permission denied'}), 403
+    expense = Expense.query.get_or_404(expense_id)
+    if expense.status != 'pending':
+        return jsonify({'error': 'Already processed'}), 400
+    expense.status = 'rejected'
     expense.approved_by_id = current_user.id
     db.session.commit()
     return jsonify({'success': True})

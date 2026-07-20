@@ -18,6 +18,11 @@
       <div><div class="stat-label">Pending Approval</div><div class="stat-value">{{ pending_count }}</div></div>
     </div>
   </div>
+  <div class="col-6 col-md-4">
+    <div class="stat-card danger"><div class="stat-icon"><i class="fas fa-times-circle"></i></div>
+      <div><div class="stat-label">Rejected</div><div class="stat-value">{{ rejected_count }}</div></div>
+    </div>
+  </div>
 </div>
 
 <div class="card mb-3"><div class="card-body py-2">
@@ -30,7 +35,7 @@
 
 <div class="card"><div class="card-body p-0"><div class="table-responsive">
 <table class="table table-hover dt-table mb-0" id="expTable">
-  <thead><tr><th>Expense #</th><th>Category</th><th>Description</th><th>Van</th><th>Date</th><th class="text-end">Amount</th><th>Ref Note</th><th>Status</th><th></th></tr></thead>
+  <thead><tr><th>Expense #</th><th>Category</th><th>Description</th><th>Van</th><th>Date</th><th class="text-end">Amount</th><th>Ref Note</th><th>Receipt</th><th>Status</th><th></th></tr></thead>
   <tbody>
     {% for e in expenses %}
     <tr>
@@ -41,10 +46,14 @@
       <td class="text-muted fs-12">{{ e.created_at.strftime('%d %b %Y') if e.created_at else '' }}</td>
       <td class="text-end fw-600">GHS {{ "%.2f"|format(e.amount) }}</td>
       <td>{% if e.reference_note %}<span class="ref-note-badge"><i class="fas fa-book me-1"></i>{{ e.reference_note[:20] }}</span>{% else %}<span class="text-muted fs-12">—</span>{% endif %}</td>
+      <td>{% if e.receipt_image %}<a href="{{ url_for('uploads', filename=e.receipt_image) }}" target="_blank" class="btn btn-icon btn-sm btn-outline-info" title="View receipt"><i class="fas fa-image"></i></a>{% else %}<span class="text-muted fs-12">—</span>{% endif %}</td>
       <td><span class="badge {{ e.status_badge }}">{{ e.status|title }}</span></td>
       <td>
         {% if e.status == 'pending' and current_user.can_approve_module('expenses') %}
-        <button class="btn btn-icon btn-sm btn-outline-success" data-action-url="{{ url_for('expenses.approve', expense_id=e.id) }}" data-confirm="Approve this expense?" data-success-msg="Expense approved."><i class="fas fa-check"></i></button>
+        <div class="d-flex gap-1">
+          <button class="btn btn-icon btn-sm btn-outline-success" data-action-url="{{ url_for('expenses.approve', expense_id=e.id) }}" data-confirm="Approve this expense?" data-success-msg="Expense approved."><i class="fas fa-check"></i></button>
+          <button class="btn btn-icon btn-sm btn-outline-danger" data-action-url="{{ url_for('expenses.reject', expense_id=e.id) }}" data-confirm="Reject this expense?" data-success-msg="Expense rejected."><i class="fas fa-times"></i></button>
+        </div>
         {% endif %}
       </td>
     </tr>

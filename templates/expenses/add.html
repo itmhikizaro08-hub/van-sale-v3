@@ -1,7 +1,7 @@
 {% extends 'base.html' %}{% block title %}Add Expense{% endblock %}{% block content %}
 <div class="page-header"><h1 class="page-title">Add Expense</h1></div>
 <div class="row justify-content-center"><div class="col-md-6">
-<form method="POST"><div class="card"><div class="card-body">
+<form method="POST" enctype="multipart/form-data"><div class="card"><div class="card-body">
   <div class="mb-3"><label class="form-label">Category *</label>
     <select name="category" class="form-select" required>
       {% for c in categories %}<option value="{{ c }}">{{ c|replace('_',' ')|title }}</option>{% endfor %}
@@ -11,6 +11,7 @@
   <div class="mb-3"><label class="form-label">Van</label><select name="van_id" class="form-select"><option value="">— No Van —</option>{% for v in vans %}<option value="{{ v.id }}">{{ v.van_number }}</option>{% endfor %}</select></div>
   <div class="mb-3"><label class="form-label">Description</label><textarea name="description" class="form-control" rows="2"></textarea></div>
   <div class="mb-3"><label class="form-label"><i class="fas fa-book text-info me-1"></i>Reference Note</label><input type="text" name="reference_note" class="form-control" placeholder="e.g. Receipt #45, Fuel slip"><div class="form-text"><i class="fas fa-info-circle text-info me-1"></i>Link to your physical records.</div></div>
+  <div class="mb-2"><label class="form-label"><i class="fas fa-camera text-info me-1"></i>Receipt Photo</label><input type="file" name="receipt_image" class="form-control" accept="image/*"></div>
 </div><div class="card-footer d-flex gap-2">
   <button type="submit" class="btn btn-primary"><i class="fas fa-save me-1"></i>Submit Expense</button>
   <a href="{{ url_for('expenses.index') }}" class="btn btn-outline-secondary">Cancel</a>
