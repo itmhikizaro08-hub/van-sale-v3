@@ -257,9 +257,22 @@ def inventory_report():
         p.total_value = round((p.stock_quantity + p.field_qty) * p.cost_price, 2)
     field_value = round(sum(field_map.get(p.id, 0) * p.cost_price for p in products), 2)
     total_value = round(sum(p.total_value for p in products), 2)
+
+    out_of_stock_count = sum(1 for p in products if p.stock_quantity == 0)
+    low_stock_count     = sum(1 for p in products if p.stock_quantity > 0 and p.is_low_stock)
+
+    category_map = {}
+    for p in products:
+        cname = p.category_obj.name if p.category_obj else 'Uncategorized'
+        category_map[cname] = category_map.get(cname, 0) + p.total_value
+    by_category = sorted(category_map.items(), key=lambda x: x[1], reverse=True)
+    top_value_products = sorted(products, key=lambda p: p.total_value, reverse=True)[:10]
+
     return render_template('reports/inventory.html',
         products=products, warehouse_value=warehouse_value,
-        field_value=field_value, total_value=total_value)
+        field_value=field_value, total_value=total_value,
+        out_of_stock_count=out_of_stock_count, low_stock_count=low_stock_count,
+        by_category=by_category, top_value_products=top_value_products)
 
 
 # ── Inventory Excel Export ────────────────────────────────────────────────────
@@ -541,4 +554,29 @@ def van_performance():
             Sale.van_id == van.id, Sale.status == 'completed',
             Sale.sale_date >= start, Sale.sale_date <= end + ' 23:59:59'
         ).count()
-    return render_template('reports/van_performance.html', vans=vans, start=start, end=end)
+        van.avg_sale_value = round(van.total_sales / van.sale_count, 2) if van.sale_count else 0
+
+    active_count   = sum(1 for v in vans if v.status == 'active')
+    total_sales    = round(sum(v.total_sales for v in vans), 2)
+    total_invoices = sum(v.sale_count for v in vans)
+    by_van = sorted(
+        [(v.van_number, v.total_sales) for v in vans if v.total_sales > 0],
+        key=lambda x: x[1], reverse=True
+    )
+
+    daily = {}
+    sales_in_range = Sale.query.filter(
+        Sale.status == 'completed', Sale.van_id.isnot(None),
+        Sale.sale_date >= start, Sale.sale_date <= end + ' 23:59:59'
+    ).all()
+    for s in sales_in_range:
+        if s.sale_date:
+            day = s.sale_date.date()
+            daily[day] = daily.get(day, 0) + s.total_amount
+    sorted_days = sorted(daily.keys())
+    trend_labels = [d.strftime('%d %b') for d in sorted_days]
+    trend_values = [round(daily[d], 2) for d in sorted_days]
+
+    return render_template('reports/van_performance.html', vans=vans, start=start, end=end,
+        active_count=active_count, total_sales=total_sales, total_invoices=total_invoices,
+        by_van=by_van, trend_labels=trend_labels, trend_values=trend_values)

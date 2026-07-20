@@ -1,13 +1,36 @@
 {% extends 'base.html' %}
-{% block title %}Van Performance{% endblock %}
+{% block title %}Van Performance Analysis{% endblock %}
 {% block breadcrumb %}<li class="breadcrumb-item"><a href="{{ url_for('reports.index') }}">Reports</a></li><li class="breadcrumb-item active">Van Performance</li>{% endblock %}
 {% block content %}
-<div class="page-header"><div><h1 class="page-title">Van Performance</h1><p class="page-subtitle">{{ start }} to {{ end }}</p></div>
+<div class="page-header"><div><h1 class="page-title">Van Performance Analysis</h1><p class="page-subtitle">{{ start }} to {{ end }}</p></div>
 <form class="d-flex gap-2" method="GET"><input type="date" name="start" class="form-control form-control-sm" value="{{ start }}"><input type="date" name="end" class="form-control form-control-sm" value="{{ end }}"><button class="btn btn-primary btn-sm"><i class="fas fa-filter"></i></button></form>
 </div>
+
+<div class="row g-3 mb-3">
+  <div class="col-6 col-md-3"><div class="stat-card primary"><div class="stat-icon"><i class="fas fa-truck"></i></div><div><div class="stat-label">Active Vans</div><div class="stat-value">{{ active_count }} <span class="fs-13 text-muted">/ {{ vans|length }}</span></div></div></div></div>
+  <div class="col-6 col-md-3"><div class="stat-card success"><div class="stat-icon"><i class="fas fa-coins"></i></div><div><div class="stat-label">Total Sales</div><div class="stat-value" style="font-size:15px">GHS {{ "%.0f"|format(total_sales) }}</div></div></div></div>
+  <div class="col-6 col-md-3"><div class="stat-card info"><div class="stat-icon"><i class="fas fa-file-invoice"></i></div><div><div class="stat-label">Invoices</div><div class="stat-value">{{ total_invoices }}</div></div></div></div>
+  <div class="col-6 col-md-3"><div class="stat-card warning"><div class="stat-icon"><i class="fas fa-chart-line"></i></div><div><div class="stat-label">Avg / Invoice</div><div class="stat-value" style="font-size:15px">GHS {{ "%.2f"|format((total_sales / total_invoices) if total_invoices else 0) }}</div></div></div></div>
+</div>
+
+<div class="row g-3 mb-3">
+  <div class="col-md-8">
+    <div class="card h-100">
+      <div class="card-header"><i class="fas fa-chart-area me-2"></i>Sales Trend — All Vans</div>
+      <div class="card-body"><div style="height:220px"><canvas id="vanTrendChart"></canvas></div></div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card h-100">
+      <div class="card-header"><i class="fas fa-chart-pie me-2"></i>Sales by Van</div>
+      <div class="card-body"><div style="height:220px"><canvas id="vanSalesChart"></canvas></div></div>
+    </div>
+  </div>
+</div>
+
 <div class="card"><div class="card-body p-0"><div class="table-responsive">
 <table class="table table-hover dt-table mb-0" id="vanPerfTable">
-  <thead><tr><th>Van</th><th>Reg No.</th><th>Driver</th><th>Route</th><th class="text-end">Sales</th><th class="text-end">Total</th><th>Status</th></tr></thead>
+  <thead><tr><th>Van</th><th>Reg No.</th><th>Driver</th><th>Route</th><th class="text-end">Invoices</th><th class="text-end">Total</th><th class="text-end">Avg/Invoice</th><th>Status</th></tr></thead>
   <tbody>
     {% for van in vans %}
     <tr>
@@ -17,6 +40,7 @@
       <td class="fs-12 text-muted">{{ van.route.route_name if van.route else '—' }}</td>
       <td class="text-end">{{ van.sale_count }}</td>
       <td class="text-end fw-700 text-primary">GHS {{ "%.2f"|format(van.total_sales) }}</td>
+      <td class="text-end text-muted fs-12">GHS {{ "%.2f"|format(van.avg_sale_value) }}</td>
       <td><span class="badge {{ 'bg-success' if van.status == 'active' else 'bg-secondary' }}">{{ van.status|title }}</span></td>
     </tr>
     {% endfor %}
@@ -24,4 +48,25 @@
 </table>
 </div></div></div>
 {% endblock %}
-{% block extra_js %}<script>$(document).ready(() => initDataTable('#vanPerfTable', {order:[[5,'desc']]}));</script>{% endblock %}
+{% block extra_js %}
+<script>
+$(document).ready(() => initDataTable('#vanPerfTable', {order:[[5,'desc']]}));
+
+createTrendChart('vanTrendChart', {{ trend_labels|tojson }}, {{ trend_values|tojson }}, '#2563eb', 'Sales');
+
+const vanLabels = {{ by_van|map(attribute=0)|list|tojson }};
+const vanValues = {{ by_van|map(attribute=1)|list|tojson }};
+if (vanLabels.length) {
+  new Chart(document.getElementById('vanSalesChart'), {
+    type: 'doughnut',
+    data: {
+      labels: vanLabels,
+      datasets: [{ data: vanValues, backgroundColor: CHART_COLORS, borderWidth: 3,
+        borderColor: getComputedStyle(document.documentElement).getPropertyValue('--bg-card').trim() || '#fff',
+        borderRadius: 6, spacing: 3, hoverOffset: 6 }]
+    },
+    options: { responsive: true, maintainAspectRatio: false, cutout: '65%', plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 10.5 } } } } }
+  });
+}
+</script>
+{% endblock %}
