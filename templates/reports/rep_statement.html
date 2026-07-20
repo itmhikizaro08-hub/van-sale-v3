@@ -56,6 +56,13 @@
       </div>
     </div>
   </div>
+  <div class="col-6 col-md-3">
+    <div class="stat-card {{ 'danger' if cash_to_declare > 0 else 'success' }}"><div class="stat-icon"><i class="fas fa-cash-register"></i></div>
+      <div><div class="stat-label">Cash to Declare</div><div class="stat-value" style="font-size:16px">GHS {{ "%.2f"|format(cash_to_declare) }}</div>
+        <div class="stat-trend">as of today, lifetime balance</div>
+      </div>
+    </div>
+  </div>
 </div>
 
 <div class="row g-3">
@@ -98,6 +105,54 @@
         </tr>
         {% else %}
         <tr><td colspan="6" class="text-muted text-center py-3">No sales in this date range</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div></div>
+</div>
+
+<div class="card mt-3">
+  <div class="card-header"><i class="fas fa-cash-register me-2"></i>Payments Made to Cashier ({{ declarations|length }})</div>
+  <div class="card-body p-0"><div class="table-responsive">
+    <table class="table table-hover mb-0">
+      <thead><tr><th>Declaration #</th><th>Date</th><th class="text-end">Declared</th><th class="text-end">Counted</th><th>Status</th><th>Verified By</th></tr></thead>
+      <tbody>
+        {% for d in declarations %}
+        <tr>
+          <td class="fw-600">{{ d.declaration_number }}</td>
+          <td class="text-muted fs-12">{{ d.created_at.strftime('%d %b %Y %H:%M') if d.created_at else '' }}</td>
+          <td class="text-end fw-600">GHS {{ "%.2f"|format(d.declared_amount) }}</td>
+          <td class="text-end {{ 'text-danger fw-600' if d.counted_amount is not none and d.counted_amount != d.declared_amount else 'text-muted' }}">
+            {{ "GHS %.2f"|format(d.counted_amount) if d.counted_amount is not none else '—' }}
+          </td>
+          <td><span class="badge {{ d.status_badge }}">{{ d.status|title }}</span></td>
+          <td class="fs-12 text-muted">{{ d.verified_by.full_name if d.verified_by else '—' }}</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="6" class="text-muted text-center py-3">No cash declarations in this date range</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div></div>
+</div>
+
+<div class="card mt-3">
+  <div class="card-header"><i class="fas fa-undo-alt me-2"></i>Returns This Period ({{ returns|length }})</div>
+  <div class="card-body p-0"><div class="table-responsive">
+    <table class="table table-hover mb-0">
+      <thead><tr><th>Return #</th><th>Date</th><th>Customer</th><th class="text-end">Refund</th><th>Destination</th><th>Status</th></tr></thead>
+      <tbody>
+        {% for r in returns %}
+        <tr>
+          <td><a href="{{ url_for('returns.view', order_id=r.id) }}" class="fw-600">{{ r.return_number }}</a></td>
+          <td class="text-muted fs-12">{{ r.created_at.strftime('%d %b %Y') if r.created_at else '' }}</td>
+          <td class="fs-13">{{ r.customer.name if r.customer else '—' }}</td>
+          <td class="text-end fw-600">GHS {{ "%.2f"|format(r.total_refund_amount) }}</td>
+          <td><span class="badge {{ r.destination_badge }}">{{ r.return_destination|replace('_',' ')|title }}</span></td>
+          <td><span class="badge {{ r.status_badge }}">{{ r.status|title }}</span></td>
+        </tr>
+        {% else %}
+        <tr><td colspan="6" class="text-muted text-center py-3">No returns in this date range</td></tr>
         {% endfor %}
       </tbody>
     </table>

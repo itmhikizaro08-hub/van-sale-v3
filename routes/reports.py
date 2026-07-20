@@ -357,7 +357,8 @@ def rep_statement():
     from models.notification import VanStock
     from models.cash_declaration import CashDeclaration
     from models.van_management import StockOffload, StockOffloadItem
-    from services.cash_decl import rep_cash_summary_range
+    from models.v4_models import ReturnOrder
+    from services.cash_decl import rep_cash_summary_range, rep_cash_balance
 
     start, end = _date_range()
     end_bound = end + ' 23:59:59'
@@ -387,6 +388,21 @@ def rep_statement():
 
     # ── Cash ───────────────────────────────────────────────────────────────────
     cash = rep_cash_summary_range(rep.id, start, end)
+    # Lifetime running balance (like van stock liability below, not date-ranged) -
+    # what the rep still physically owes the cashier as of right now, mirroring
+    # the "Cash to Declare" figure already shown on their own dashboard.
+    cash_to_declare = rep_cash_balance(rep.id)['balance']
+
+    declarations = CashDeclaration.query.filter(
+        CashDeclaration.sales_rep_id == rep.id,
+        CashDeclaration.created_at >= start, CashDeclaration.created_at <= end_bound
+    ).order_by(CashDeclaration.created_at.desc()).all()
+
+    # ── Returns this period ──────────────────────────────────────────────────────
+    returns = ReturnOrder.query.filter(
+        ReturnOrder.received_by_rep_id == rep.id,
+        ReturnOrder.created_at >= start, ReturnOrder.created_at <= end_bound
+    ).order_by(ReturnOrder.created_at.desc()).all()
 
     # ── Stock offloaded this period ─────────────────────────────────────────────
     offloads = StockOffload.query.filter(
@@ -410,7 +426,8 @@ def rep_statement():
         own_scope=(current_user.scope('reports') == 'own'), start=start, end=end,
         sales=sales, sales_count=sales_count, sales_total=sales_total,
         company_sales_total=company_sales_total, tips_total=tips_total,
-        cash=cash, offload_count=offload_count, offload_value=offload_value,
+        cash=cash, cash_to_declare=cash_to_declare, declarations=declarations,
+        returns=returns, offload_count=offload_count, offload_value=offload_value,
         liability_value=liability_value, liability_qty=liability_qty)
 
 
