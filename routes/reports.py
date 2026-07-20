@@ -127,10 +127,30 @@ def sales_report():
     total_credits    = round(sum(s.credit_note_total for s in sales), 2)
     net_total        = round(total - total_credits, 2)
 
+    rep_map, van_map, method_map, daily = {}, {}, {}, {}
+    for s in sales:
+        rname = s.sales_rep.full_name if s.sales_rep else 'Unassigned'
+        rep_map[rname] = rep_map.get(rname, 0) + s.net_total
+        vname = s.van.van_number if s.van else 'Warehouse'
+        van_map[vname] = van_map.get(vname, 0) + s.net_total
+        method_map[s.payment_method] = method_map.get(s.payment_method, 0) + s.total_amount
+        if s.sale_date:
+            day = s.sale_date.date()
+            daily[day] = daily.get(day, 0) + s.net_total
+
+    by_rep    = sorted(rep_map.items(), key=lambda x: x[1], reverse=True)
+    by_van    = sorted(van_map.items(), key=lambda x: x[1], reverse=True)
+    by_method = sorted(method_map.items(), key=lambda x: x[1], reverse=True)
+    sorted_days = sorted(daily.keys())
+    trend_labels = [d.strftime('%d %b') for d in sorted_days]
+    trend_values = [round(daily[d], 2) for d in sorted_days]
+
     return render_template('reports/sales.html',
         sales=sales, total=total, total_paid=total_paid,
         total_outstanding=total_outstanding, total_credits=total_credits,
-        net_total=net_total, start=start, end=end)
+        net_total=net_total, start=start, end=end,
+        by_rep=by_rep, by_van=by_van, by_method=by_method,
+        trend_labels=trend_labels, trend_values=trend_values)
 
 
 # ── Sales Excel Export ────────────────────────────────────────────────────────
@@ -193,7 +213,29 @@ def customers_report():
         c.total_payments = db.session.query(func.sum(Payment.amount)).filter(
             Payment.customer_id == c.id, Payment.status != 'void'
         ).scalar() or 0
-    return render_template('reports/customers.html', customers=customers)
+
+    active_count      = sum(1 for c in customers if c.status == 'active')
+    inactive_count    = sum(1 for c in customers if c.status != 'active')
+    total_outstanding = round(sum(c.outstanding_balance for c in customers), 2)
+    total_wallet      = round(sum(c.wallet_balance for c in customers), 2)
+
+    tier_map, type_map = {}, {}
+    for c in customers:
+        tier_map[c.tier] = tier_map.get(c.tier, 0) + 1
+        type_map[c.customer_type] = type_map.get(c.customer_type, 0) + 1
+
+    tier_order = ['platinum', 'gold', 'silver', 'bronze']
+    by_tier = [(t, tier_map[t]) for t in tier_order if t in tier_map]
+    by_type = sorted(type_map.items(), key=lambda x: x[1], reverse=True)
+    top_debtors = sorted(
+        [c for c in customers if c.outstanding_balance > 0],
+        key=lambda c: c.outstanding_balance, reverse=True
+    )[:10]
+
+    return render_template('reports/customers.html', customers=customers,
+        active_count=active_count, inactive_count=inactive_count,
+        total_outstanding=total_outstanding, total_wallet=total_wallet,
+        by_tier=by_tier, by_type=by_type, top_debtors=top_debtors)
 
 
 # ── Inventory Report ──────────────────────────────────────────────────────────

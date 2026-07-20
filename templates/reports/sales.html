@@ -1,9 +1,9 @@
 {% extends 'base.html' %}
-{% block title %}Sales Report{% endblock %}
+{% block title %}Sales Analysis{% endblock %}
 {% block breadcrumb %}<li class="breadcrumb-item"><a href="{{ url_for('reports.index') }}">Reports</a></li><li class="breadcrumb-item active">Sales</li>{% endblock %}
 {% block content %}
 <div class="page-header">
-  <div><h1 class="page-title">Sales Report</h1><p class="page-subtitle">{{ start }} to {{ end }}</p></div>
+  <div><h1 class="page-title">Sales Analysis</h1><p class="page-subtitle">{{ start }} to {{ end }}</p></div>
   <div class="d-flex gap-2">
     <a href="{{ url_for('reports.sales_excel') }}?start={{ start }}&end={{ end }}" class="btn btn-success btn-sm"><i class="fas fa-file-excel me-1"></i>Excel</a>
     <button onclick="window.print()" class="btn btn-outline-secondary btn-sm"><i class="fas fa-print me-1"></i>Print</button>
@@ -24,6 +24,33 @@
   <div class="col-6 col-md-2"><div class="stat-card warning"><div class="stat-icon"><i class="fas fa-check-circle"></i></div><div><div class="stat-label">Collected</div><div class="stat-value" style="font-size:13px">GHS {{ "%.0f"|format(total_paid) }}</div></div></div></div>
   <div class="col-6 col-md-2"><div class="stat-card" style="--card-accent:#7c3aed;--card-accent-bg:#f5f3ff"><div class="stat-icon" style="background:#f5f3ff;color:#7c3aed"><i class="fas fa-exclamation-circle"></i></div><div><div class="stat-label">Outstanding</div><div class="stat-value" style="font-size:13px">GHS {{ "%.0f"|format(total_outstanding) }}</div></div></div></div>
 </div>
+
+<div class="card mb-3">
+  <div class="card-header"><i class="fas fa-chart-area me-2"></i>Net Sales Trend</div>
+  <div class="card-body"><div style="height:220px"><canvas id="salesTrendChart"></canvas></div></div>
+</div>
+
+<div class="row g-3 mb-3">
+  <div class="col-md-4">
+    <div class="card h-100">
+      <div class="card-header"><i class="fas fa-id-badge me-2"></i>By Rep</div>
+      <div class="card-body p-0"><div class="table-responsive"><table class="table table-sm mb-0"><thead><tr><th>Rep</th><th class="text-end">Net Sales</th></tr></thead><tbody>{% for name, val in by_rep %}<tr><td class="fw-600 fs-13">{{ name }}</td><td class="text-end fw-700">GHS {{ "%.2f"|format(val) }}</td></tr>{% else %}<tr><td colspan="2" class="text-muted text-center py-3">No data</td></tr>{% endfor %}</tbody></table></div></div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card h-100">
+      <div class="card-header"><i class="fas fa-truck me-2"></i>By Van</div>
+      <div class="card-body p-0"><div class="table-responsive"><table class="table table-sm mb-0"><thead><tr><th>Van</th><th class="text-end">Net Sales</th></tr></thead><tbody>{% for name, val in by_van %}<tr><td class="fw-600 fs-13">{{ name }}</td><td class="text-end fw-700">GHS {{ "%.2f"|format(val) }}</td></tr>{% else %}<tr><td colspan="2" class="text-muted text-center py-3">No data</td></tr>{% endfor %}</tbody></table></div></div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card h-100">
+      <div class="card-header"><i class="fas fa-chart-pie me-2"></i>By Payment Method</div>
+      <div class="card-body"><div style="height:180px"><canvas id="methodChart"></canvas></div></div>
+    </div>
+  </div>
+</div>
+
 <div class="card"><div class="card-body p-0"><div class="table-responsive">
 <table class="table table-hover dt-table mb-0" id="salesRpt">
   <thead><tr><th>Invoice</th><th>Customer</th><th>Date</th><th>Van</th><th class="text-end">Total</th><th class="text-end">Credit Notes</th><th class="text-end">Net</th><th class="text-end">Paid</th><th class="text-end">Balance</th><th>Ref Note</th><th>Status</th></tr></thead>
@@ -48,4 +75,25 @@
 </table>
 </div></div></div>
 {% endblock %}
-{% block extra_js %}<script>$(document).ready(() => initDataTable('#salesRpt', {order:[[2,'desc']]}));</script>{% endblock %}
+{% block extra_js %}
+<script>
+$(document).ready(() => initDataTable('#salesRpt', {order:[[2,'desc']]}));
+
+createTrendChart('salesTrendChart', {{ trend_labels|tojson }}, {{ trend_values|tojson }}, '#16a34a', 'Net Sales');
+
+const methodLabels = {{ by_method|map(attribute=0)|list|tojson }};
+const methodValues = {{ by_method|map(attribute=1)|list|tojson }};
+if (methodLabels.length) {
+  new Chart(document.getElementById('methodChart'), {
+    type: 'doughnut',
+    data: {
+      labels: methodLabels.map(m => m.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())),
+      datasets: [{ data: methodValues, backgroundColor: CHART_COLORS, borderWidth: 3,
+        borderColor: getComputedStyle(document.documentElement).getPropertyValue('--bg-card').trim() || '#fff',
+        borderRadius: 6, spacing: 3, hoverOffset: 6 }]
+    },
+    options: { responsive: true, maintainAspectRatio: false, cutout: '65%', plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 10.5 } } } } }
+  });
+}
+</script>
+{% endblock %}

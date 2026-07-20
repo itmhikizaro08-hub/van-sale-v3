@@ -1,8 +1,37 @@
 {% extends 'base.html' %}
-{% block title %}Customer Report{% endblock %}
+{% block title %}Customer Analysis{% endblock %}
 {% block breadcrumb %}<li class="breadcrumb-item"><a href="{{ url_for('reports.index') }}">Reports</a></li><li class="breadcrumb-item active">Customers</li>{% endblock %}
 {% block content %}
-<div class="page-header"><div><h1 class="page-title">Customer Report</h1></div><button onclick="window.print()" class="btn btn-outline-secondary btn-sm"><i class="fas fa-print me-1"></i>Print</button></div>
+<div class="page-header"><div><h1 class="page-title">Customer Analysis</h1></div><button onclick="window.print()" class="btn btn-outline-secondary btn-sm"><i class="fas fa-print me-1"></i>Print</button></div>
+
+<div class="row g-3 mb-3">
+  <div class="col-6 col-md-3"><div class="stat-card primary"><div class="stat-icon"><i class="fas fa-users"></i></div><div><div class="stat-label">Total Customers</div><div class="stat-value">{{ customers|length }}</div></div></div></div>
+  <div class="col-6 col-md-3"><div class="stat-card success"><div class="stat-icon"><i class="fas fa-user-check"></i></div><div><div class="stat-label">Active</div><div class="stat-value">{{ active_count }}</div></div></div></div>
+  <div class="col-6 col-md-3"><div class="stat-card danger"><div class="stat-icon"><i class="fas fa-exclamation-circle"></i></div><div><div class="stat-label">Outstanding</div><div class="stat-value" style="font-size:15px">GHS {{ "%.2f"|format(total_outstanding) }}</div></div></div></div>
+  <div class="col-6 col-md-3"><div class="stat-card info"><div class="stat-icon"><i class="fas fa-wallet"></i></div><div><div class="stat-label">Wallet Balance</div><div class="stat-value" style="font-size:15px">GHS {{ "%.2f"|format(total_wallet) }}</div></div></div></div>
+</div>
+
+<div class="row g-3 mb-3">
+  <div class="col-md-4">
+    <div class="card h-100">
+      <div class="card-header"><i class="fas fa-medal me-2"></i>By Tier</div>
+      <div class="card-body"><div style="height:180px"><canvas id="tierChart"></canvas></div></div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card h-100">
+      <div class="card-header"><i class="fas fa-tags me-2"></i>By Type</div>
+      <div class="card-body p-0"><div class="table-responsive"><table class="table table-sm mb-0"><thead><tr><th>Type</th><th class="text-end">Count</th></tr></thead><tbody>{% for t, count in by_type %}<tr><td><span class="badge bg-secondary">{{ t|replace('_',' ')|title }}</span></td><td class="text-end fw-700">{{ count }}</td></tr>{% else %}<tr><td colspan="2" class="text-muted text-center py-3">No data</td></tr>{% endfor %}</tbody></table></div></div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card h-100">
+      <div class="card-header"><i class="fas fa-arrow-trend-up me-2"></i>Top Debtors</div>
+      <div class="card-body p-0"><div class="table-responsive"><table class="table table-sm mb-0"><thead><tr><th>Customer</th><th class="text-end">Outstanding</th></tr></thead><tbody>{% for c in top_debtors %}<tr><td class="fw-600 fs-13"><a href="{{ url_for('customers.view', customer_id=c.id) }}">{{ c.name }}</a></td><td class="text-end fw-700 text-danger">GHS {{ "%.2f"|format(c.outstanding_balance) }}</td></tr>{% else %}<tr><td colspan="2" class="text-muted text-center py-3">No debtors</td></tr>{% endfor %}</tbody></table></div></div>
+    </div>
+  </div>
+</div>
+
 <div class="card"><div class="card-body p-0"><div class="table-responsive">
 <table class="table table-hover dt-table mb-0" id="custRpt">
   <thead><tr><th>Code</th><th>Name</th><th>Tier</th><th>Type</th><th class="text-end">Total Sales</th><th class="text-end">Payments</th><th class="text-end">Outstanding</th><th class="text-end">Wallet</th><th>Status</th></tr></thead>
@@ -24,4 +53,24 @@
 </table>
 </div></div></div>
 {% endblock %}
-{% block extra_js %}<script>$(document).ready(() => initDataTable('#custRpt', {order:[[6,'desc']]}));</script>{% endblock %}
+{% block extra_js %}
+<script>
+$(document).ready(() => initDataTable('#custRpt', {order:[[6,'desc']]}));
+
+const tierLabels = {{ by_tier|map(attribute=0)|list|tojson }};
+const tierValues = {{ by_tier|map(attribute=1)|list|tojson }};
+const tierColors = { platinum: '#7c3aed', gold: '#f59e0b', silver: '#38bdf8', bronze: '#a16207' };
+if (tierLabels.length) {
+  new Chart(document.getElementById('tierChart'), {
+    type: 'doughnut',
+    data: {
+      labels: tierLabels.map(t => t.charAt(0).toUpperCase() + t.slice(1)),
+      datasets: [{ data: tierValues, backgroundColor: tierLabels.map(t => tierColors[t] || '#94a3b8'), borderWidth: 3,
+        borderColor: getComputedStyle(document.documentElement).getPropertyValue('--bg-card').trim() || '#fff',
+        borderRadius: 6, spacing: 3, hoverOffset: 6 }]
+    },
+    options: { responsive: true, maintainAspectRatio: false, cutout: '65%', plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 10.5 } } } } }
+  });
+}
+</script>
+{% endblock %}
