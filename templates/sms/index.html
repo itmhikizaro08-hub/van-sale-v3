@@ -33,21 +33,56 @@
       <div><div class="stat-label">Pending</div><div class="stat-value">{{ stats.pending }}</div></div>
     </div>
   </div>
+  {% if stats.disabled %}
+  <div class="col-6 col-md-3">
+    <div class="stat-card" style="--card-accent:#64748b;--card-accent-bg:#f1f5f9"><div class="stat-icon" style="background:#f1f5f9;color:#64748b"><i class="fas fa-power-off"></i></div>
+      <div><div class="stat-label">Disabled</div><div class="stat-value">{{ stats.disabled }}</div></div>
+    </div>
+  </div>
+  {% endif %}
 </div>
 
-<div class="card"><div class="card-body p-0"><div class="table-responsive">
+<div class="card"><div class="card-body p-0">
+<div class="d-flex justify-content-end p-2 border-bottom">
+  <select id="statusFilter" class="form-select form-select-sm" style="width:auto">
+    <option value="">All Statuses</option>
+    <option value="sent">Sent</option>
+    <option value="failed">Failed</option>
+    <option value="pending">Pending</option>
+    <option value="disabled">Disabled</option>
+  </select>
+</div>
+<div class="table-responsive">
 <table class="table table-hover dt-table mb-0" id="smsTable">
-  <thead><tr><th>Date</th><th>To</th><th>Type</th><th>Message</th><th>Status</th></tr></thead>
+  <thead><tr><th>Date</th><th>To</th><th>Type</th><th>Message</th><th>Provider</th><th>Status</th><th></th></tr></thead>
   <tbody>{% for s in logs %}<tr>
     <td class="text-muted fs-12">{{ s.created_at.strftime('%d %b %Y %H:%M') if s.created_at else '' }}</td>
     <td>{{ s.recipient_name }}{% if s.recipient_name %}<div class="text-muted fs-12">{% endif %}{{ s.phone_number }}{% if s.recipient_name %}</div>{% endif %}</td>
     <td class="fs-12 text-muted">{{ (s.sms_type or 'custom')|replace('_',' ')|title }}</td>
     <td class="fs-13" title="{{ s.message }}">{{ s.message[:60] }}{{ '…' if s.message|length > 60 else '' }}</td>
-    <td><span class="badge {{ s.status_badge }}">{{ s.status|title }}</span></td>
+    <td class="fs-12 text-muted">{{ (s.provider or '—')|title }}</td>
+    <td>
+      <span class="badge {{ s.status_badge }}" {% if s.status in ('failed', 'disabled') and s.provider_response %}title="{{ s.provider_response }}" style="cursor:help"{% endif %}>{{ s.status|title }}</span>
+    </td>
+    <td class="text-nowrap">
+      {% if s.status in ('failed', 'disabled') and current_user.can_write('sms') %}
+      <button class="btn btn-icon btn-sm btn-outline-primary" title="Retry" data-action-url="{{ url_for('sms.retry', log_id=s.id) }}"
+              data-confirm="Resend this message to {{ s.phone_number }}?" data-success-msg="Message resent."><i class="fas fa-redo"></i></button>
+      {% endif %}
+    </td>
   </tr>{% else %}
-  <tr><td colspan="5" class="text-muted text-center py-4">No SMS sent yet</td></tr>
+  <tr><td colspan="7" class="text-muted text-center py-4">No SMS sent yet</td></tr>
   {% endfor %}</tbody>
 </table>
 </div></div></div>
 {% endblock %}
-{% block extra_js %}<script>$(document).ready(() => initDataTable('#smsTable', {order:[[0,'desc']]}));</script>{% endblock %}
+{% block extra_js %}
+<script>
+$(document).ready(() => {
+  const table = initDataTable('#smsTable', {order:[[0,'desc']]});
+  document.getElementById('statusFilter').addEventListener('change', function() {
+    table.column(5).search(this.value ? '^' + this.value + '$' : '', true, false).draw();
+  });
+});
+</script>
+{% endblock %}

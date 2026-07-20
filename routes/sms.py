@@ -20,8 +20,23 @@ def index():
         'sent': SMSLog.query.filter_by(status='sent').count(),
         'failed': SMSLog.query.filter_by(status='failed').count(),
         'pending': SMSLog.query.filter_by(status='pending').count(),
+        'disabled': SMSLog.query.filter_by(status='disabled').count(),
     }
     return render_template('sms/index.html', logs=logs, stats=stats)
+
+
+@sms_bp.route('/retry/<int:log_id>', methods=['POST'])
+@login_required
+def retry(log_id):
+    if not current_user.can_write('sms'):
+        return jsonify({'error': 'Permission denied'}), 403
+    log = SMSLog.query.get_or_404(log_id)
+    if log.status not in ('failed', 'disabled'):
+        return jsonify({'error': 'Only failed or disabled messages can be retried.'}), 400
+    result = send_sms(log.phone_number, log.message, sms_type=log.sms_type,
+                       recipient_name=log.recipient_name)
+    return jsonify({'success': True, 'sent': result,
+                     'message': 'Message resent successfully.' if result else 'Retry failed — check the error details.'})
 
 
 @sms_bp.route('/send', methods=['GET', 'POST'])
