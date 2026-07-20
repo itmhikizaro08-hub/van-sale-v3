@@ -431,17 +431,16 @@ def returns_analysis():
     if not current_user.can_access('returns'):
         flash('Access denied.', 'danger')
         return redirect(url_for('dashboard.index'))
+    from models.v4_models import ReturnOrder
     start, end = _date_range()
-    try:
-        from models.v4_models import ReturnOrder
-        orders = ReturnOrder.query.filter(
-            ReturnOrder.created_at >= start,
-            ReturnOrder.created_at <= end + ' 23:59:59'
-        ).all()
-    except Exception:
-        orders = []
-    reason_map, product_map, rep_map = {}, {}, {}
+    orders = ReturnOrder.query.filter(
+        ReturnOrder.created_at >= start,
+        ReturnOrder.created_at <= end + ' 23:59:59'
+    ).all()
+
+    reason_map, product_map, rep_map, destination_map = {}, {}, {}, {}
     for order in orders:
+        destination_map[order.return_destination] = destination_map.get(order.return_destination, 0) + order.total_refund_amount
         for item in order.items:
             reason_map[item.reason] = reason_map.get(item.reason, 0) + item.line_total
             pname = item.product.product_name if item.product else 'Unknown'
@@ -449,13 +448,36 @@ def returns_analysis():
             if order.received_by_rep_id and order.received_by_rep:
                 rname = order.received_by_rep.full_name
                 rep_map[rname] = rep_map.get(rname, 0) + item.line_total
-    by_reason  = sorted(reason_map.items(), key=lambda x: x[1], reverse=True)
-    by_product = sorted(product_map.items(), key=lambda x: x[1], reverse=True)[:10]
-    by_rep     = sorted(rep_map.items(), key=lambda x: x[1], reverse=True)
-    total_refund = round(sum(o.total_refund_amount for o in orders if o.status in ('approved', 'partial')), 2)
+
+    by_reason      = sorted(reason_map.items(), key=lambda x: x[1], reverse=True)
+    by_product     = sorted(product_map.items(), key=lambda x: x[1], reverse=True)[:10]
+    by_rep         = sorted(rep_map.items(), key=lambda x: x[1], reverse=True)
+    by_destination = sorted(destination_map.items(), key=lambda x: x[1], reverse=True)
+
+    total_refund   = round(sum(o.total_refund_amount for o in orders if o.status in ('approved', 'partial')), 2)
+    pending_count  = sum(1 for o in orders if o.status == 'pending')
+    approved_count = sum(1 for o in orders if o.status == 'approved')
+    partial_count  = sum(1 for o in orders if o.status == 'partial')
+    rejected_count = sum(1 for o in orders if o.status == 'rejected')
+
+    # Daily trend of return value across the period, for the trend chart -
+    # bucket by date object first so labels come out chronological regardless
+    # of the query's row order or month boundaries within the range.
+    daily = {}
+    for o in orders:
+        if o.created_at:
+            day = o.created_at.date()
+            daily[day] = daily.get(day, 0) + o.total_refund_amount
+    sorted_days = sorted(daily.keys())
+    trend_labels = [d.strftime('%d %b') for d in sorted_days]
+    trend_values = [round(daily[d], 2) for d in sorted_days]
+
     return render_template('reports/returns_analysis.html',
         orders=orders, by_reason=by_reason, by_product=by_product,
-        by_rep=by_rep, total_refund=total_refund, start=start, end=end)
+        by_rep=by_rep, by_destination=by_destination, total_refund=total_refund,
+        pending_count=pending_count, approved_count=approved_count,
+        partial_count=partial_count, rejected_count=rejected_count,
+        trend_labels=trend_labels, trend_values=trend_values, start=start, end=end)
 
 
 # ── Van Performance ───────────────────────────────────────────────────────────

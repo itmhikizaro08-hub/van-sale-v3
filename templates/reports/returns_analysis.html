@@ -5,13 +5,68 @@
 <div class="page-header"><div><h1 class="page-title">Returns Analysis</h1><p class="page-subtitle">{{ start }} to {{ end }}</p></div>
 <form class="d-flex gap-2" method="GET"><input type="date" name="start" class="form-control form-control-sm" value="{{ start }}"><input type="date" name="end" class="form-control form-control-sm" value="{{ end }}"><button class="btn btn-primary btn-sm"><i class="fas fa-filter"></i></button></form>
 </div>
-<div class="row g-3 mb-4">
-  <div class="col-6 col-md-3"><div class="stat-card warning"><div class="stat-icon"><i class="fas fa-undo-alt"></i></div><div><div class="stat-label">Total Returns</div><div class="stat-value">{{ orders|length }}</div></div></div></div>
-  <div class="col-6 col-md-3"><div class="stat-card danger"><div class="stat-icon"><i class="fas fa-coins"></i></div><div><div class="stat-label">Total Refund</div><div class="stat-value" style="font-size:16px">GHS {{ "%.2f"|format(total_refund) }}</div></div></div></div>
+
+<div class="row g-3 mb-3">
+  <div class="col-6 col-md-2"><div class="stat-card warning"><div class="stat-icon"><i class="fas fa-undo-alt"></i></div><div><div class="stat-label">Total Returns</div><div class="stat-value">{{ orders|length }}</div></div></div></div>
+  <div class="col-6 col-md-2"><div class="stat-card danger"><div class="stat-icon"><i class="fas fa-coins"></i></div><div><div class="stat-label">Total Refund</div><div class="stat-value" style="font-size:15px">GHS {{ "%.2f"|format(total_refund) }}</div></div></div></div>
+  <div class="col-6 col-md-2"><div class="stat-card {{ 'warning' if pending_count > 0 else 'success' }}"><div class="stat-icon"><i class="fas fa-clock"></i></div><div><div class="stat-label">Pending</div><div class="stat-value">{{ pending_count }}</div></div></div></div>
+  <div class="col-6 col-md-2"><div class="stat-card success"><div class="stat-icon"><i class="fas fa-check"></i></div><div><div class="stat-label">Approved</div><div class="stat-value">{{ approved_count }}</div></div></div></div>
+  <div class="col-6 col-md-2"><div class="stat-card info"><div class="stat-icon"><i class="fas fa-adjust"></i></div><div><div class="stat-label">Partial</div><div class="stat-value">{{ partial_count }}</div></div></div></div>
+  <div class="col-6 col-md-2"><div class="stat-card danger"><div class="stat-icon"><i class="fas fa-times"></i></div><div><div class="stat-label">Rejected</div><div class="stat-value">{{ rejected_count }}</div></div></div></div>
 </div>
+
+<div class="card mb-3">
+  <div class="card-header"><i class="fas fa-chart-area me-2"></i>Returns Trend — Refund Value</div>
+  <div class="card-body"><div style="height:220px"><canvas id="returnsTrendChart"></canvas></div></div>
+</div>
+
 <div class="row g-3">
-  <div class="col-md-4"><div class="card"><div class="card-header"><i class="fas fa-chart-pie me-2"></i>By Reason</div><div class="card-body p-0"><table class="table mb-0"><thead><tr><th>Reason</th><th class="text-end">Value</th></tr></thead><tbody>{% for reason, total in by_reason %}<tr><td><span class="badge bg-secondary">{{ reason|replace('_',' ')|title }}</span></td><td class="text-end fw-700">GHS {{ "%.2f"|format(total) }}</td></tr>{% else %}<tr><td colspan="2" class="text-muted text-center py-3">No data</td></tr>{% endfor %}</tbody></table></div></div></div>
-  <div class="col-md-4"><div class="card"><div class="card-header"><i class="fas fa-box me-2"></i>Top Products</div><div class="card-body p-0"><table class="table mb-0"><thead><tr><th>Product</th><th class="text-end">Qty</th></tr></thead><tbody>{% for name, qty in by_product %}<tr><td class="fw-600 fs-13">{{ name }}</td><td class="text-end fw-700">{{ qty }}</td></tr>{% else %}<tr><td colspan="2" class="text-muted text-center py-3">No data</td></tr>{% endfor %}</tbody></table></div></div></div>
-  <div class="col-md-4"><div class="card"><div class="card-header"><i class="fas fa-id-badge me-2"></i>By Rep</div><div class="card-body p-0"><table class="table mb-0"><thead><tr><th>Rep</th><th class="text-end">Value</th></tr></thead><tbody>{% for name, total in by_rep %}<tr><td class="fw-600 fs-13">{{ name }}</td><td class="text-end fw-700">GHS {{ "%.2f"|format(total) }}</td></tr>{% else %}<tr><td colspan="2" class="text-muted text-center py-3">No data</td></tr>{% endfor %}</tbody></table></div></div></div>
+  <div class="col-md-3">
+    <div class="card h-100">
+      <div class="card-header"><i class="fas fa-chart-pie me-2"></i>By Reason</div>
+      <div class="card-body">
+        <div style="height:180px" class="mb-2"><canvas id="reasonChart"></canvas></div>
+      </div>
+      <div class="table-responsive"><table class="table table-sm mb-0"><thead><tr><th>Reason</th><th class="text-end">Value</th></tr></thead><tbody>{% for reason, total in by_reason %}<tr><td><span class="badge bg-secondary">{{ reason|replace('_',' ')|title }}</span></td><td class="text-end fw-700">GHS {{ "%.2f"|format(total) }}</td></tr>{% else %}<tr><td colspan="2" class="text-muted text-center py-3">No data</td></tr>{% endfor %}</tbody></table></div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card h-100">
+      <div class="card-header"><i class="fas fa-box me-2"></i>Top Products</div>
+      <div class="card-body p-0"><div class="table-responsive"><table class="table table-sm mb-0"><thead><tr><th>Product</th><th class="text-end">Qty</th></tr></thead><tbody>{% for name, qty in by_product %}<tr><td class="fw-600 fs-13">{{ name }}</td><td class="text-end fw-700">{{ qty }}</td></tr>{% else %}<tr><td colspan="2" class="text-muted text-center py-3">No data</td></tr>{% endfor %}</tbody></table></div></div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card h-100">
+      <div class="card-header"><i class="fas fa-id-badge me-2"></i>By Rep</div>
+      <div class="card-body p-0"><div class="table-responsive"><table class="table table-sm mb-0"><thead><tr><th>Rep</th><th class="text-end">Value</th></tr></thead><tbody>{% for name, total in by_rep %}<tr><td class="fw-600 fs-13">{{ name }}</td><td class="text-end fw-700">GHS {{ "%.2f"|format(total) }}</td></tr>{% else %}<tr><td colspan="2" class="text-muted text-center py-3">No data</td></tr>{% endfor %}</tbody></table></div></div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card h-100">
+      <div class="card-header"><i class="fas fa-warehouse me-2"></i>By Destination</div>
+      <div class="card-body p-0"><div class="table-responsive"><table class="table table-sm mb-0"><thead><tr><th>Destination</th><th class="text-end">Value</th></tr></thead><tbody>{% for dest, total in by_destination %}<tr><td><span class="badge bg-secondary">{{ dest|replace('_',' ')|title }}</span></td><td class="text-end fw-700">GHS {{ "%.2f"|format(total) }}</td></tr>{% else %}<tr><td colspan="2" class="text-muted text-center py-3">No data</td></tr>{% endfor %}</tbody></table></div></div>
+    </div>
+  </div>
 </div>
+{% endblock %}
+{% block extra_js %}
+<script>
+createTrendChart('returnsTrendChart', {{ trend_labels|tojson }}, {{ trend_values|tojson }}, '#ef4444', 'Refunds');
+
+const reasonLabels = {{ by_reason|map(attribute=0)|list|tojson }};
+const reasonValues = {{ by_reason|map(attribute=1)|list|tojson }};
+if (reasonLabels.length) {
+  new Chart(document.getElementById('reasonChart'), {
+    type: 'doughnut',
+    data: {
+      labels: reasonLabels.map(r => r.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())),
+      datasets: [{ data: reasonValues, backgroundColor: CHART_COLORS, borderWidth: 3,
+        borderColor: getComputedStyle(document.documentElement).getPropertyValue('--bg-card').trim() || '#fff',
+        borderRadius: 6, spacing: 3, hoverOffset: 6 }]
+    },
+    options: { responsive: true, maintainAspectRatio: false, cutout: '65%', plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 10.5 } } } } }
+  });
+}
+</script>
 {% endblock %}
