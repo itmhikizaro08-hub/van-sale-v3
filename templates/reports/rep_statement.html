@@ -137,22 +137,21 @@
 </div>
 
 <div class="card mt-3">
-  <div class="card-header"><i class="fas fa-undo-alt me-2"></i>Returns This Period ({{ returns|length }})</div>
+  <div class="card-header"><i class="fas fa-dolly me-2"></i>Stock Offload to Warehouse ({{ offloads|length }})</div>
   <div class="card-body p-0"><div class="table-responsive">
     <table class="table table-hover mb-0">
-      <thead><tr><th>Return #</th><th>Date</th><th>Customer</th><th class="text-end">Refund</th><th>Destination</th><th>Status</th></tr></thead>
+      <thead><tr><th>Offload #</th><th>Date</th><th class="text-end">Declared Qty</th><th class="text-end">Received Qty</th><th>Status</th></tr></thead>
       <tbody>
-        {% for r in returns %}
+        {% for o in offloads %}
         <tr>
-          <td><a href="{{ url_for('returns.view', order_id=r.id) }}" class="fw-600">{{ r.return_number }}</a></td>
-          <td class="text-muted fs-12">{{ r.created_at.strftime('%d %b %Y') if r.created_at else '' }}</td>
-          <td class="fs-13">{{ r.customer.name if r.customer else '—' }}</td>
-          <td class="text-end fw-600">GHS {{ "%.2f"|format(r.total_refund_amount) }}</td>
-          <td><span class="badge {{ r.destination_badge }}">{{ r.return_destination|replace('_',' ')|title }}</span></td>
-          <td><span class="badge {{ r.status_badge }}">{{ r.status|title }}</span></td>
+          <td><a href="{{ url_for('vans.offload_view', offload_id=o.id) }}" class="fw-600">{{ o.offload_number }}</a></td>
+          <td class="text-muted fs-12">{{ o.created_at.strftime('%d %b %Y') if o.created_at else '' }}</td>
+          <td class="text-end fw-600">{{ o.total_declared_qty|qty }}</td>
+          <td class="text-end">{{ (o.items|sum(attribute='quantity_received'))|qty if o.status != 'pending' else '—' }}</td>
+          <td><span class="badge {{ o.status_badge }}">{{ o.status|title }}</span></td>
         </tr>
         {% else %}
-        <tr><td colspan="6" class="text-muted text-center py-3">No returns in this date range</td></tr>
+        <tr><td colspan="5" class="text-muted text-center py-3">No stock offloads in this date range</td></tr>
         {% endfor %}
       </tbody>
     </table>
