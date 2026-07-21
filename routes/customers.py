@@ -8,7 +8,7 @@ from models.van import Van, Route
 from models.user import User
 from models.sale import Sale
 from models.payment import Payment
-from datetime import datetime
+from datetime import datetime, timedelta
 
 customers_bp = Blueprint('customers', __name__)
 
@@ -200,6 +200,44 @@ def quick_add():
         return redirect(url_for('customers.quick_add'))
 
     return render_template('customers/quick_add.html', vans=vans, routes=routes, sales_reps=sales_reps)
+
+
+@customers_bp.route('/quick-add/dashboard')
+@login_required
+def quick_add_dashboard():
+    if not current_user.can_write('customers'):
+        flash('Permission denied.', 'danger')
+        return redirect(url_for('dashboard.index'))
+
+    q = Customer.query
+    if current_user.scope('customers') == 'own':
+        q = q.filter_by(sales_rep_id=current_user.id)
+    customers = q.all()
+
+    today = datetime.utcnow().date()
+    week_start = today - timedelta(days=today.weekday())
+    month_start = today.replace(day=1)
+
+    added_today = sum(1 for c in customers if c.created_at and c.created_at.date() == today)
+    added_week = sum(1 for c in customers if c.created_at and c.created_at.date() >= week_start)
+    added_month = sum(1 for c in customers if c.created_at and c.created_at.date() >= month_start)
+    total = len(customers)
+
+    cutoff = today - timedelta(days=13)
+    daily = {}
+    for c in customers:
+        if c.created_at and c.created_at.date() >= cutoff:
+            d = c.created_at.date()
+            daily[d] = daily.get(d, 0) + 1
+    days_list = [cutoff + timedelta(days=i) for i in range(14)]
+    trend_labels = [d.strftime('%d %b') for d in days_list]
+    trend_values = [daily.get(d, 0) for d in days_list]
+
+    recent = sorted(customers, key=lambda c: c.created_at or datetime.min, reverse=True)[:10]
+
+    return render_template('customers/quick_add_dashboard.html',
+        added_today=added_today, added_week=added_week, added_month=added_month, total=total,
+        trend_labels=trend_labels, trend_values=trend_values, recent=recent)
 
 
 @customers_bp.route('/add', methods=['GET', 'POST'])

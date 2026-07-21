@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>My Customers | {{ company_name }}</title>
+  <link rel="manifest" href="{{ url_for('customers.quick_add_manifest') }}">
+  <meta name="theme-color" content="#16a34a">
+  <link rel="apple-touch-icon" href="{{ url_for('static', filename='icons/icon-180.png') }}">
+  <link rel="icon" type="image/png" sizes="192x192" href="{{ url_for('static', filename='icons/icon-192.png') }}">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:'Inter',sans-serif;min-height:100vh;background:#0f172a;padding:20px}
+    .wrap{width:100%;max-width:480px;margin:0 auto}
+    .topbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px}
+    .topbar a{color:#94a3b8;text-decoration:none;font-size:13px}
+    h1{font-size:20px;font-weight:800;color:#f1f5f9}
+
+    .stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px}
+    .stat-card{background:rgba(30,41,59,.85);border:1px solid rgba(255,255,255,.1);border-radius:14px;padding:14px}
+    .stat-card .val{font-size:22px;font-weight:800;color:#f1f5f9}
+    .stat-card .lbl{font-size:11.5px;color:#64748b;margin-top:2px}
+    .stat-card.accent{border-color:rgba(22,163,74,.4);background:rgba(22,163,74,.1)}
+    .stat-card.accent .val{color:#6ee7b7}
+
+    .card{background:rgba(30,41,59,.85);border:1px solid rgba(255,255,255,.1);border-radius:16px;padding:18px;margin-bottom:16px}
+    .card-title{font-size:12px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:#94a3b8;margin-bottom:12px}
+    .chart-box{height:160px}
+
+    .cust-row{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid rgba(255,255,255,.06)}
+    .cust-row:last-child{border-bottom:none}
+    .cust-name{font-size:14px;font-weight:600;color:#f1f5f9}
+    .cust-meta{font-size:11.5px;color:#64748b}
+    .cust-date{font-size:11.5px;color:#475569;text-align:right}
+    .empty{text-align:center;color:#475569;font-size:13px;padding:20px 0}
+
+    .btn-add{display:block;width:100%;text-align:center;background:linear-gradient(135deg,#16a34a,#0891b2);color:#fff;font-weight:700;font-size:15px;padding:14px;border-radius:10px;text-decoration:none;margin-top:6px}
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <div class="topbar">
+    <h1>My Customers</h1>
+    <a href="{{ url_for('customers.quick_add') }}"><i class="fas fa-plus me-1"></i>Add New</a>
+  </div>
+
+  <div class="stat-grid">
+    <div class="stat-card accent"><div class="val">{{ added_today }}</div><div class="lbl">Added Today</div></div>
+    <div class="stat-card"><div class="val">{{ added_week }}</div><div class="lbl">This Week</div></div>
+    <div class="stat-card"><div class="val">{{ added_month }}</div><div class="lbl">This Month</div></div>
+    <div class="stat-card"><div class="val">{{ total }}</div><div class="lbl">Total</div></div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">14-Day Trend</div>
+    <div class="chart-box"><canvas id="trendChart"></canvas></div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Recent Additions</div>
+    {% for c in recent %}
+    <div class="cust-row">
+      <div>
+        <div class="cust-name">{{ c.name }}</div>
+        <div class="cust-meta">{{ c.customer_code }}{% if c.phone %} • {{ c.phone }}{% endif %}</div>
+      </div>
+      <div class="cust-date">{{ c.created_at.strftime('%d %b') if c.created_at else '' }}</div>
+    </div>
+    {% else %}
+    <div class="empty">No customers added yet.</div>
+    {% endfor %}
+  </div>
+
+  <a href="{{ url_for('customers.quick_add') }}" class="btn-add"><i class="fas fa-plus me-2"></i>Add Another Customer</a>
+</div>
+
+<script>
+new Chart(document.getElementById('trendChart'), {
+  type: 'line',
+  data: {
+    labels: {{ trend_labels|tojson }},
+    datasets: [{
+      data: {{ trend_values|tojson }},
+      borderColor: '#16a34a',
+      backgroundColor: 'rgba(22,163,74,.15)',
+      fill: true, tension: 0.35, borderWidth: 2, pointRadius: 0
+    }]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { display: false } },
+    scales: {
+      y: { beginAtZero: true, ticks: { color: '#64748b', font: { size: 10 }, precision: 0 }, grid: { color: 'rgba(255,255,255,.05)' } },
+      x: { ticks: { color: '#64748b', font: { size: 9 }, maxRotation: 0, autoSkip: true, maxTicksLimit: 7 }, grid: { display: false } }
+    }
+  }
+});
+
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').catch(() => {});
+  });
+}
+</script>
+</body>
+</html>
