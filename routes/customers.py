@@ -121,11 +121,12 @@ def index():
 
 
 # ── Quick-Add mini PWA ────────────────────────────────────────────────────────
-# A standalone, installable single-purpose page for reps in the field who only
-# need to capture a new customer's name/phone/location — not the full app.
-# Doesn't extend base.html on purpose: no sidebar/nav, just the form, so it
-# installs and opens as its own focused home-screen app (separate manifest
-# below with its own start_url/scope) rather than launching the full ERP.
+# A standalone, installable page for reps in the field to register a new
+# customer with every field the full Add Customer form supports — just in a
+# single mobile-first layout instead of the full app's multi-column desktop
+# one. Doesn't extend base.html on purpose: no sidebar/nav, so it installs and
+# opens as its own focused home-screen app (separate manifest below with its
+# own start_url/scope) rather than launching the full ERP.
 @customers_bp.route('/quick-add/manifest.json')
 def quick_add_manifest():
     from models.settings import Settings
@@ -154,6 +155,10 @@ def quick_add():
         flash('Permission denied.', 'danger')
         return redirect(url_for('dashboard.index'))
 
+    vans = Van.query.filter_by(status='active').all()
+    routes = Route.query.filter_by(status='active').all()
+    sales_reps = User.query.filter(User.role.in_(['sales_rep', 'supervisor', 'manager'])).all()
+
     if request.method == 'POST':
         name = (request.form.get('name') or '').strip()
         if not name:
@@ -168,23 +173,33 @@ def quick_add():
                   f'Edit it in the full app instead.', 'warning')
             return redirect(url_for('customers.quick_add'))
 
+        sales_rep_id = request.form.get('sales_rep_id') or None
+        if not sales_rep_id and current_user.role == 'sales_rep':
+            sales_rep_id = current_user.id
+
         customer = Customer(
             customer_code=_next_code(),
             name=name,
             phone=request.form.get('phone'),
+            email=request.form.get('email'),
+            address=request.form.get('address'),
             location=request.form.get('location'),
             gps_latitude=request.form.get('gps_latitude') or None,
             gps_longitude=request.form.get('gps_longitude') or None,
-            customer_type='retail',
-            sales_rep_id=current_user.id if current_user.role == 'sales_rep' else None,
-            status='active'
+            customer_type=request.form.get('customer_type', 'retail'),
+            credit_limit=float(request.form.get('credit_limit') or 0),
+            assigned_route_id=request.form.get('assigned_route_id') or None,
+            assigned_van_id=request.form.get('assigned_van_id') or None,
+            sales_rep_id=sales_rep_id,
+            status=request.form.get('status', 'active'),
+            notes=request.form.get('notes')
         )
         db.session.add(customer)
         db.session.commit()
         flash(f'{customer.name} added ({customer.customer_code})!', 'success')
         return redirect(url_for('customers.quick_add'))
 
-    return render_template('customers/quick_add.html')
+    return render_template('customers/quick_add.html', vans=vans, routes=routes, sales_reps=sales_reps)
 
 
 @customers_bp.route('/add', methods=['GET', 'POST'])

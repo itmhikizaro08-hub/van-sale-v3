@@ -21,9 +21,14 @@
     .subtitle{text-align:center;color:#64748b;font-size:13.5px;margin-bottom:24px}
 
     .form-label{font-size:13px;font-weight:500;color:#94a3b8;margin-bottom:6px}
-    .form-control{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);color:#f1f5f9;font-size:16px;padding:12px 14px;border-radius:10px}
-    .form-control:focus{background:rgba(255,255,255,.08);border-color:#16a34a;box-shadow:none;color:#f1f5f9}
+    .form-control,.form-select{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);color:#f1f5f9;font-size:16px;padding:12px 14px;border-radius:10px}
+    .form-control:focus,.form-select:focus{background:rgba(255,255,255,.08);border-color:#16a34a;box-shadow:none;color:#f1f5f9}
     .form-control::placeholder{color:#475569}
+    .form-select option{background:#1e293b;color:#f1f5f9}
+    .input-group-text{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);color:#64748b}
+
+    .section-label{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#475569;margin:22px 0 12px;padding-top:14px;border-top:1px solid rgba(255,255,255,.08)}
+    .section-label:first-of-type{margin-top:0;padding-top:0;border-top:none}
 
     .btn-gps{width:100%;background:rgba(8,145,178,.15);border:1px solid rgba(8,145,178,.35);color:#67e8f9;font-weight:600;font-size:14px;padding:11px;border-radius:10px;margin-top:4px}
     .btn-gps:active{transform:translateY(1px)}
@@ -60,6 +65,7 @@
     {% endwith %}
 
     <form method="POST" id="quickAddForm">
+      <div class="section-label">Basic Info</div>
       <div class="mb-3">
         <label class="form-label">Customer Name *</label>
         <input type="text" name="name" class="form-control" placeholder="e.g. Mama Ama's Shop" required autofocus>
@@ -69,16 +75,82 @@
         <input type="tel" name="phone" class="form-control" placeholder="024XXXXXXX">
       </div>
       <div class="mb-3">
+        <label class="form-label">Email</label>
+        <input type="email" name="email" class="form-control" placeholder="optional">
+      </div>
+      <div class="mb-3">
+        <label class="form-label">Customer Type</label>
+        <select name="customer_type" class="form-select">
+          <option value="retail">Retail</option>
+          <option value="wholesale">Wholesale</option>
+          <option value="distributor">Distributor</option>
+        </select>
+      </div>
+
+      <div class="section-label">Location</div>
+      <div class="mb-3">
+        <label class="form-label">Address</label>
+        <textarea name="address" class="form-control" rows="2" placeholder="Street / building / area"></textarea>
+      </div>
+      <div class="mb-3">
         <label class="form-label">Location / Landmark</label>
         <input type="text" name="location" class="form-control" placeholder="e.g. Near Kejetia Market">
       </div>
-
       <input type="hidden" name="gps_latitude" id="gpsLat">
       <input type="hidden" name="gps_longitude" id="gpsLng">
       <button type="button" class="btn-gps" id="gpsBtn" onclick="captureGps()">
         <i class="fas fa-location-crosshairs me-1"></i>Capture My Location
       </button>
       <div class="gps-status" id="gpsStatus"></div>
+
+      <div class="section-label">Account Settings</div>
+      <div class="mb-3">
+        <label class="form-label">Credit Limit (GHS)</label>
+        <div class="input-group">
+          <span class="input-group-text">GHS</span>
+          <input type="number" step="0.01" min="0" name="credit_limit" class="form-control" value="0">
+        </div>
+      </div>
+      <div class="mb-3">
+        <label class="form-label">Status</label>
+        <select name="status" class="form-select">
+          <option value="active" selected>Active</option>
+          <option value="inactive">Inactive</option>
+          <option value="suspended">Suspended</option>
+        </select>
+      </div>
+      <div class="mb-3">
+        <label class="form-label">Assigned Route</label>
+        <select name="assigned_route_id" class="form-select">
+          <option value="">— No Route —</option>
+          {% for r in routes %}
+          <option value="{{ r.id }}">{{ r.route_name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="mb-3">
+        <label class="form-label">Assigned Van</label>
+        <select name="assigned_van_id" class="form-select">
+          <option value="">— No Van —</option>
+          {% for v in vans %}
+          <option value="{{ v.id }}">{{ v.van_number }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="mb-3">
+        <label class="form-label">Sales Representative</label>
+        <select name="sales_rep_id" class="form-select">
+          <option value="">— {{ 'Me (' ~ current_user.full_name ~ ')' if current_user.role == 'sales_rep' else 'None' }} —</option>
+          {% for u in sales_reps %}
+          <option value="{{ u.id }}">{{ u.full_name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="section-label">Notes</div>
+      <div class="mb-3">
+        <textarea name="notes" class="form-control" rows="3" placeholder="Additional notes about this customer..."></textarea>
+      </div>
 
       <button type="submit" class="btn-save">
         <i class="fas fa-check me-2"></i>Save Customer
