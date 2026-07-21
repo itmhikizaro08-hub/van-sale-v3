@@ -235,9 +235,18 @@ def quick_add_dashboard():
 
     recent = sorted(customers, key=lambda c: c.created_at or datetime.min, reverse=True)[:10]
 
+    type_map = {}
+    for c in customers:
+        type_map[c.customer_type] = type_map.get(c.customer_type, 0) + 1
+    by_type = sorted(type_map.items(), key=lambda x: x[1], reverse=True)
+
+    with_gps = sum(1 for c in customers if c.gps_latitude and c.gps_longitude)
+    gps_pct = round(with_gps / total * 100) if total else 0
+
     return render_template('customers/quick_add_dashboard.html',
         added_today=added_today, added_week=added_week, added_month=added_month, total=total,
-        trend_labels=trend_labels, trend_values=trend_values, recent=recent)
+        trend_labels=trend_labels, trend_values=trend_values, recent=recent,
+        by_type=by_type, with_gps=with_gps, gps_pct=gps_pct)
 
 
 @customers_bp.route('/add', methods=['GET', 'POST'])
