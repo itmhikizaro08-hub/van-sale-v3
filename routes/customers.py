@@ -185,8 +185,46 @@ def view(customer_id):
     recent_payments = Payment.query.filter_by(customer_id=customer_id).order_by(Payment.payment_date.desc()).limit(10).all()
     from models.van import CustomerVisit
     recent_visits = CustomerVisit.query.filter_by(customer_id=customer_id).order_by(CustomerVisit.visit_date.desc()).limit(10).all()
+
+    from models.sale import SaleItem
+    from models.product import Product
+    from sqlalchemy import func
+
+    completed_sales = Sale.query.filter_by(customer_id=customer_id, status='completed').all()
+    total_orders = len(completed_sales)
+    lifetime_value = round(sum(s.total_amount for s in completed_sales), 2)
+    avg_order_value = round(lifetime_value / total_orders, 2) if total_orders else 0
+
+    monthly = {}
+    for s in completed_sales:
+        if s.sale_date:
+            key = s.sale_date.strftime('%Y-%m')
+            monthly[key] = monthly.get(key, 0) + s.total_amount
+    sorted_months = sorted(monthly.keys())[-12:]
+    trend_labels = [datetime.strptime(m, '%Y-%m').strftime('%b %Y') for m in sorted_months]
+    trend_values = [round(monthly[m], 2) for m in sorted_months]
+
+    product_rows = db.session.query(
+        SaleItem.product_id, func.sum(SaleItem.line_total).label('val'), func.sum(SaleItem.quantity).label('qty')
+    ).join(Sale, SaleItem.sale_id == Sale.id).filter(
+        Sale.customer_id == customer_id, Sale.status == 'completed'
+    ).group_by(SaleItem.product_id).order_by(func.sum(SaleItem.line_total).desc()).limit(5).all()
+    by_product = []
+    for pid, val, qty in product_rows:
+        product = Product.query.get(pid)
+        by_product.append((product.product_name if product else 'Unknown', round(val, 2), qty))
+
+    non_void_payments = Payment.query.filter_by(customer_id=customer_id).filter(Payment.status != 'void').all()
+    method_map = {}
+    for p in non_void_payments:
+        method_map[p.payment_method] = method_map.get(p.payment_method, 0) + p.amount
+    by_method = sorted(method_map.items(), key=lambda x: x[1], reverse=True)
+
     return render_template('customers/view.html', customer=customer, recent_sales=recent_sales,
-                           recent_payments=recent_payments, recent_visits=recent_visits)
+                           recent_payments=recent_payments, recent_visits=recent_visits,
+                           total_orders=total_orders, lifetime_value=lifetime_value, avg_order_value=avg_order_value,
+                           trend_labels=trend_labels, trend_values=trend_values,
+                           by_product=by_product, by_method=by_method)
 
 
 @customers_bp.route('/<int:customer_id>/statement')

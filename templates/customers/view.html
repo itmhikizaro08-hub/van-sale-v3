@@ -64,7 +64,7 @@
       <div class="stat-icon"><i class="fas fa-shopping-cart"></i></div>
       <div>
         <div class="stat-label">Total Orders</div>
-        <div class="stat-value">{{ recent_sales|length }}</div>
+        <div class="stat-value">{{ total_orders }}</div>
       </div>
     </div>
   </div>
@@ -77,6 +77,43 @@
           {{ customer.last_visit_date.strftime('%d %b') if customer.last_visit_date else 'Never' }}
         </div>
       </div>
+    </div>
+  </div>
+</div>
+
+<div class="row g-3 mb-4">
+  <div class="col-6 col-md-3">
+    <div class="stat-card" style="--card-accent:#7c3aed;--card-accent-bg:#f5f3ff"><div class="stat-icon" style="background:#f5f3ff;color:#7c3aed"><i class="fas fa-coins"></i></div>
+      <div><div class="stat-label">Lifetime Value</div><div class="stat-value" style="font-size:15px">GHS {{ "%.2f"|format(lifetime_value) }}</div></div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="stat-card info"><div class="stat-icon"><i class="fas fa-receipt"></i></div>
+      <div><div class="stat-label">Avg Order Value</div><div class="stat-value" style="font-size:15px">GHS {{ "%.2f"|format(avg_order_value) }}</div></div>
+    </div>
+  </div>
+</div>
+
+<div class="row g-3 mb-3">
+  <div class="col-md-12">
+    <div class="card">
+      <div class="card-header"><i class="fas fa-chart-area me-2"></i>Purchase Trend</div>
+      <div class="card-body"><div style="height:200px"><canvas id="custTrendChart"></canvas></div></div>
+    </div>
+  </div>
+</div>
+
+<div class="row g-3 mb-3">
+  <div class="col-md-6">
+    <div class="card h-100">
+      <div class="card-header"><i class="fas fa-box me-2"></i>Top Products Purchased</div>
+      <div class="card-body p-0"><div class="table-responsive"><table class="table table-sm mb-0"><thead><tr><th>Product</th><th class="text-end">Qty</th><th class="text-end">Value</th></tr></thead><tbody>{% for name, val, qty in by_product %}<tr><td class="fw-600 fs-13">{{ name }}</td><td class="text-end">{{ qty }}</td><td class="text-end fw-700">GHS {{ "%.2f"|format(val) }}</td></tr>{% else %}<tr><td colspan="3" class="text-muted text-center py-3">No purchases yet</td></tr>{% endfor %}</tbody></table></div></div>
+    </div>
+  </div>
+  <div class="col-md-6">
+    <div class="card h-100">
+      <div class="card-header"><i class="fas fa-chart-pie me-2"></i>Payments by Method</div>
+      <div class="card-body"><div style="height:180px"><canvas id="custMethodChart"></canvas></div></div>
     </div>
   </div>
 </div>
@@ -266,5 +303,22 @@ document.querySelectorAll('.tab-search').forEach(input => {
     });
   });
 });
+
+createTrendChart('custTrendChart', {{ trend_labels|tojson }}, {{ trend_values|tojson }}, '#2563eb', 'Sales');
+
+const methodLabels = {{ by_method|map(attribute=0)|list|tojson }};
+const methodValues = {{ by_method|map(attribute=1)|list|tojson }};
+if (methodLabels.length) {
+  new Chart(document.getElementById('custMethodChart'), {
+    type: 'doughnut',
+    data: {
+      labels: methodLabels.map(m => m.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())),
+      datasets: [{ data: methodValues, backgroundColor: CHART_COLORS, borderWidth: 3,
+        borderColor: getComputedStyle(document.documentElement).getPropertyValue('--bg-card').trim() || '#fff',
+        borderRadius: 6, spacing: 3, hoverOffset: 6 }]
+    },
+    options: { responsive: true, maintainAspectRatio: false, cutout: '65%', plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 10.5 } } } } }
+  });
+}
 </script>
 {% endblock %}
