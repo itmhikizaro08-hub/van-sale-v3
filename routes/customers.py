@@ -135,7 +135,7 @@ def quick_add_manifest():
         'name': f'{name} — Add Customer',
         'short_name': 'Add Customer',
         'description': 'Quickly add a new customer from the field.',
-        'start_url': '/customers/quick-add',
+        'start_url': '/customers/quick-add/dashboard',
         'scope': '/customers/quick-add',
         'display': 'standalone',
         'background_color': '#0f172a',
