@@ -70,12 +70,17 @@
     <form method="POST" id="quickAddForm">
       <div class="section-label">Basic Info</div>
       <div class="mb-3">
-        <label class="form-label">Customer Name *</label>
-        <input type="text" name="name" class="form-control" placeholder="e.g. Mama Ama's Shop" required autofocus>
+        <div class="d-flex justify-content-between align-items-center">
+          <label class="form-label mb-0">Customer Name *</label>
+          <button type="button" class="btn btn-sm d-none" id="pickContactBtn" style="background:rgba(8,145,178,.15);border:1px solid rgba(8,145,178,.35);color:#67e8f9;font-size:11.5px;padding:3px 10px">
+            <i class="fas fa-address-book me-1"></i>From Contacts
+          </button>
+        </div>
+        <input type="text" name="name" id="nameInput" class="form-control mt-1" placeholder="e.g. Mama Ama's Shop" required autofocus>
       </div>
       <div class="mb-3">
         <label class="form-label">Phone</label>
-        <input type="tel" name="phone" class="form-control" placeholder="024XXXXXXX">
+        <input type="tel" name="phone" id="phoneInput" class="form-control" placeholder="024XXXXXXX">
       </div>
       <div class="mb-3">
         <label class="form-label">Email</label>
@@ -91,20 +96,20 @@
       </div>
 
       <div class="section-label">Location</div>
-      <div class="mb-3">
-        <label class="form-label">Address</label>
-        <textarea name="address" class="form-control" rows="2" placeholder="Street / building / area"></textarea>
-      </div>
-      <div class="mb-3">
-        <label class="form-label">Location / Landmark</label>
-        <input type="text" name="location" class="form-control" placeholder="e.g. Near Kejetia Market">
-      </div>
       <input type="hidden" name="gps_latitude" id="gpsLat">
       <input type="hidden" name="gps_longitude" id="gpsLng">
       <button type="button" class="btn-gps" id="gpsBtn" onclick="captureGps()">
         <i class="fas fa-location-crosshairs me-1"></i>Capture My Location
       </button>
       <div class="gps-status" id="gpsStatus"></div>
+      <div class="mb-3 mt-3">
+        <label class="form-label">Address</label>
+        <textarea name="address" id="addressInput" class="form-control" rows="2" placeholder="Street / building / area — fills in automatically after Capture My Location"></textarea>
+      </div>
+      <div class="mb-3">
+        <label class="form-label">Location / Landmark</label>
+        <input type="text" name="location" id="locationInput" class="form-control" placeholder="e.g. Near Kejetia Market">
+      </div>
 
       <div class="section-label">Account Settings</div>
       <div class="mb-3">
@@ -171,7 +176,7 @@
 </div>
 
 <script>
-function captureGps() {
+async function captureGps() {
   const status = document.getElementById('gpsStatus');
   if (!navigator.geolocation) {
     status.textContent = 'Location not supported on this device.';
@@ -180,17 +185,55 @@ function captureGps() {
   status.textContent = 'Getting your location…';
   status.className = 'gps-status';
   navigator.geolocation.getCurrentPosition(
-    pos => {
-      document.getElementById('gpsLat').value = pos.coords.latitude;
-      document.getElementById('gpsLng').value = pos.coords.longitude;
-      status.textContent = 'Location captured ✓';
+    async pos => {
+      const lat = pos.coords.latitude, lng = pos.coords.longitude;
+      document.getElementById('gpsLat').value = lat;
+      document.getElementById('gpsLng').value = lng;
+      status.textContent = 'Location captured — looking up address…';
       status.className = 'gps-status ok';
+      await fillAddressFromGps(lat, lng, status);
     },
     () => {
       status.textContent = 'Could not get location — check permissions.';
       status.className = 'gps-status';
     }
   );
+}
+
+// Reverse-geocodes via OpenStreetMap's free Nominatim API — same OSM data
+// source already used for the maps elsewhere in this app, no API key needed.
+async function fillAddressFromGps(lat, lng, status) {
+  try {
+    const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`);
+    if (!res.ok) throw new Error('lookup failed');
+    const data = await res.json();
+    const a = data.address || {};
+    const landmark = a.suburb || a.neighbourhood || a.village || a.town || a.city_district || a.city || '';
+    const addressInput = document.getElementById('addressInput');
+    const locationInput = document.getElementById('locationInput');
+    if (data.display_name && !addressInput.value) addressInput.value = data.display_name;
+    if (landmark && !locationInput.value) locationInput.value = landmark;
+    status.textContent = 'Location captured ✓ (address auto-filled — check it looks right)';
+  } catch {
+    status.textContent = 'Location captured ✓ (could not auto-fill address — enter it manually)';
+  }
+}
+
+// Contact Picker API — Chrome on Android only, so feature-detect and hide
+// the button everywhere else rather than showing something that'll error.
+if ('contacts' in navigator && 'ContactsManager' in window) {
+  const pickBtn = document.getElementById('pickContactBtn');
+  pickBtn?.classList.remove('d-none');
+  pickBtn?.addEventListener('click', async () => {
+    try {
+      const [contact] = await navigator.contacts.select(['name', 'tel'], { multiple: false });
+      if (!contact) return;
+      if (contact.name && contact.name.length) document.getElementById('nameInput').value = contact.name[0];
+      if (contact.tel && contact.tel.length) document.getElementById('phoneInput').value = contact.tel[0];
+    } catch {
+      // user cancelled the picker — nothing to do
+    }
+  });
 }
 
 if ('serviceWorker' in navigator) {
