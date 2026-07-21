@@ -47,6 +47,13 @@
     .full-app-link a{color:#67e8f9;text-decoration:none}
 
     #installBtn{width:100%;margin-top:10px}
+
+    .offline-banner{display:none;align-items:center;gap:8px;background:rgba(239,68,68,.15);border:1px solid rgba(239,68,68,.3);color:#fca5a5;font-size:12.5px;font-weight:600;padding:10px 14px;border-radius:10px;margin-bottom:14px}
+    .offline-banner.show{display:flex}
+    .btn-save:disabled{opacity:.5}
+
+    .ios-hint{display:none;background:rgba(8,145,178,.1);border:1px solid rgba(8,145,178,.3);color:#67e8f9;font-size:12px;padding:10px 14px;border-radius:10px;margin-top:10px;text-align:center}
+    .ios-hint.show{display:block}
   </style>
 </head>
 <body>
@@ -58,6 +65,10 @@
     <div class="brand-logo"><i class="fa-solid fa-user-plus"></i></div>
     <h1>Add Customer</h1>
     <p class="subtitle">{{ company_name }} — quick field entry</p>
+
+    <div class="offline-banner" id="offlineBanner">
+      <i class="fas fa-wifi"></i><span>No connection — saving is disabled until you're back online. Your typed details are kept.</span>
+    </div>
 
     {% with messages = get_flashed_messages(with_categories=true) %}
       {% for category, message in messages %}
@@ -160,7 +171,7 @@
         <textarea name="notes" class="form-control" rows="3" placeholder="Additional notes about this customer..."></textarea>
       </div>
 
-      <button type="submit" class="btn-save">
+      <button type="submit" class="btn-save" id="saveBtn">
         <i class="fas fa-check me-2"></i>Save Customer
       </button>
     </form>
@@ -168,6 +179,9 @@
     <button type="button" id="installBtn" class="btn-gps d-none">
       <i class="fas fa-download me-1"></i>Install This App
     </button>
+    <div class="ios-hint" id="iosHint">
+      <i class="fas fa-share-from-square me-1"></i>To install: tap <b>Share</b>, then <b>Add to Home Screen</b>.
+    </div>
 
     <div class="full-app-link">
       <a href="{{ url_for('dashboard.index') }}"><i class="fas fa-arrow-left me-1"></i>Open Full App</a>
@@ -257,6 +271,30 @@ installBtn?.addEventListener('click', async () => {
   installBtn.classList.add('d-none');
 });
 window.addEventListener('appinstalled', () => installBtn?.classList.add('d-none'));
+
+// iOS Safari never fires beforeinstallprompt, so the install button above
+// never appears there — show manual "Add to Home Screen" instructions
+// instead, unless it's already running as an installed app.
+const isIos = /iphone|ipad|ipod/.test(navigator.userAgent.toLowerCase());
+const isStandalone = window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+if (isIos && !isStandalone) {
+  document.getElementById('iosHint')?.classList.add('show');
+}
+
+// Offline handling — a plain form POST with no connection fails silently
+// and can lose everything the rep just typed in the field. Disable saving
+// and show a persistent banner instead, so nothing gets submitted into a
+// dead connection; the typed data just sits in the form until back online.
+const offlineBanner = document.getElementById('offlineBanner');
+const saveBtn = document.getElementById('saveBtn');
+function updateOnlineState() {
+  const offline = !navigator.onLine;
+  offlineBanner?.classList.toggle('show', offline);
+  if (saveBtn) saveBtn.disabled = offline;
+}
+window.addEventListener('online', updateOnlineState);
+window.addEventListener('offline', updateOnlineState);
+updateOnlineState();
 </script>
 </body>
 </html>
