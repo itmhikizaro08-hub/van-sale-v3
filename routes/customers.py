@@ -120,6 +120,73 @@ def index():
         total_outstanding=total_outstanding, active_count=active_count)
 
 
+# ── Quick-Add mini PWA ────────────────────────────────────────────────────────
+# A standalone, installable single-purpose page for reps in the field who only
+# need to capture a new customer's name/phone/location — not the full app.
+# Doesn't extend base.html on purpose: no sidebar/nav, just the form, so it
+# installs and opens as its own focused home-screen app (separate manifest
+# below with its own start_url/scope) rather than launching the full ERP.
+@customers_bp.route('/quick-add/manifest.json')
+def quick_add_manifest():
+    from models.settings import Settings
+    name = Settings.get().company_name or 'Van Sales'
+    return jsonify({
+        'name': f'{name} — Add Customer',
+        'short_name': 'Add Customer',
+        'description': 'Quickly add a new customer from the field.',
+        'start_url': '/customers/quick-add',
+        'scope': '/customers/quick-add',
+        'display': 'standalone',
+        'background_color': '#0f172a',
+        'theme_color': '#16a34a',
+        'orientation': 'portrait',
+        'icons': [
+            {'src': '/static/icons/icon-192.png', 'sizes': '192x192', 'type': 'image/png', 'purpose': 'any maskable'},
+            {'src': '/static/icons/icon-512.png', 'sizes': '512x512', 'type': 'image/png', 'purpose': 'any maskable'}
+        ]
+    })
+
+
+@customers_bp.route('/quick-add', methods=['GET', 'POST'])
+@login_required
+def quick_add():
+    if not current_user.can_write('customers'):
+        flash('Permission denied.', 'danger')
+        return redirect(url_for('dashboard.index'))
+
+    if request.method == 'POST':
+        name = (request.form.get('name') or '').strip()
+        if not name:
+            flash('Customer name is required.', 'warning')
+            return redirect(url_for('customers.quick_add'))
+
+        existing = Customer.query.filter(
+            Customer.status == 'active', db.func.lower(Customer.name) == name.lower()
+        ).first()
+        if existing:
+            flash(f'A customer named "{name}" already exists ({existing.customer_code}). '
+                  f'Edit it in the full app instead.', 'warning')
+            return redirect(url_for('customers.quick_add'))
+
+        customer = Customer(
+            customer_code=_next_code(),
+            name=name,
+            phone=request.form.get('phone'),
+            location=request.form.get('location'),
+            gps_latitude=request.form.get('gps_latitude') or None,
+            gps_longitude=request.form.get('gps_longitude') or None,
+            customer_type='retail',
+            sales_rep_id=current_user.id if current_user.role == 'sales_rep' else None,
+            status='active'
+        )
+        db.session.add(customer)
+        db.session.commit()
+        flash(f'{customer.name} added ({customer.customer_code})!', 'success')
+        return redirect(url_for('customers.quick_add'))
+
+    return render_template('customers/quick_add.html')
+
+
 @customers_bp.route('/add', methods=['GET', 'POST'])
 @login_required
 def add():

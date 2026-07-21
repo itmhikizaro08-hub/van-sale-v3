@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Add Customer | {{ company_name }}</title>
+  <link rel="manifest" href="{{ url_for('customers.quick_add_manifest') }}">
+  <meta name="theme-color" content="#16a34a">
+  <link rel="apple-touch-icon" href="{{ url_for('static', filename='icons/icon-180.png') }}">
+  <link rel="icon" type="image/png" sizes="192x192" href="{{ url_for('static', filename='icons/icon-192.png') }}">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:'Inter',sans-serif;min-height:100vh;background:#0f172a;display:flex;align-items:center;justify-content:center;padding:20px}
+    .card-wrap{width:100%;max-width:440px}
+    .card{background:rgba(30,41,59,.85);backdrop-filter:blur(20px);border:1px solid rgba(255,255,255,.1);border-radius:20px;padding:32px;box-shadow:0 25px 50px rgba(0,0,0,.5)}
+    .brand-logo{width:56px;height:56px;background:linear-gradient(135deg,#16a34a,#0891b2);border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:24px;color:#fff;margin:0 auto 16px;box-shadow:0 8px 24px rgba(22,163,74,.4)}
+    h1{font-size:22px;font-weight:800;color:#f1f5f9;text-align:center;margin-bottom:4px}
+    .subtitle{text-align:center;color:#64748b;font-size:13.5px;margin-bottom:24px}
+
+    .form-label{font-size:13px;font-weight:500;color:#94a3b8;margin-bottom:6px}
+    .form-control{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);color:#f1f5f9;font-size:16px;padding:12px 14px;border-radius:10px}
+    .form-control:focus{background:rgba(255,255,255,.08);border-color:#16a34a;box-shadow:none;color:#f1f5f9}
+    .form-control::placeholder{color:#475569}
+
+    .btn-gps{width:100%;background:rgba(8,145,178,.15);border:1px solid rgba(8,145,178,.35);color:#67e8f9;font-weight:600;font-size:14px;padding:11px;border-radius:10px;margin-top:4px}
+    .btn-gps:active{transform:translateY(1px)}
+    .gps-status{font-size:12px;color:#64748b;margin-top:6px;text-align:center;min-height:16px}
+    .gps-status.ok{color:#6ee7b7}
+
+    .btn-save{width:100%;background:linear-gradient(135deg,#16a34a,#0891b2);border:none;color:#fff;font-weight:700;font-size:15px;padding:14px;border-radius:10px;margin-top:18px}
+    .btn-save:active{transform:translateY(1px)}
+
+    .alert{border-radius:10px;font-size:13.5px;border:none;padding:10px 14px}
+    .alert-danger{background:rgba(239,68,68,.15);color:#fca5a5;border:1px solid rgba(239,68,68,.3)}
+    .alert-warning{background:rgba(245,158,11,.15);color:#fcd34d;border:1px solid rgba(245,158,11,.3)}
+    .alert-success{background:rgba(16,185,129,.15);color:#6ee7b7;border:1px solid rgba(16,185,129,.3)}
+
+    .full-app-link{display:block;text-align:center;margin-top:18px;font-size:12.5px;color:#475569}
+    .full-app-link a{color:#67e8f9;text-decoration:none}
+
+    #installBtn{width:100%;margin-top:10px}
+  </style>
+</head>
+<body>
+<div class="card-wrap">
+  <div class="card">
+    <div class="brand-logo"><i class="fa-solid fa-user-plus"></i></div>
+    <h1>Add Customer</h1>
+    <p class="subtitle">{{ company_name }} — quick field entry</p>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% for category, message in messages %}
+      <div class="alert alert-{{ 'success' if category == 'success' else category }} mb-3">
+        <i class="fas fa-{{ 'check-circle' if category == 'success' else 'exclamation-triangle' }} me-2"></i>{{ message }}
+      </div>
+      {% endfor %}
+    {% endwith %}
+
+    <form method="POST" id="quickAddForm">
+      <div class="mb-3">
+        <label class="form-label">Customer Name *</label>
+        <input type="text" name="name" class="form-control" placeholder="e.g. Mama Ama's Shop" required autofocus>
+      </div>
+      <div class="mb-3">
+        <label class="form-label">Phone</label>
+        <input type="tel" name="phone" class="form-control" placeholder="024XXXXXXX">
+      </div>
+      <div class="mb-3">
+        <label class="form-label">Location / Landmark</label>
+        <input type="text" name="location" class="form-control" placeholder="e.g. Near Kejetia Market">
+      </div>
+
+      <input type="hidden" name="gps_latitude" id="gpsLat">
+      <input type="hidden" name="gps_longitude" id="gpsLng">
+      <button type="button" class="btn-gps" id="gpsBtn" onclick="captureGps()">
+        <i class="fas fa-location-crosshairs me-1"></i>Capture My Location
+      </button>
+      <div class="gps-status" id="gpsStatus"></div>
+
+      <button type="submit" class="btn-save">
+        <i class="fas fa-check me-2"></i>Save Customer
+      </button>
+    </form>
+
+    <button type="button" id="installBtn" class="btn-gps d-none">
+      <i class="fas fa-download me-1"></i>Install This App
+    </button>
+
+    <div class="full-app-link">
+      <a href="{{ url_for('dashboard.index') }}"><i class="fas fa-arrow-left me-1"></i>Open Full App</a>
+    </div>
+  </div>
+</div>
+
+<script>
+function captureGps() {
+  const status = document.getElementById('gpsStatus');
+  if (!navigator.geolocation) {
+    status.textContent = 'Location not supported on this device.';
+    return;
+  }
+  status.textContent = 'Getting your location…';
+  status.className = 'gps-status';
+  navigator.geolocation.getCurrentPosition(
+    pos => {
+      document.getElementById('gpsLat').value = pos.coords.latitude;
+      document.getElementById('gpsLng').value = pos.coords.longitude;
+      status.textContent = 'Location captured ✓';
+      status.className = 'gps-status ok';
+    },
+    () => {
+      status.textContent = 'Could not get location — check permissions.';
+      status.className = 'gps-status';
+    }
+  );
+}
+
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').catch(() => {});
+  });
+}
+
+let deferredInstallPrompt = null;
+const installBtn = document.getElementById('installBtn');
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  deferredInstallPrompt = e;
+  installBtn?.classList.remove('d-none');
+});
+installBtn?.addEventListener('click', async () => {
+  if (!deferredInstallPrompt) return;
+  deferredInstallPrompt.prompt();
+  await deferredInstallPrompt.userChoice;
+  deferredInstallPrompt = null;
+  installBtn.classList.add('d-none');
+});
+window.addEventListener('appinstalled', () => installBtn?.classList.add('d-none'));
+</script>
+</body>
+</html>
