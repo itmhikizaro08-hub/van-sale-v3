@@ -5,14 +5,48 @@
 <style>#routeMap { height: 400px; border-radius: var(--radius-sm); z-index: 0; }</style>
 {% endblock %}
 {% block content %}
-<div class="page-header"><div><h1 class="page-title">{{ route.route_name }}</h1></div></div>
+<div class="page-header">
+  <div><h1 class="page-title">{{ route.route_name }}</h1></div>
+  {% if current_user.can_write('routes') %}<a href="{{ url_for('routes.edit', route_id=route.id) }}" class="btn btn-outline-secondary btn-sm"><i class="fas fa-edit me-1"></i>Edit</a>{% endif %}
+</div>
 <div class="row g-3">
   <div class="col-md-4"><div class="card"><div class="card-header"><i class="fas fa-route me-2"></i>Route Info</div><div class="card-body">
     <div class="mb-2"><div class="text-muted fs-12">Area</div><div class="fw-600">{{ route.area or '—' }}</div></div>
     <div class="mb-2"><div class="text-muted fs-12">Status</div><span class="badge {{ 'bg-success' if route.status == 'active' else 'bg-secondary' }}">{{ route.status|title }}</span></div>
     <div class="mb-2"><div class="text-muted fs-12">Customers</div><div class="fw-700 fs-20">{{ route.customers.count() }}</div></div>
-    <div class="mb-0"><div class="text-muted fs-12">On Map</div><div class="fw-600">{{ customers_geo|length }} with GPS pin</div></div>
-  </div></div></div>
+    <div class="mb-2"><div class="text-muted fs-12">On Map</div><div class="fw-600">{{ customers_geo|length }} with GPS pin</div></div>
+    <div class="mb-2"><div class="text-muted fs-12">Last Visited</div><div class="fw-600">{{ route.last_visit_date.strftime('%d %b %Y') if route.last_visit_date else 'Never' }}</div></div>
+    <div class="mb-0">
+      <div class="text-muted fs-12">Next Due</div>
+      {% if route.next_visit_start %}
+        <span class="badge {{ 'bg-danger' if route.is_due else 'bg-success' }}">
+          {{ route.next_visit_start.strftime('%d %b') }}{% if route.next_visit_end and route.next_visit_end.date() != route.next_visit_start.date() %} – {{ route.next_visit_end.strftime('%d %b') }}{% endif %}
+        </span>
+      {% else %}
+        <span class="text-muted fs-13">No cycle set</span>
+      {% endif %}
+    </div>
+  </div></div>
+
+  {% if current_user.can_write('routes') %}
+  <div class="card mt-3">
+    <div class="card-header"><i class="fas fa-user-check me-2"></i>Assigned Reps</div>
+    <div class="card-body">
+      <form method="POST" action="{{ url_for('routes.assign_reps', route_id=route.id) }}">
+        {% for rep in assignable_reps %}
+        <div class="form-check mb-1">
+          <input class="form-check-input" type="checkbox" name="rep_ids[]" value="{{ rep.id }}" id="rep{{ rep.id }}" {{ 'checked' if rep.id in assigned_rep_ids }}>
+          <label class="form-check-label fs-13" for="rep{{ rep.id }}">{{ rep.full_name }} <span class="text-muted fs-12">({{ rep.role_label }})</span></label>
+        </div>
+        {% else %}
+        <p class="text-muted fs-13 mb-0">No active reps to assign.</p>
+        {% endfor %}
+        {% if assignable_reps %}<button type="submit" class="btn btn-primary btn-sm mt-2"><i class="fas fa-save me-1"></i>Save Coverage</button>{% endif %}
+      </form>
+    </div>
+  </div>
+  {% endif %}
+  </div>
   <div class="col-md-8"><div class="card"><div class="card-header"><i class="fas fa-users me-2"></i>Customers on this Route</div><div class="card-body p-0"><div class="table-responsive">
     <table class="table table-hover mb-0"><thead><tr><th>Customer</th><th>Phone</th><th class="text-end">Outstanding</th></tr></thead><tbody>
     {% for c in route.customers %}<tr><td class="fw-600">{{ c.name }}</td><td class="fs-12">{{ c.phone or '—' }}</td><td class="text-end {{ 'text-danger' if c.outstanding_balance > 0 else 'text-muted' }}">GHS {{ "%.2f"|format(c.outstanding_balance) }}</td></tr>

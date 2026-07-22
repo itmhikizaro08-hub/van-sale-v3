@@ -3,9 +3,10 @@ from flask import Blueprint, render_template, redirect, url_for, flash, request,
 from flask_login import login_required, current_user
 from datetime import datetime, timedelta
 from app import db
-from models.van import Route, CustomerVisit
+from models.van import Route, CustomerVisit, RouteAssignment
 from models.customer import Customer
 from models.sale import Sale
+from models.user import User
 
 routes_bp = Blueprint('routes', __name__)
 
@@ -14,6 +15,11 @@ def _date_range():
     start = request.args.get('start', (datetime.utcnow() - timedelta(days=30)).strftime('%Y-%m-%d'))
     end   = request.args.get('end',   datetime.utcnow().strftime('%Y-%m-%d'))
     return start, end
+
+
+def _int_or_none(value):
+    value = (value or '').strip()
+    return int(value) if value.isdigit() else None
 
 
 @routes_bp.route('/')
@@ -82,7 +88,9 @@ def add():
             route_name=request.form['route_name'],
             description=request.form.get('description'),
             area=request.form.get('area'),
-            status=request.form.get('status', 'active')
+            status=request.form.get('status', 'active'),
+            visit_frequency_days=_int_or_none(request.form.get('visit_frequency_days')),
+            visit_window_days=_int_or_none(request.form.get('visit_window_days'))
         )
         db.session.add(route)
         db.session.commit()
@@ -104,6 +112,8 @@ def edit(route_id):
         route.description = request.form.get('description')
         route.area = request.form.get('area')
         route.status = request.form.get('status', 'active')
+        route.visit_frequency_days = _int_or_none(request.form.get('visit_frequency_days'))
+        route.visit_window_days = _int_or_none(request.form.get('visit_window_days'))
         db.session.commit()
         flash('Route updated!', 'success')
         return redirect(url_for('routes.index'))
@@ -131,4 +141,28 @@ def view(route_id):
         }
         for c in customers if c.gps_latitude and c.gps_longitude
     ]
-    return render_template('routes/view.html', route=route, customers=customers, customers_geo=customers_geo)
+
+    assignable_reps = User.query.filter(
+        User.role.in_(['sales_rep', 'supervisor']), User.is_active == True
+    ).order_by(User.full_name).all()
+    assigned_rep_ids = {a.sales_rep_id for a in route.rep_assignments}
+
+    return render_template('routes/view.html', route=route, customers=customers, customers_geo=customers_geo,
+        assignable_reps=assignable_reps, assigned_rep_ids=assigned_rep_ids)
+
+
+@routes_bp.route('/<int:route_id>/assign-reps', methods=['POST'])
+@login_required
+def assign_reps(route_id):
+    if not current_user.can_write('routes'):
+        flash('Permission denied.', 'danger')
+        return redirect(url_for('routes.view', route_id=route_id))
+    Route.query.get_or_404(route_id)
+    rep_ids = [int(rid) for rid in request.form.getlist('rep_ids[]') if rid.isdigit()]
+
+    RouteAssignment.query.filter_by(route_id=route_id).delete()
+    for rid in rep_ids:
+        db.session.add(RouteAssignment(route_id=route_id, sales_rep_id=rid))
+    db.session.commit()
+    flash('Route coverage updated.', 'success')
+    return redirect(url_for('routes.view', route_id=route_id))

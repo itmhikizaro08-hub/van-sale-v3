@@ -5,6 +5,16 @@
   <div class="mb-3"><label class="form-label">Route Name *</label><input type="text" name="route_name" class="form-control" value="{{ route.route_name if route else '' }}" required></div>
   <div class="mb-3"><label class="form-label">Area</label><input type="text" name="area" class="form-control" placeholder="e.g. Accra Central" value="{{ route.area if route else '' }}"></div>
   <div class="mb-3"><label class="form-label">Description</label><textarea name="description" class="form-control" rows="2">{{ route.description if route else '' }}</textarea></div>
+  <div class="row g-3 mb-3">
+    <div class="col-md-6">
+      <label class="form-label">Visit Cycle (days) <small class="text-muted fw-400">— how often this route should be visited</small></label>
+      <input type="number" name="visit_frequency_days" min="1" class="form-control" placeholder="e.g. 14" value="{{ route.visit_frequency_days if route and route.visit_frequency_days else '' }}">
+    </div>
+    <div class="col-md-6">
+      <label class="form-label">Visit Window (days) <small class="text-muted fw-400">— flexibility around the cycle</small></label>
+      <input type="number" name="visit_window_days" min="0" class="form-control" placeholder="e.g. 3" value="{{ route.visit_window_days if route and route.visit_window_days else '' }}">
+    </div>
+  </div>
   <div class="mb-3"><label class="form-label">Status</label><select name="status" class="form-select"><option value="active" {{ 'selected' if not route or route.status=='active' }}>Active</option><option value="inactive" {{ 'selected' if route and route.status=='inactive' }}>Inactive</option></select></div>
 </div><div class="card-footer d-flex gap-2"><button type="submit" class="btn btn-primary"><i class="fas fa-save me-1"></i>Save</button><a href="{{ url_for('routes.index') }}" class="btn btn-outline-secondary">Cancel</a></div></div></form>
 </div></div>{% endblock %}

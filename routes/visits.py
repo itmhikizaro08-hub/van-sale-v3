@@ -110,21 +110,44 @@ def checkout(visit_id):
 @login_required
 def today():
     from models.customer import Customer
-    from models.van import CustomerVisit
+    from models.van import CustomerVisit, RouteAssignment
     from datetime import date
-    # Get rep's route customers
+
+    today_date = date.today()
+    visited_ids = set(
+        v.customer_id for v in CustomerVisit.query.filter_by(
+            sales_rep_id=current_user.id
+        ).filter(db.func.date(CustomerVisit.visit_date) == today_date).all()
+    )
+
+    assignments = []
+    if current_user.scope('visits') == 'own':
+        assignments = RouteAssignment.query.filter_by(sales_rep_id=current_user.id).all()
+
+    if assignments:
+        # Rep has explicit route coverage — show every customer on each
+        # assigned route (not just ones nominally owned via sales_rep_id),
+        # grouped by route so a rep serving several routes sees all of them.
+        route_groups = [
+            {
+                'route': a.route,
+                'customers': Customer.query.filter_by(
+                    status='active', assigned_route_id=a.route_id
+                ).order_by(Customer.name).all()
+            }
+            for a in assignments
+        ]
+        return render_template('visits/today.html', route_groups=route_groups,
+            customers=None, visited_ids=visited_ids)
+
+    # No route assignments yet — original behavior, unchanged: all customers
+    # this user owns (or all active customers, for non-'own' scopes), ungrouped.
     q = Customer.query.filter_by(status='active')
     if current_user.scope('visits') == 'own':
         q = q.filter_by(sales_rep_id=current_user.id)
     customers = q.order_by(Customer.name).all()
-    # Today's visited customer IDs
-    today = date.today()
-    visited_ids = set(
-        v.customer_id for v in CustomerVisit.query.filter_by(
-            sales_rep_id=current_user.id
-        ).filter(db.func.date(CustomerVisit.visit_date) == today).all()
-    )
-    return render_template('visits/today.html', customers=customers, visited_ids=visited_ids)
+    return render_template('visits/today.html', route_groups=None,
+        customers=customers, visited_ids=visited_ids)
 
 
 @visits_bp.route('/mark', methods=['POST'])
@@ -136,8 +159,10 @@ def mark():
     if not data or not data.get('customer_id'):
         return jsonify({'error': 'customer_id required'}), 400
     try:
+        customer = Customer.query.get(data['customer_id'])
         visit = CustomerVisit(
             customer_id=data['customer_id'],
+            route_id=customer.assigned_route_id if customer else None,
             sales_rep_id=current_user.id,
             gps_latitude=data.get('latitude'),
             gps_longitude=data.get('longitude'),
@@ -150,7 +175,6 @@ def mark():
         # checkin() updates this too — without it, a visit logged through
         # this quick-mark flow leaves Customer.last_visit_date stale, which
         # customers/view.html and reports read directly.
-        customer = Customer.query.get(data['customer_id'])
         if customer:
             customer.last_visit_date = datetime.utcnow()
         db.session.commit()

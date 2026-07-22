@@ -3,10 +3,7 @@
 {% block breadcrumb %}<li class="breadcrumb-item"><a href="{{ url_for('visits.index') }}">Visits</a></li><li class="breadcrumb-item active">Today's Route</li>{% endblock %}
 {% block content %}
 <div class="page-header"><div><h1 class="page-title">Today's Route</h1><p class="page-subtitle">Tap "Mark Visited" at each customer — GPS captured automatically</p></div></div>
-<div class="card"><div class="card-body p-0">
-{% if customers %}
-<div class="list-group list-group-flush">
-{% for c in customers %}
+{% macro customer_row(c) %}
 <div class="list-group-item d-flex align-items-center justify-content-between py-3">
   <div>
     <div class="fw-700">{{ c.name }}</div>
@@ -23,12 +20,39 @@
     <a href="{{ url_for('sales.new_sale') }}?customer_id={{ c.id }}" class="btn btn-outline-success btn-sm"><i class="fas fa-bolt"></i></a>
   </div>
 </div>
-{% endfor %}
+{% endmacro %}
+
+{% if route_groups %}
+{% for group in route_groups %}
+<div class="card mb-3">
+  <div class="card-header d-flex align-items-center justify-content-between">
+    <span><i class="fas fa-route me-2"></i>{{ group.route.route_name }} <span class="text-muted fs-12">({{ group.customers|length }} customers)</span></span>
+    {% if group.route.next_visit_start %}
+    <span class="badge {{ 'bg-danger' if group.route.is_due else 'bg-success' }}">{{ 'Due now' if group.route.is_due else 'Next: ' + group.route.next_visit_start.strftime('%d %b') }}</span>
+    {% endif %}
+  </div>
+  <div class="card-body p-0">
+    {% if group.customers %}
+    <div class="list-group list-group-flush">
+      {% for c in group.customers %}{{ customer_row(c) }}{% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-state py-4"><p class="text-muted mb-0">No customers on this route.</p></div>
+    {% endif %}
+  </div>
 </div>
-{% else %}
-<div class="empty-state py-5"><i class="fas fa-route" style="font-size:2.5rem;color:var(--text-muted)"></i><h5 class="mt-3">No customers on today's route</h5><p class="text-muted">Your route has no customers assigned for today.</p></div>
-{% endif %}
+{% endfor %}
+{% elif customers %}
+<div class="card"><div class="card-body p-0">
+<div class="list-group list-group-flush">
+{% for c in customers %}{{ customer_row(c) }}{% endfor %}
+</div>
 </div></div>
+{% else %}
+<div class="card"><div class="card-body p-0">
+<div class="empty-state py-5"><i class="fas fa-route" style="font-size:2.5rem;color:var(--text-muted)"></i><h5 class="mt-3">No customers on today's route</h5><p class="text-muted">Your route has no customers assigned for today.</p></div>
+</div></div>
+{% endif %}
 {% endblock %}
 {% block extra_js %}
 <script>

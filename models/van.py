@@ -1,5 +1,5 @@
 from app import db
-from datetime import datetime
+from datetime import datetime, timedelta, date
 
 
 class Van(db.Model):
@@ -76,6 +76,8 @@ class Route(db.Model):
     description = db.Column(db.Text)
     area = db.Column(db.String(100))
     status = db.Column(db.String(20), default='active')
+    visit_frequency_days = db.Column(db.Integer, nullable=True)  # e.g. 14 = every 2 weeks
+    visit_window_days = db.Column(db.Integer, nullable=True)     # flexibility around the cycle
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     # Relationships
@@ -83,8 +85,49 @@ class Route(db.Model):
     visits = db.relationship('CustomerVisit', backref='route', lazy='dynamic')
     vans = db.relationship('Van', backref='route', lazy='dynamic')
 
+    @property
+    def last_visit_date(self):
+        v = (CustomerVisit.query.filter_by(route_id=self.id, status='completed')
+             .order_by(CustomerVisit.visit_date.desc()).first())
+        return v.visit_date if v else None
+
+    @property
+    def next_visit_start(self):
+        if not self.visit_frequency_days or not self.last_visit_date:
+            return None
+        return self.last_visit_date + timedelta(days=self.visit_frequency_days)
+
+    @property
+    def next_visit_end(self):
+        start = self.next_visit_start
+        if not start:
+            return None
+        return start + timedelta(days=self.visit_window_days or 0)
+
+    @property
+    def is_due(self):
+        start = self.next_visit_start
+        return start is not None and start.date() <= date.today()
+
     def __repr__(self):
         return f'<Route {self.route_code} - {self.route_name}>'
+
+
+class RouteAssignment(db.Model):
+    """Which sales reps cover which routes — a rep can cover several routes.
+    Kept separate from Customer.sales_rep_id (used everywhere else for RBAC/
+    reporting ownership); this only drives visit-planning/coverage."""
+    __tablename__ = 'route_assignments'
+
+    id = db.Column(db.Integer, primary_key=True)
+    route_id = db.Column(db.Integer, db.ForeignKey('routes.id'), nullable=False)
+    sales_rep_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    __table_args__ = (db.UniqueConstraint('route_id', 'sales_rep_id', name='uq_route_rep'),)
+
+    route = db.relationship('Route', backref='rep_assignments')
+    sales_rep = db.relationship('User', foreign_keys=[sales_rep_id])
 
 
 class CustomerVisit(db.Model):

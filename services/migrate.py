@@ -73,6 +73,10 @@ def run_migrations(db):
         # needs the actual ALTER COLUMN TYPE.
         _widen_quantity_columns_to_float(conn, engine)
 
+        # ── Recurring visit cycle on routes ─────────────────────────────────
+        _add_column_if_missing(conn, engine, 'routes', 'visit_frequency_days', 'INTEGER')
+        _add_column_if_missing(conn, engine, 'routes', 'visit_window_days', 'INTEGER')
+
         conn.commit()
 
         # ── Self-heal sales where payment_status drifted from balance_due ──

@@ -79,13 +79,14 @@
   <div class="col-md-8">
     <div class="card h-100"><div class="card-body p-0"><div class="table-responsive">
     <table class="table table-hover dt-table mb-0" id="routesTable">
-      <thead><tr><th>Route Name</th><th>Area</th><th>Customers</th><th class="text-end">Sales</th><th class="text-end">Outstanding</th><th>Status</th><th></th></tr></thead>
+      <thead><tr><th>Route Name</th><th>Area</th><th>Customers</th><th class="text-end">Sales</th><th class="text-end">Outstanding</th><th>Next Due</th><th>Status</th><th></th></tr></thead>
       <tbody>{% for r in routes %}<tr>
         <td class="fw-600">{{ r.route_name }}</td>
         <td class="text-muted fs-12">{{ r.area or '—' }}</td>
         <td>{{ r.customers.count() }}</td>
         <td class="text-end fw-700">GHS {{ "%.2f"|format(r.total_sales) }}</td>
         <td class="text-end {{ 'text-danger fw-600' if r.total_outstanding > 0 else 'text-muted' }}">GHS {{ "%.2f"|format(r.total_outstanding) }}</td>
+        <td>{% if r.next_visit_start %}<span class="badge {{ 'bg-danger' if r.is_due else 'bg-success' }}">{{ r.next_visit_start.strftime('%d %b') }}</span>{% else %}<span class="text-muted fs-12">—</span>{% endif %}</td>
         <td><span class="badge {{ 'bg-success' if r.status == 'active' else 'bg-secondary' }}">{{ r.status|title }}</span></td>
         <td class="text-nowrap">
       <div class="d-flex gap-1">
