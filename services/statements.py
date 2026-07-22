@@ -12,7 +12,7 @@ from models.payment import Payment
 from models.notification import InventoryMovement, SupplierPayment
 
 
-def van_stock_ledger_rows(van_id, rep_id, start, end):
+def van_stock_ledger_rows(van_id, rep_id, start, end, product_id=None):
     """Every event that moved a specific rep's custody of a specific van,
     across the four places that mutate VanStock (routes/vans.py loading_new/
     offload_confirm, routes/sales.py create, routes/returns.py approvals).
@@ -20,7 +20,11 @@ def van_stock_ledger_rows(van_id, rep_id, start, end):
     to reconcile against — a van holds many different products at once, so
     a single number would be meaningless. Returns a flat, dated ledger
     instead; the caller pairs it with the live VanStock snapshot for the
-    current per-product totals."""
+    current per-product totals.
+
+    `product_id`, when given, narrows the ledger to just that product —
+    used by the Van Stock page's per-row "this item's movement" link,
+    distinct from the "all items" statement link."""
     end_bound = end + ' 23:59:59'
     events = []
 
@@ -31,6 +35,8 @@ def van_stock_ledger_rows(van_id, rep_id, start, end):
     for sheet in sheets:
         dt = sheet.created_at.strftime('%Y-%m-%d %H:%M:%S') if sheet.created_at else ''
         for item in sheet.items:
+            if product_id and item.product_id != product_id:
+                continue
             name = item.product.product_name if item.product else 'item'
             events.append((dt, 'Loaded', name, item.quantity, f'Loading Sheet {sheet.sheet_number}'))
 
@@ -41,6 +47,8 @@ def van_stock_ledger_rows(van_id, rep_id, start, end):
         dt = offload.confirmed_at.strftime('%Y-%m-%d %H:%M:%S') if offload.confirmed_at else \
              (offload.created_at.strftime('%Y-%m-%d %H:%M:%S') if offload.created_at else '')
         for item in offload.items:
+            if product_id and item.product_id != product_id:
+                continue
             received = item.quantity_received or 0
             if received <= 0:
                 continue
@@ -51,6 +59,8 @@ def van_stock_ledger_rows(van_id, rep_id, start, end):
     for s in sales:
         dt = s.sale_date.strftime('%Y-%m-%d %H:%M:%S') if s.sale_date else ''
         for item in s.items:
+            if product_id and item.product_id != product_id:
+                continue
             name = item.product.product_name if item.product else 'item'
             events.append((dt, 'Sold', name, -item.quantity, f'Invoice {s.invoice_number}'))
 
@@ -63,6 +73,8 @@ def van_stock_ledger_rows(van_id, rep_id, start, end):
              (order.created_at.strftime('%Y-%m-%d %H:%M:%S') if order.created_at else '')
         for item in order.items:
             if item.line_status != 'approved':
+                continue
+            if product_id and item.product_id != product_id:
                 continue
             name = item.product.product_name if item.product else 'item'
             events.append((dt, 'Returned', name, item.quantity, f'Return {order.return_number}'))

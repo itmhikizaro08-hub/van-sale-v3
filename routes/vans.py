@@ -204,22 +204,27 @@ def stock_statement(van_id, rep_id):
 
     van = Van.query.get_or_404(van_id)
     rep = User.query.get_or_404(rep_id)
+    product_id = request.args.get('product_id', type=int)
+    product = Product.query.get_or_404(product_id) if product_id else None
 
     start = request.args.get('start', (datetime.utcnow() - timedelta(days=30)).strftime('%Y-%m-%d'))
     end = request.args.get('end', datetime.utcnow().strftime('%Y-%m-%d'))
 
     from services.statements import van_stock_ledger_rows
-    rows = van_stock_ledger_rows(van_id, rep_id, start, end)
+    rows = van_stock_ledger_rows(van_id, rep_id, start, end, product_id=product_id)
 
-    current_stock = VanStock.query.filter_by(van_id=van_id, sales_rep_id=rep_id).filter(
+    current_stock_q = VanStock.query.filter_by(van_id=van_id, sales_rep_id=rep_id).filter(
         VanStock.quantity > 0
-    ).order_by(VanStock.quantity.desc()).all()
+    )
+    if product_id:
+        current_stock_q = current_stock_q.filter_by(product_id=product_id)
+    current_stock = current_stock_q.order_by(VanStock.quantity.desc()).all()
     current_total_qty = round(sum(vs.quantity for vs in current_stock), 2)
     current_total_value = round(sum(
         vs.quantity * (vs.product.cost_price if vs.product else 0) for vs in current_stock
     ), 2)
 
-    return render_template('vans/stock_statement.html', van=van, rep=rep, rows=rows,
+    return render_template('vans/stock_statement.html', van=van, rep=rep, product=product, rows=rows,
         current_stock=current_stock, current_total_qty=current_total_qty,
         current_total_value=current_total_value, start=start, end=end)
 
