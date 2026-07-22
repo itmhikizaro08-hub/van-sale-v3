@@ -9,6 +9,29 @@
   </div>
 </div>
 
+<div class="row g-3 mb-3">
+  <div class="col-6 col-md-3">
+    <div class="stat-card primary"><div class="stat-icon"><i class="fas fa-list"></i></div>
+      <div><div class="stat-label">Log Entries</div><div class="stat-value">{{ logs|length }}</div></div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="stat-card success"><div class="stat-icon"><i class="fas fa-coins"></i></div>
+      <div><div class="stat-label">Total Tip Value</div><div class="stat-value" style="font-size:15px">GHS {{ "%.2f"|format(total_tip_value) }}</div></div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="stat-card warning"><div class="stat-icon"><i class="fas fa-edit"></i></div>
+      <div><div class="stat-label">Post-Sale Edits</div><div class="stat-value">{{ edit_count }}</div></div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="stat-card info"><div class="stat-icon"><i class="fas fa-id-badge"></i></div>
+      <div><div class="stat-label">Reps Involved</div><div class="stat-value">{{ rep_count }}</div></div>
+    </div>
+  </div>
+</div>
+
 <!-- Filters -->
 <div class="card mb-3 no-print">
   <div class="card-body">

@@ -29,5 +29,10 @@ def index():
     logs = q.order_by(PricingAuditLog.created_at.desc()).limit(500).all()
     reps = User.query.filter(User.role == 'sales_rep', User.is_active == True).order_by(User.full_name).all()
 
+    total_tip_value = round(sum(l.tip_calculated * l.quantity for l in logs if l.tip_calculated > 0), 2)
+    edit_count = sum(1 for l in logs if l.action != 'sale')
+    rep_count = len({l.user_id for l in logs})
+
     return render_template('audit/index.html', logs=logs, reps=reps,
-                            start=start, end=end, sel_rep=rep_id)
+                            start=start, end=end, sel_rep=rep_id,
+                            total_tip_value=total_tip_value, edit_count=edit_count, rep_count=rep_count)
