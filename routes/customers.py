@@ -285,6 +285,49 @@ def quick_add_routes():
         routes_data=routes_data, unassigned_count=len(unassigned), total=len(customers))
 
 
+@customers_bp.route('/quick-add/routes/new', methods=['GET', 'POST'])
+@login_required
+def quick_add_route_new():
+    # Gated on the same can_write('customers') check as the rest of this mini
+    # app rather than the 'routes' RBAC module — sales_rep has no 'routes'
+    # access at all in the full app (route management is normally office-only),
+    # but reps are exactly who needs to add a route on the spot when covering
+    # a new area, and every other page in this mini app already shares one
+    # single permission gate rather than mixing in a second module check.
+    if not current_user.can_write('customers'):
+        flash('Permission denied.', 'danger')
+        return redirect(url_for('dashboard.index'))
+
+    if request.method == 'POST':
+        route_name = (request.form.get('route_name') or '').strip()
+        if not route_name:
+            flash('Route name is required.', 'warning')
+            return redirect(url_for('customers.quick_add_route_new'))
+
+        existing = Route.query.filter(
+            Route.status == 'active', db.func.lower(Route.route_name) == route_name.lower()
+        ).first()
+        if existing:
+            flash(f'A route named "{route_name}" already exists ({existing.route_code}).', 'warning')
+            return redirect(url_for('customers.quick_add_route_new'))
+
+        last = Route.query.order_by(Route.id.desc()).first()
+        n = (last.id + 1) if last else 1
+        route = Route(
+            route_code=f'RT{n:03d}',
+            route_name=route_name,
+            area=request.form.get('area'),
+            description=request.form.get('description'),
+            status='active'
+        )
+        db.session.add(route)
+        db.session.commit()
+        flash(f'Route "{route.route_name}" added ({route.route_code})!', 'success')
+        return redirect(url_for('customers.quick_add_routes'))
+
+    return render_template('customers/quick_add_route_new.html')
+
+
 @customers_bp.route('/add', methods=['GET', 'POST'])
 @login_required
 def add():

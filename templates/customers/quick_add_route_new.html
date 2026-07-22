@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Add Route | {{ company_name }}</title>
+  <link rel="manifest" href="{{ url_for('customers.quick_add_manifest') }}">
+  <meta name="theme-color" content="#0f172a">
+  <link rel="apple-touch-icon" href="{{ url_for('static', filename='icons/icon-180.png') }}">
+  <link rel="icon" type="image/png" sizes="192x192" href="{{ url_for('static', filename='icons/icon-192.png') }}">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:'Inter',sans-serif;background:#0b1220;color:#f1f5f9;min-height:100vh;min-height:100dvh;display:flex;flex-direction:column}
+    .bg-glow{position:fixed;inset:0;pointer-events:none;z-index:0;background:
+      radial-gradient(500px circle at 15% 0%, rgba(22,163,74,.16), transparent 60%),
+      radial-gradient(500px circle at 100% 20%, rgba(8,145,178,.14), transparent 55%)}
+
+    .topbar{position:sticky;top:0;z-index:20;display:flex;align-items:center;gap:10px;padding:14px 18px;padding-top:calc(14px + env(safe-area-inset-top));background:rgba(11,18,32,.85);backdrop-filter:blur(16px);border-bottom:1px solid rgba(255,255,255,.06)}
+    .topbar-back{color:#94a3b8;text-decoration:none;font-size:16px;width:30px;height:30px;display:flex;align-items:center;justify-content:center}
+    .topbar-name{font-size:14px;font-weight:700;color:#e2e8f0}
+    .topbar-sub{font-size:10.5px;color:#64748b}
+
+    .content{position:relative;z-index:1;flex:1;width:100%;max-width:480px;margin:0 auto;padding:20px 16px calc(40px + env(safe-area-inset-bottom))}
+
+    .hero{text-align:center;margin-bottom:20px}
+    .hero-icon{width:54px;height:54px;border-radius:16px;background:linear-gradient(135deg,#16a34a,#0891b2);display:flex;align-items:center;justify-content:center;font-size:22px;color:#fff;margin:0 auto 12px;box-shadow:0 10px 28px rgba(22,163,74,.35)}
+    .hero h1{font-size:20px;font-weight:800;color:#f8fafc;margin-bottom:2px}
+    .hero p{font-size:12.5px;color:#64748b}
+
+    .form-card{background:rgba(255,255,255,.035);border:1px solid rgba(255,255,255,.08);border-radius:16px;padding:16px;margin-bottom:14px}
+    .form-label{font-size:12.5px;font-weight:500;color:#94a3b8;margin-bottom:6px;display:block}
+    .form-control{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);color:#f1f5f9;font-size:16px;padding:11px 13px;border-radius:11px}
+    .form-control:focus{background:rgba(255,255,255,.07);border-color:#16a34a;box-shadow:0 0 0 3px rgba(22,163,74,.15);color:#f1f5f9}
+    .form-control::placeholder{color:#475569}
+
+    .btn-save{width:100%;background:linear-gradient(135deg,#16a34a,#0891b2);border:none;color:#fff;font-weight:700;font-size:15px;padding:15px;border-radius:13px;box-shadow:0 10px 26px rgba(22,163,74,.3)}
+    .btn-save:active{transform:scale(.99)}
+
+    .alert{border-radius:12px;font-size:13px;border:none;padding:11px 14px;margin-bottom:14px}
+    .alert-danger{background:rgba(239,68,68,.15);color:#fca5a5;border:1px solid rgba(239,68,68,.3)}
+    .alert-warning{background:rgba(245,158,11,.15);color:#fcd34d;border:1px solid rgba(245,158,11,.3)}
+    .alert-success{background:rgba(16,185,129,.15);color:#6ee7b7;border:1px solid rgba(16,185,129,.3)}
+  </style>
+</head>
+<body>
+<div class="bg-glow"></div>
+
+<header class="topbar">
+  <a href="{{ url_for('customers.quick_add_routes') }}" class="topbar-back"><i class="fas fa-arrow-left"></i></a>
+  <div>
+    <div class="topbar-name">Add Route</div>
+    <div class="topbar-sub">{{ company_name }}</div>
+  </div>
+</header>
+
+<main class="content">
+  <div class="hero">
+    <div class="hero-icon"><i class="fa-solid fa-route"></i></div>
+    <h1>New Route</h1>
+    <p>Set up a route for a new area you're covering</p>
+  </div>
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% for category, message in messages %}
+    <div class="alert alert-{{ 'success' if category == 'success' else category }}">
+      <i class="fas fa-{{ 'check-circle' if category == 'success' else 'exclamation-triangle' }} me-2"></i>{{ message }}
+    </div>
+    {% endfor %}
+  {% endwith %}
+
+  <form method="POST">
+    <div class="form-card">
+      <div class="mb-3">
+        <label class="form-label">Route Name *</label>
+        <input type="text" name="route_name" class="form-control" placeholder="e.g. Madina - Adenta" required autofocus>
+      </div>
+      <div class="mb-3">
+        <label class="form-label">Area</label>
+        <input type="text" name="area" class="form-control" placeholder="e.g. Greater Accra">
+      </div>
+      <div>
+        <label class="form-label">Description</label>
+        <textarea name="description" class="form-control" rows="2" placeholder="Optional notes about this route"></textarea>
+      </div>
+    </div>
+
+    <button type="submit" class="btn-save">
+      <i class="fas fa-check me-2"></i>Save Route
+    </button>
+  </form>
+</main>
+
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').catch(() => {});
+  });
+}
+</script>
+</body>
+</html>

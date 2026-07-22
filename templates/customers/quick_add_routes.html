@@ -48,6 +48,14 @@
     .empty{text-align:center;color:#475569;font-size:13.5px;padding:40px 0}
     .empty i{font-size:2rem;display:block;margin-bottom:12px;opacity:.5}
 
+    .btn-new-route{display:flex;align-items:center;justify-content:center;width:100%;background:rgba(8,145,178,.12);border:1px dashed rgba(8,145,178,.4);color:#67e8f9;font-weight:600;font-size:13.5px;padding:12px;border-radius:12px;text-decoration:none;margin-bottom:16px}
+    .btn-new-route:active{transform:scale(.98)}
+
+    .alert{border-radius:12px;font-size:13px;border:none;padding:11px 14px;margin-bottom:14px}
+    .alert-danger{background:rgba(239,68,68,.15);color:#fca5a5;border:1px solid rgba(239,68,68,.3)}
+    .alert-warning{background:rgba(245,158,11,.15);color:#fcd34d;border:1px solid rgba(245,158,11,.3)}
+    .alert-success{background:rgba(16,185,129,.15);color:#6ee7b7;border:1px solid rgba(16,185,129,.3)}
+
     .bottom-nav{position:fixed;left:0;right:0;bottom:0;z-index:20;display:flex;background:rgba(11,18,32,.92);backdrop-filter:blur(16px);border-top:1px solid rgba(255,255,255,.08);padding:8px 10px calc(8px + env(safe-area-inset-bottom))}
     .nav-item{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;padding:6px 0;color:#64748b;text-decoration:none;font-size:10.5px;font-weight:600;border-radius:12px}
     .nav-item i{font-size:17px}
@@ -70,10 +78,22 @@
 </header>
 
 <main class="content">
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% for category, message in messages %}
+    <div class="alert alert-{{ 'success' if category == 'success' else category }}">
+      <i class="fas fa-{{ 'check-circle' if category == 'success' else 'exclamation-triangle' }} me-2"></i>{{ message }}
+    </div>
+    {% endfor %}
+  {% endwith %}
+
   <div class="stat-grid">
     <div class="stat-card"><div class="val">{{ routes_data|length }}</div><div class="lbl">Active Routes</div></div>
     <div class="stat-card {{ 'warn' if unassigned_count > 0 else '' }}"><div class="val">{{ unassigned_count }}</div><div class="lbl">No Route Assigned</div></div>
   </div>
+
+  <a href="{{ url_for('customers.quick_add_route_new') }}" class="btn-new-route">
+    <i class="fas fa-plus me-2"></i>Add New Route
+  </a>
 
   {% for d in routes_data %}
   <div class="route-card">
@@ -97,7 +117,7 @@
   {% else %}
   <div class="empty">
     <i class="fas fa-route"></i>
-    No active routes set up yet.<br>Ask your office to add routes in the full app.
+    No active routes set up yet.<br>Tap "Add New Route" above to create the first one.
   </div>
   {% endfor %}
 </main>
