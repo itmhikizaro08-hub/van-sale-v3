@@ -3,9 +3,32 @@
 {% block breadcrumb %}<li class="breadcrumb-item active">Van Stock</li>{% endblock %}
 {% block content %}
 <div class="page-header"><div><h1 class="page-title">{{ 'My Van Stock' if current_user.scope('van_stock') == 'own' else 'Van Stock — All Reps' }}</h1><p class="page-subtitle">Current field custody</p></div></div>
+
+<div class="row g-3 mb-3">
+  <div class="col-6 col-md-{{ 4 if current_user.see_cost_prices() else 6 }}">
+    <div class="stat-card primary"><div class="stat-icon"><i class="fas fa-boxes"></i></div>
+      <div><div class="stat-label">Total Units</div><div class="stat-value">{{ total_qty|qty }}</div></div>
+    </div>
+  </div>
+  {% if current_user.scope('van_stock') != 'own' %}
+  <div class="col-6 col-md-{{ 4 if current_user.see_cost_prices() else 6 }}">
+    <div class="stat-card info"><div class="stat-icon"><i class="fas fa-id-badge"></i></div>
+      <div><div class="stat-label">Reps with Stock</div><div class="stat-value">{{ rep_count }}</div></div>
+    </div>
+  </div>
+  {% endif %}
+  {% if current_user.see_cost_prices() %}
+  <div class="col-6 col-md-4">
+    <div class="stat-card warning"><div class="stat-icon"><i class="fas fa-coins"></i></div>
+      <div><div class="stat-label">Total Field Value</div><div class="stat-value" style="font-size:15px">GHS {{ "%.2f"|format(total_value) }}</div></div>
+    </div>
+  </div>
+  {% endif %}
+</div>
+
 <div class="card"><div class="card-body p-0"><div class="table-responsive">
 <table class="table table-hover dt-table mb-0" id="vanStockTable">
-  <thead><tr><th>Van</th>{% if current_user.scope('van_stock') != 'own' %}<th>Rep</th>{% endif %}<th>Product</th><th class="text-end">Qty</th><th class="text-end">Value</th></tr></thead>
+  <thead><tr><th>Van</th>{% if current_user.scope('van_stock') != 'own' %}<th>Rep</th>{% endif %}<th>Product</th><th class="text-end">Qty</th>{% if current_user.see_cost_prices() %}<th class="text-end">Value</th>{% endif %}</tr></thead>
   <tbody>
     {% for vs in stocks %}
     <tr>
@@ -13,7 +36,7 @@
       {% if current_user.scope('van_stock') != 'own' %}<td>{{ vs.sales_rep.full_name if vs.sales_rep else '—' }}</td>{% endif %}
       <td class="fw-600">{{ vs.product.product_name if vs.product else '—' }}</td>
       <td class="text-end"><span class="badge {{ 'bg-warning text-dark' if vs.quantity <= 5 else 'bg-success' }}">{{ vs.quantity|qty }}</span></td>
-      <td class="text-end fw-600">GHS {{ "%.2f"|format(vs.quantity * (vs.product.cost_price if vs.product else 0)) }}</td>
+      {% if current_user.see_cost_prices() %}<td class="text-end fw-600">GHS {{ "%.2f"|format(vs.quantity * (vs.product.cost_price if vs.product else 0)) }}</td>{% endif %}
     </tr>
     {% endfor %}
   </tbody>

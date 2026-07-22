@@ -183,7 +183,13 @@ def stock():
     if current_user.scope('van_stock') == 'own':
         q = q.filter_by(sales_rep_id=current_user.id)
     stocks = q.all()
-    return render_template('vans/stock.html', stocks=stocks)
+
+    total_qty = round(sum(vs.quantity for vs in stocks), 2)
+    total_value = round(sum(vs.quantity * (vs.product.cost_price if vs.product else 0) for vs in stocks), 2)
+    rep_count = len({vs.sales_rep_id for vs in stocks if vs.sales_rep_id})
+
+    return render_template('vans/stock.html', stocks=stocks,
+        total_qty=total_qty, total_value=total_value, rep_count=rep_count)
 
 
 # ── Loading Sheets (warehouse → van) ─────────────────────────────────────────

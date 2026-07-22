@@ -94,7 +94,7 @@ def bulk_update():
 
     updated = 0
     for pid, price in zip(product_ids, new_prices):
-        if not price:
+        if not price or not pid.isdigit():
             continue
         product = Product.query.get(int(pid))
         if not product:
