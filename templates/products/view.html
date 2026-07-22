@@ -8,19 +8,104 @@
   <a href="{{ url_for('products.edit', product_id=product.id) }}" class="btn btn-outline-primary"><i class="fas fa-edit me-1"></i>Edit</a>
   {% endif %}
 </div>
+<div class="row g-3 mb-3">
+  <div class="col-6 col-md-3">
+    <div class="stat-card primary"><div class="stat-icon"><i class="fas fa-warehouse"></i></div>
+      <div><div class="stat-label">Warehouse Stock</div><div class="stat-value">{{ product.stock_quantity|qty }}</div></div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="stat-card info"><div class="stat-icon"><i class="fas fa-truck"></i></div>
+      <div><div class="stat-label">Field Stock</div><div class="stat-value">{{ total_field_qty|qty }}</div></div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="stat-card success"><div class="stat-icon"><i class="fas fa-chart-line"></i></div>
+      <div><div class="stat-label">Total Sold</div><div class="stat-value">{{ total_sold|qty }}</div></div>
+    </div>
+  </div>
+  {% if current_user.see_cost_prices() %}
+  <div class="col-6 col-md-3">
+    <div class="stat-card warning"><div class="stat-icon"><i class="fas fa-percentage"></i></div>
+      <div><div class="stat-label">Profit Margin</div><div class="stat-value">{{ product.profit_margin }}%</div></div>
+    </div>
+  </div>
+  {% endif %}
+</div>
+
 <div class="row g-3">
   <div class="col-md-4">
     <div class="card">
       <div class="card-header"><i class="fas fa-box me-2"></i>Product Details</div>
       <div class="card-body">
         <div class="mb-2"><div class="text-muted fs-12">Category</div><div class="fw-600">{{ product.category_obj.name if product.category_obj else '—' }}</div></div>
-        <div class="mb-2"><div class="text-muted fs-12">Unit</div><div class="fw-600">{{ product.unit }}</div></div>
+        <div class="mb-2"><div class="text-muted fs-12">Brand</div><div class="fw-600">{{ product.brand or '—' }}</div></div>
+        <div class="mb-2"><div class="text-muted fs-12">Barcode</div><div class="fw-600">{{ product.barcode or '—' }}</div></div>
+        <div class="mb-2"><div class="text-muted fs-12">Unit</div><div class="fw-600">{{ product.unit }}{% if product.pieces_per_unit and product.pieces_per_unit > 1 %} <span class="text-muted fs-12">({{ product.pieces_per_unit }} pieces)</span>{% endif %}</div></div>
         {% if current_user.see_cost_prices() %}<div class="mb-2"><div class="text-muted fs-12">Cost Price</div><div class="fw-600">GHS {{ "%.2f"|format(product.cost_price) }}</div></div>{% endif %}
         <div class="mb-2"><div class="text-muted fs-12">Selling Price</div><div class="fw-700 text-primary fs-15">GHS {{ "%.2f"|format(product.selling_price) }}</div></div>
-        <div class="mb-2"><div class="text-muted fs-12">Warehouse Stock</div><span class="badge {{ 'bg-danger' if product.stock_quantity == 0 else 'bg-warning text-dark' if product.is_low_stock else 'bg-success' }} fs-13">{{ product.stock_quantity|qty }} {{ product.unit }}</span></div>
+        <div class="mb-2"><div class="text-muted fs-12">Wholesale Price</div><div class="fw-600">GHS {{ "%.2f"|format(product.wholesale_price) }}</div></div>
+        <div class="mb-2"><div class="text-muted fs-12">Tax Rate</div><div class="fw-600">{{ product.tax_rate }}%</div></div>
+        <div class="mb-2"><div class="text-muted fs-12">Warehouse Stock</div><span class="badge {{ product.stock_badge }} fs-13">{{ product.stock_quantity|qty }} {{ product.unit }}</span></div>
         <div class="mb-2"><div class="text-muted fs-12">Reorder Level</div><div class="fw-600">{{ product.reorder_level }} {{ product.unit }}</div></div>
+        <div class="mb-2"><div class="text-muted fs-12">Status</div><span class="badge {{ product.status_badge }}">{{ product.status|title }}</span></div>
+        {% if product.description %}<div class="mb-0"><div class="text-muted fs-12">Description</div><div class="fs-13">{{ product.description }}</div></div>{% endif %}
       </div>
     </div>
+  </div>
+
+  <div class="col-md-8">
+    <div class="card mb-3">
+      <div class="card-header"><i class="fas fa-truck me-2"></i>Field Stock by Rep</div>
+      <div class="card-body p-0"><div class="table-responsive">
+        <table class="table table-sm mb-0"><thead><tr><th>Rep</th><th>Van</th><th class="text-end">Qty</th></tr></thead>
+        <tbody>
+          {% for fs in field_stock %}
+          <tr><td class="fw-600 fs-13">{{ fs.sales_rep.full_name if fs.sales_rep else '—' }}</td><td class="fs-12 text-muted">{{ fs.van.van_number if fs.van else '—' }}</td><td class="text-end fw-700">{{ fs.quantity|qty }}</td></tr>
+          {% else %}
+          <tr><td colspan="3" class="text-muted text-center py-3">No field stock</td></tr>
+          {% endfor %}
+        </tbody></table>
+      </div></div>
+    </div>
+
+    <div class="card mb-3">
+      <div class="card-header"><i class="fas fa-shopping-cart me-2"></i>Recent Sales <span class="text-muted fs-12">(total revenue: GHS {{ "%.2f"|format(total_revenue) }})</span></div>
+      <div class="card-body p-0"><div class="table-responsive">
+        <table class="table table-sm mb-0"><thead><tr><th>Invoice</th><th>Date</th><th class="text-end">Qty</th><th class="text-end">Value</th></tr></thead>
+        <tbody>
+          {% for item in recent_sales %}
+          <tr>
+            <td><a href="{{ url_for('invoices.view', sale_id=item.sale.id) }}" class="fw-600 fs-13">{{ item.sale.invoice_number }}</a></td>
+            <td class="text-muted fs-12">{{ item.sale.sale_date.strftime('%d %b %Y') if item.sale.sale_date else '' }}</td>
+            <td class="text-end">{{ item.quantity|qty }}</td>
+            <td class="text-end fw-700">GHS {{ "%.2f"|format(item.line_total) }}</td>
+          </tr>
+          {% else %}
+          <tr><td colspan="4" class="text-muted text-center py-3">No sales yet</td></tr>
+          {% endfor %}
+        </tbody></table>
+      </div></div>
+    </div>
+
+    {% if recent_movements %}
+    <div class="card">
+      <div class="card-header"><i class="fas fa-exchange-alt me-2"></i>Recent Stock Movements</div>
+      <div class="card-body p-0"><div class="table-responsive">
+        <table class="table table-sm mb-0"><thead><tr><th>Date</th><th>Type</th><th class="text-end">Qty</th><th class="text-end">Before → After</th></tr></thead>
+        <tbody>
+          {% for m in recent_movements %}
+          <tr>
+            <td class="text-muted fs-12">{{ m.created_at.strftime('%d %b %Y %H:%M') if m.created_at else '' }}</td>
+            <td class="fs-12"><span class="badge bg-secondary">{{ m.movement_type|replace('_',' ')|title }}</span></td>
+            <td class="text-end">{{ m.quantity|qty }}</td>
+            <td class="text-end fs-12 text-muted">{{ m.quantity_before|qty }} → {{ m.quantity_after|qty }}</td>
+          </tr>
+          {% endfor %}
+        </tbody></table>
+      </div></div>
+    </div>
+    {% endif %}
   </div>
 </div>
 {% endblock %}

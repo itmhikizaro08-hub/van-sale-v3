@@ -287,4 +287,27 @@ def view(product_id):
         flash('Access denied.', 'danger')
         return redirect(url_for('dashboard.index'))
     product = Product.query.get_or_404(product_id)
-    return render_template('products/view.html', product=product)
+
+    from models.notification import VanStock, InventoryMovement
+    from models.sale import Sale, SaleItem
+
+    field_stock = VanStock.query.filter_by(product_id=product_id).filter(VanStock.quantity > 0).all()
+    total_field_qty = round(sum(fs.quantity for fs in field_stock), 2)
+
+    recent_sales = (SaleItem.query.join(Sale, SaleItem.sale_id == Sale.id)
+        .filter(SaleItem.product_id == product_id, Sale.status == 'completed')
+        .order_by(Sale.sale_date.desc()).limit(10).all())
+    total_sold = SaleItem.query.join(Sale, SaleItem.sale_id == Sale.id).filter(
+        SaleItem.product_id == product_id, Sale.status == 'completed'
+    ).with_entities(db.func.sum(SaleItem.quantity)).scalar() or 0
+    total_revenue = SaleItem.query.join(Sale, SaleItem.sale_id == Sale.id).filter(
+        SaleItem.product_id == product_id, Sale.status == 'completed'
+    ).with_entities(db.func.sum(SaleItem.line_total)).scalar() or 0
+
+    recent_movements = InventoryMovement.query.filter_by(product_id=product_id) \
+        .order_by(InventoryMovement.created_at.desc()).limit(15).all()
+
+    return render_template('products/view.html', product=product,
+        field_stock=field_stock, total_field_qty=total_field_qty,
+        recent_sales=recent_sales, total_sold=round(total_sold, 2), total_revenue=round(total_revenue, 2),
+        recent_movements=recent_movements)
