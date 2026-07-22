@@ -32,14 +32,27 @@ def index():
     vans = Van.query.order_by(Van.van_number).all()
     active_count = sum(1 for v in vans if v.status == 'active')
     assigned_count = sum(1 for v in vans if v.driver_id)
+    maintenance_count = sum(1 for v in vans if v.status == 'maintenance')
 
-    total_stock_value = round(sum(
-        vs.quantity * (vs.product.cost_price if vs.product else 0)
-        for vs in VanStock.query.filter(VanStock.quantity > 0).all()
-    ), 2)
+    value_by_van, qty_by_van = {}, {}
+    for vs in VanStock.query.filter(VanStock.quantity > 0).all():
+        value = vs.quantity * (vs.product.cost_price if vs.product else 0)
+        value_by_van[vs.van_id] = value_by_van.get(vs.van_id, 0) + value
+        qty_by_van[vs.van_id] = qty_by_van.get(vs.van_id, 0) + vs.quantity
+
+    for v in vans:
+        v.stock_value = round(value_by_van.get(v.id, 0), 2)
+        v.stock_qty = qty_by_van.get(v.id, 0)
+
+    total_stock_value = round(sum(value_by_van.values()), 2)
+    by_van_chart = sorted(
+        [(v.van_number, v.stock_value) for v in vans if v.stock_value > 0],
+        key=lambda x: x[1], reverse=True
+    )
 
     return render_template('vans/index.html', vans=vans, active_count=active_count,
-        assigned_count=assigned_count, total_stock_value=total_stock_value)
+        assigned_count=assigned_count, maintenance_count=maintenance_count,
+        total_stock_value=total_stock_value, by_van_chart=by_van_chart)
 
 
 @vans_bp.route('/add', methods=['GET', 'POST'])

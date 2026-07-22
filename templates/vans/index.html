@@ -5,26 +5,39 @@
 <div class="page-header"><div><h1 class="page-title">Fleet — Vans</h1></div>{% if current_user.can_write('vans') %}<a href="{{ url_for('vans.add') }}" class="btn btn-primary"><i class="fas fa-plus me-1"></i>Add Van</a>{% endif %}</div>
 
 <div class="row g-3 mb-3">
-  <div class="col-6 col-md-4">
+  <div class="col-6 col-md-3">
     <div class="stat-card primary"><div class="stat-icon"><i class="fas fa-truck"></i></div>
       <div><div class="stat-label">Total Vans</div><div class="stat-value">{{ vans|length }}</div><div class="stat-trend">{{ active_count }} active</div></div>
     </div>
   </div>
-  <div class="col-6 col-md-4">
+  <div class="col-6 col-md-3">
     <div class="stat-card info"><div class="stat-icon"><i class="fas fa-id-badge"></i></div>
       <div><div class="stat-label">Assigned to Driver</div><div class="stat-value">{{ assigned_count }}</div></div>
     </div>
   </div>
-  <div class="col-6 col-md-4">
+  <div class="col-6 col-md-3">
+    <div class="stat-card {{ 'warning' if maintenance_count > 0 else 'success' }}"><div class="stat-icon"><i class="fas fa-screwdriver-wrench"></i></div>
+      <div><div class="stat-label">In Maintenance</div><div class="stat-value">{{ maintenance_count }}</div></div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
     <div class="stat-card success"><div class="stat-icon"><i class="fas fa-boxes"></i></div>
-      <div><div class="stat-label">Total Van Stock Value</div><div class="stat-value" style="font-size:16px">GHS {{ "%.2f"|format(total_stock_value) }}</div></div>
+      <div><div class="stat-label">Total Van Stock Value</div><div class="stat-value" style="font-size:15px">GHS {{ "%.2f"|format(total_stock_value) }}</div></div>
     </div>
   </div>
 </div>
 
-<div class="card"><div class="card-body p-0"><div class="table-responsive">
+<div class="row g-3 mb-3">
+  <div class="col-md-4">
+    <div class="card h-100">
+      <div class="card-header"><i class="fas fa-chart-pie me-2"></i>Stock Value by Van</div>
+      <div class="card-body"><div style="height:200px"><canvas id="vanStockChart"></canvas></div></div>
+    </div>
+  </div>
+  <div class="col-md-8">
+    <div class="card h-100"><div class="card-body p-0"><div class="table-responsive">
 <table class="table table-hover dt-table mb-0" id="vansTable">
-  <thead><tr><th>Van #</th><th>Reg No.</th><th>Driver</th><th>Route</th><th>Status</th><th></th></tr></thead>
+  <thead><tr><th>Van #</th><th>Reg No.</th><th>Driver</th><th>Route</th><th class="text-end">Stock Qty</th><th class="text-end">Stock Value</th><th>Status</th><th></th></tr></thead>
   <tbody>
     {% for v in vans %}
     <tr>
@@ -32,6 +45,8 @@
       <td class="fs-12">{{ v.registration_number or '—' }}</td>
       <td class="fs-12">{{ v.driver.name if v.driver else '—' }}</td>
       <td class="fs-12 text-muted">{{ v.route.route_name if v.route else '—' }}</td>
+      <td class="text-end">{{ v.stock_qty|qty }}</td>
+      <td class="text-end fw-700">GHS {{ "%.2f"|format(v.stock_value) }}</td>
       <td><span class="badge {{ v.status_badge }}">{{ v.status|title }}</span></td>
       <td>
         <div class="d-flex gap-1">
@@ -50,5 +65,26 @@
   </tbody>
 </table>
 </div></div></div>
+  </div>
+</div>
 {% endblock %}
-{% block extra_js %}<script>$(document).ready(() => initDataTable('#vansTable'));</script>{% endblock %}
+{% block extra_js %}
+<script>
+$(document).ready(() => initDataTable('#vansTable'));
+
+const vanStockLabels = {{ by_van_chart|map(attribute=0)|list|tojson }};
+const vanStockValues = {{ by_van_chart|map(attribute=1)|list|tojson }};
+if (vanStockLabels.length) {
+  new Chart(document.getElementById('vanStockChart'), {
+    type: 'doughnut',
+    data: {
+      labels: vanStockLabels,
+      datasets: [{ data: vanStockValues, backgroundColor: CHART_COLORS, borderWidth: 3,
+        borderColor: getComputedStyle(document.documentElement).getPropertyValue('--bg-card').trim() || '#fff',
+        borderRadius: 6, spacing: 3, hoverOffset: 6 }]
+    },
+    options: { responsive: true, maintainAspectRatio: false, cutout: '65%', plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 10.5 } } } } }
+  });
+}
+</script>
+{% endblock %}
