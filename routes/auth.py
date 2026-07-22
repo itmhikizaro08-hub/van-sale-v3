@@ -74,9 +74,16 @@ def change_password():
 @login_required
 def profile():
     if request.method == 'POST':
+        new_email = request.form.get('email', current_user.email).strip()
+        if new_email != current_user.email and User.query.filter(
+            User.id != current_user.id, User.email == new_email
+        ).first():
+            flash('That email is already in use by another account.', 'danger')
+            return render_template('auth/profile.html')
+
         current_user.full_name = request.form.get('full_name', current_user.full_name)
         current_user.phone = request.form.get('phone', current_user.phone)
-        current_user.email = request.form.get('email', current_user.email)
+        current_user.email = new_email
         current_user.theme_preference = request.form.get('theme_preference', current_user.theme_preference)
 
         avatar_file = request.files.get('avatar')
