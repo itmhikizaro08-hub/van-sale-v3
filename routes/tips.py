@@ -176,19 +176,33 @@ def edit_tip(item_id):
         return jsonify({'error': 'Permission denied'}), 403
 
     item = SaleItem.query.get_or_404(item_id)
-    data = request.get_json()
-    new_tip = float(data.get('tip_amount', 0))
+    if item.sale.status != 'completed':
+        return jsonify({'error': 'Cannot edit a tip on a cancelled or draft sale.'}), 400
+
+    data = request.get_json() or {}
+    try:
+        new_tip = float(data.get('tip_amount', 0))
+    except (TypeError, ValueError):
+        return jsonify({'error': 'Invalid tip amount.'}), 400
 
     if new_tip < 0:
         return jsonify({'error': 'Tip cannot be negative'}), 400
 
     # Recalculate unit_price and line_total
+    old_balance_due = item.sale.balance_due
     item.tip_amount  = round(new_tip, 2)
     item.unit_price  = round(item.official_price + new_tip, 2)
     item.calculate_total()
 
-    # Recalculate the parent sale totals
+    # Recalculate the parent sale totals, then keep the customer's running
+    # balance in sync — recalculate() only touches the Sale, and nothing
+    # here previously propagated the resulting shift to
+    # Customer.outstanding_balance, which every other balance-affecting path
+    # (payments, returns, credit/debit notes) does.
     item.sale.recalculate()
+    if item.sale.customer:
+        item.sale.customer.outstanding_balance = round(
+            (item.sale.customer.outstanding_balance or 0) + (item.sale.balance_due - old_balance_due), 2)
 
     from models.audit import PricingAuditLog
     db.session.add(PricingAuditLog(
@@ -222,10 +236,19 @@ def delete_tip(item_id):
         return jsonify({'error': 'Permission denied'}), 403
 
     item = SaleItem.query.get_or_404(item_id)
+    if item.sale.status != 'completed':
+        return jsonify({'error': 'Cannot edit a tip on a cancelled or draft sale.'}), 400
+    if item.tip_amount <= 0:
+        return jsonify({'error': 'This line has no tip to remove.'}), 400
+
+    old_balance_due = item.sale.balance_due
     item.tip_amount = 0.0
     item.unit_price = item.official_price
     item.calculate_total()
     item.sale.recalculate()
+    if item.sale.customer:
+        item.sale.customer.outstanding_balance = round(
+            (item.sale.customer.outstanding_balance or 0) + (item.sale.balance_due - old_balance_due), 2)
 
     from models.audit import PricingAuditLog
     db.session.add(PricingAuditLog(
