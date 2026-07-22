@@ -202,6 +202,11 @@
               <i class="fas fa-map-marker me-1"></i>Visits ({{ recent_visits|length }})
             </a>
           </li>
+          <li class="nav-item">
+            <a class="nav-link" data-bs-toggle="tab" href="#returnsTab">
+              <i class="fas fa-undo-alt me-1"></i>Returns ({{ recent_returns|length }})
+            </a>
+          </li>
         </ul>
       </div>
       <div class="card-body p-0">
@@ -283,6 +288,34 @@
             </div>
             {% else %}
             <div class="empty-state"><i class="fas fa-map-marker-alt"></i><h5>No visits recorded</h5></div>
+            {% endif %}
+          </div>
+
+          <div class="tab-pane fade" id="returnsTab">
+            {% if recent_returns %}
+            <div class="p-3 pb-0">
+              <input type="text" class="form-control form-control-sm tab-search" data-target="returnsTableBody" placeholder="Search return #, date, destination, status...">
+            </div>
+            <div class="table-responsive">
+              <table class="table table-hover mb-0">
+                <thead><tr><th>Return #</th><th>Date</th><th>Destination</th><th>Qty</th><th>Amount</th><th>Status</th><th></th></tr></thead>
+                <tbody id="returnsTableBody">
+                  {% for r in recent_returns %}
+                  <tr>
+                    <td><a href="{{ url_for('returns.view', order_id=r.id) }}" class="fw-600">{{ r.return_number }}</a></td>
+                    <td class="text-muted fs-12">{{ r.created_at.strftime('%d %b %Y') if r.created_at else '' }}</td>
+                    <td><span class="badge {{ r.destination_badge }}">{{ r.return_destination|replace('_',' ')|title }}</span></td>
+                    <td>{{ r.total_quantity }}</td>
+                    <td class="fw-600">GHS {{ "%.2f"|format(r.total_refund_amount) }}</td>
+                    <td><span class="badge {{ r.status_badge }}">{{ r.status|title }}</span></td>
+                    <td><a href="{{ url_for('returns.view', order_id=r.id) }}" class="btn btn-icon btn-sm btn-outline-primary"><i class="fas fa-eye"></i></a></td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+            {% else %}
+            <div class="empty-state"><i class="fas fa-undo-alt"></i><h5>No returns recorded</h5></div>
             {% endif %}
           </div>
         </div>

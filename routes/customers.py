@@ -393,6 +393,8 @@ def view(customer_id):
     recent_payments = Payment.query.filter_by(customer_id=customer_id).order_by(Payment.payment_date.desc()).limit(10).all()
     from models.van import CustomerVisit
     recent_visits = CustomerVisit.query.filter_by(customer_id=customer_id).order_by(CustomerVisit.visit_date.desc()).limit(10).all()
+    from models.v4_models import ReturnOrder
+    recent_returns = ReturnOrder.query.filter_by(customer_id=customer_id).order_by(ReturnOrder.created_at.desc()).limit(10).all()
 
     from models.sale import SaleItem
     from models.product import Product
@@ -429,7 +431,7 @@ def view(customer_id):
     by_method = sorted(method_map.items(), key=lambda x: x[1], reverse=True)
 
     return render_template('customers/view.html', customer=customer, recent_sales=recent_sales,
-                           recent_payments=recent_payments, recent_visits=recent_visits,
+                           recent_payments=recent_payments, recent_visits=recent_visits, recent_returns=recent_returns,
                            total_orders=total_orders, lifetime_value=lifetime_value, avg_order_value=avg_order_value,
                            trend_labels=trend_labels, trend_values=trend_values,
                            by_product=by_product, by_method=by_method)
