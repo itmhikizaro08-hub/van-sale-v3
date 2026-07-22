@@ -28,7 +28,7 @@
 
 <div class="card"><div class="card-body p-0"><div class="table-responsive">
 <table class="table table-hover dt-table mb-0" id="vanStockTable">
-  <thead><tr><th>Van</th>{% if current_user.scope('van_stock') != 'own' %}<th>Rep</th>{% endif %}<th>Product</th><th class="text-end">Qty</th>{% if current_user.see_cost_prices() %}<th class="text-end">Value</th>{% endif %}</tr></thead>
+  <thead><tr><th>Van</th>{% if current_user.scope('van_stock') != 'own' %}<th>Rep</th>{% endif %}<th>Product</th><th class="text-end">Qty</th>{% if current_user.see_cost_prices() %}<th class="text-end">Value</th>{% endif %}<th></th></tr></thead>
   <tbody>
     {% for vs in stocks %}
     <tr>
@@ -37,6 +37,11 @@
       <td class="fw-600">{{ vs.product.product_name if vs.product else '—' }}</td>
       <td class="text-end"><span class="badge {{ 'bg-warning text-dark' if vs.quantity <= 5 else 'bg-success' }}">{{ vs.quantity|qty }}</span></td>
       {% if current_user.see_cost_prices() %}<td class="text-end fw-600">GHS {{ "%.2f"|format(vs.quantity * (vs.product.cost_price if vs.product else 0)) }}</td>{% endif %}
+      <td>
+        {% if vs.van_id and vs.sales_rep_id %}
+        <a href="{{ url_for('vans.stock_statement', van_id=vs.van_id, rep_id=vs.sales_rep_id) }}" class="btn btn-icon btn-sm btn-outline-primary" title="Movement &amp; Statement"><i class="fas fa-file-invoice"></i></a>
+        {% endif %}
+      </td>
     </tr>
     {% endfor %}
   </tbody>

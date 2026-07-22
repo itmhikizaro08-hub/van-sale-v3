@@ -192,6 +192,38 @@ def stock():
         total_qty=total_qty, total_value=total_value, rep_count=rep_count)
 
 
+@vans_bp.route('/stock/statement/<int:van_id>/<int:rep_id>')
+@login_required
+def stock_statement(van_id, rep_id):
+    if not current_user.can_access('van_stock'):
+        flash('Access denied.', 'danger')
+        return redirect(url_for('dashboard.index'))
+    if current_user.scope('van_stock') == 'own' and rep_id != current_user.id:
+        flash('Access denied.', 'danger')
+        return redirect(url_for('vans.stock'))
+
+    van = Van.query.get_or_404(van_id)
+    rep = User.query.get_or_404(rep_id)
+
+    start = request.args.get('start', (datetime.utcnow() - timedelta(days=30)).strftime('%Y-%m-%d'))
+    end = request.args.get('end', datetime.utcnow().strftime('%Y-%m-%d'))
+
+    from services.statements import van_stock_ledger_rows
+    rows = van_stock_ledger_rows(van_id, rep_id, start, end)
+
+    current_stock = VanStock.query.filter_by(van_id=van_id, sales_rep_id=rep_id).filter(
+        VanStock.quantity > 0
+    ).order_by(VanStock.quantity.desc()).all()
+    current_total_qty = round(sum(vs.quantity for vs in current_stock), 2)
+    current_total_value = round(sum(
+        vs.quantity * (vs.product.cost_price if vs.product else 0) for vs in current_stock
+    ), 2)
+
+    return render_template('vans/stock_statement.html', van=van, rep=rep, rows=rows,
+        current_stock=current_stock, current_total_qty=current_total_qty,
+        current_total_value=current_total_value, start=start, end=end)
+
+
 # ── Loading Sheets (warehouse → van) ─────────────────────────────────────────
 
 @vans_bp.route('/loading')

@@ -1,0 +1,84 @@
+{% extends 'base.html' %}
+{% block title %}Van Stock Statement — {{ rep.full_name }}{% endblock %}
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{{ url_for('vans.stock') }}">Van Stock</a></li>
+<li class="breadcrumb-item active">Statement</li>
+{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div><h1 class="page-title mb-0">Van Stock Statement</h1>
+    <p class="page-subtitle mb-0">{{ rep.full_name }} — {{ van.van_number }}{% if van.registration_number %} ({{ van.registration_number }}){% endif %}</p>
+  </div>
+  <a href="{{ url_for('vans.stock') }}" class="btn btn-outline-secondary btn-sm no-print"><i class="fas fa-arrow-left me-1"></i>Back</a>
+</div>
+
+<div class="row g-3 mb-3">
+  <div class="col-6 col-md-{{ 4 if current_user.see_cost_prices() else 6 }}">
+    <div class="stat-card primary"><div class="stat-icon"><i class="fas fa-boxes"></i></div>
+      <div><div class="stat-label">Current Units on Van</div><div class="stat-value">{{ current_total_qty|qty }}</div></div>
+    </div>
+  </div>
+  <div class="col-6 col-md-{{ 4 if current_user.see_cost_prices() else 6 }}">
+    <div class="stat-card info"><div class="stat-icon"><i class="fas fa-cube"></i></div>
+      <div><div class="stat-label">Products Held</div><div class="stat-value">{{ current_stock|length }}</div></div>
+    </div>
+  </div>
+  {% if current_user.see_cost_prices() %}
+  <div class="col-6 col-md-4">
+    <div class="stat-card warning"><div class="stat-icon"><i class="fas fa-coins"></i></div>
+      <div><div class="stat-label">Current Value</div><div class="stat-value" style="font-size:15px">GHS {{ "%.2f"|format(current_total_value) }}</div></div>
+    </div>
+  </div>
+  {% endif %}
+</div>
+
+<div class="card mb-3">
+  <div class="card-header"><i class="fas fa-boxes me-2"></i>Current Stock</div>
+  <div class="card-body p-0"><div class="table-responsive">
+    <table class="table table-hover mb-0">
+      <thead><tr><th>Product</th><th class="text-end">Qty</th>{% if current_user.see_cost_prices() %}<th class="text-end">Value</th>{% endif %}</tr></thead>
+      <tbody>
+        {% for vs in current_stock %}
+        <tr>
+          <td class="fw-600">{{ vs.product.product_name if vs.product else '—' }}</td>
+          <td class="text-end"><span class="badge {{ 'bg-warning text-dark' if vs.quantity <= 5 else 'bg-success' }}">{{ vs.quantity|qty }}</span></td>
+          {% if current_user.see_cost_prices() %}<td class="text-end fw-600">GHS {{ "%.2f"|format(vs.quantity * (vs.product.cost_price if vs.product else 0)) }}</td>{% endif %}
+        </tr>
+        {% else %}
+        <tr><td colspan="3" class="text-muted text-center py-3">No stock currently held.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div></div>
+</div>
+
+<div class="card mb-3 no-print"><div class="card-body py-2">
+  <form method="GET" class="row g-2 align-items-end">
+    <div class="col-md-4"><label class="form-label">From</label><input type="date" name="start" class="form-control" value="{{ start }}"></div>
+    <div class="col-md-4"><label class="form-label">To</label><input type="date" name="end" class="form-control" value="{{ end }}"></div>
+    <div class="col-md-4"><button type="submit" class="btn btn-primary w-100"><i class="fas fa-filter me-1"></i>Filter</button></div>
+  </form>
+</div></div>
+
+<div class="card">
+  <div class="card-header"><i class="fas fa-exchange-alt me-2"></i>Movement History</div>
+  <div class="card-body p-0"><div class="table-responsive">
+    <table class="table table-hover mb-0">
+      <thead><tr><th>Date</th><th>Type</th><th>Product</th><th class="text-end">Qty</th><th>Reference</th></tr></thead>
+      <tbody>
+        {% for r in rows %}
+        <tr>
+          <td class="text-muted fs-12 text-nowrap">{{ r.date[:10] }}</td>
+          <td><span class="badge {{ 'bg-success' if r.qty > 0 else 'bg-danger' }}">{{ r.type }}</span></td>
+          <td class="fw-600">{{ r.product }}</td>
+          <td class="text-end fw-700 {{ 'text-success' if r.qty > 0 else 'text-danger' }}">{{ '+' if r.qty > 0 else '' }}{{ r.qty|qty }}</td>
+          <td class="fs-12">{{ r.reference }}</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="5" class="text-muted text-center py-4">No movements in this date range</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div></div>
+</div>
+{% endblock %}

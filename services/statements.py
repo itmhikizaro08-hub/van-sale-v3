@@ -12,6 +12,67 @@ from models.payment import Payment
 from models.notification import InventoryMovement, SupplierPayment
 
 
+def van_stock_ledger_rows(van_id, rep_id, start, end):
+    """Every event that moved a specific rep's custody of a specific van,
+    across the four places that mutate VanStock (routes/vans.py loading_new/
+    offload_confirm, routes/sales.py create, routes/returns.py approvals).
+    Unlike customer/supplier statements, this has no single running balance
+    to reconcile against — a van holds many different products at once, so
+    a single number would be meaningless. Returns a flat, dated ledger
+    instead; the caller pairs it with the live VanStock snapshot for the
+    current per-product totals."""
+    end_bound = end + ' 23:59:59'
+    events = []
+
+    from models.van_management import LoadingSheet, LoadingSheetItem, StockOffload, StockOffloadItem
+    from models.sale import SaleItem
+
+    sheets = LoadingSheet.query.filter_by(van_id=van_id, sales_rep_id=rep_id).all()
+    for sheet in sheets:
+        dt = sheet.created_at.strftime('%Y-%m-%d %H:%M:%S') if sheet.created_at else ''
+        for item in sheet.items:
+            name = item.product.product_name if item.product else 'item'
+            events.append((dt, 'Loaded', name, item.quantity, f'Loading Sheet {sheet.sheet_number}'))
+
+    offloads = StockOffload.query.filter_by(sales_rep_id=rep_id, van_id=van_id).filter(
+        StockOffload.status != 'pending'
+    ).all()
+    for offload in offloads:
+        dt = offload.confirmed_at.strftime('%Y-%m-%d %H:%M:%S') if offload.confirmed_at else \
+             (offload.created_at.strftime('%Y-%m-%d %H:%M:%S') if offload.created_at else '')
+        for item in offload.items:
+            received = item.quantity_received or 0
+            if received <= 0:
+                continue
+            name = item.product.product_name if item.product else 'item'
+            events.append((dt, 'Offloaded', name, -received, f'Offload {offload.offload_number}'))
+
+    sales = Sale.query.filter_by(van_id=van_id, sales_rep_id=rep_id, status='completed').all()
+    for s in sales:
+        dt = s.sale_date.strftime('%Y-%m-%d %H:%M:%S') if s.sale_date else ''
+        for item in s.items:
+            name = item.product.product_name if item.product else 'item'
+            events.append((dt, 'Sold', name, -item.quantity, f'Invoice {s.invoice_number}'))
+
+    from models.v4_models import ReturnOrder
+    orders = ReturnOrder.query.filter_by(
+        van_id=van_id, received_by_rep_id=rep_id, return_destination='van_stock'
+    ).all()
+    for order in orders:
+        dt = order.approved_at.strftime('%Y-%m-%d %H:%M:%S') if order.approved_at else \
+             (order.created_at.strftime('%Y-%m-%d %H:%M:%S') if order.created_at else '')
+        for item in order.items:
+            if item.line_status != 'approved':
+                continue
+            name = item.product.product_name if item.product else 'item'
+            events.append((dt, 'Returned', name, item.quantity, f'Return {order.return_number}'))
+
+    events = [e for e in events if e[0] and start <= e[0] <= end_bound]
+    events.sort(key=lambda e: e[0], reverse=True)
+    return [{'date': dt, 'type': t, 'product': name, 'qty': qty, 'reference': ref}
+            for dt, t, name, qty, ref in events]
+
+
 def _running_balance(events, start, end):
     """events: list of (date, description, debit, credit) tuples, unsorted.
     Returns (opening_balance, rows, closing_balance).
