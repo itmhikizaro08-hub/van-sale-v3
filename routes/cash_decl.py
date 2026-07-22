@@ -72,7 +72,10 @@ def submit():
     total = 0.0
     for denom in DENOMINATIONS:
         key = f'denom_{str(denom).replace(".", "_")}'
-        count = int(request.form.get(key) or 0)
+        try:
+            count = int(request.form.get(key) or 0)
+        except ValueError:
+            continue
         if count > 0:
             subtotal = round(denom * count, 2)
             lines_data.append((denom, count, subtotal))
@@ -105,7 +108,17 @@ def submit():
 @require_module('cash_decl', need_approve=True)
 def verify(decl_id):
     declaration = CashDeclaration.query.get_or_404(decl_id)
-    counted = float(request.form.get('counted_amount') or 0)
+    if declaration.status != 'pending':
+        flash(f'Declaration {declaration.declaration_number} was already verified.', 'warning')
+        return redirect(url_for('cash_decl.index'))
+    try:
+        counted = float(request.form.get('counted_amount') or 0)
+    except ValueError:
+        flash('Enter a valid counted amount.', 'danger')
+        return redirect(url_for('cash_decl.index'))
+    if counted < 0:
+        flash('Counted amount cannot be negative.', 'danger')
+        return redirect(url_for('cash_decl.index'))
     declaration.counted_amount = round(counted, 2)
     declaration.discrepancy_amount = round(counted - declaration.declared_amount, 2)
     declaration.status = 'verified' if abs(declaration.discrepancy_amount) < 0.01 else 'discrepancy'
