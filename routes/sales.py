@@ -31,11 +31,17 @@ def index():
         q = q.filter(Sale.sales_rep_id == current_user.id)
     sales = q.order_by(Sale.sale_date.desc()).limit(200).all()
 
-    total_sales_amount = round(sum(s.total_amount for s in sales), 2)
-    total_outstanding = round(sum(s.balance_due for s in sales), 2)
+    # Cancelled/draft sales stay visible in the list (for reference/resuming),
+    # but must not inflate the money totals — only completed sales are real.
+    completed = [s for s in sales if s.status == 'completed']
+    total_sales_amount = round(sum(s.total_amount for s in completed), 2)
+    total_outstanding = round(sum(s.balance_due for s in completed), 2)
+    draft_count = sum(1 for s in sales if s.status == 'draft')
+    cancelled_count = sum(1 for s in sales if s.status == 'cancelled')
 
     return render_template('sales/index.html', sales=sales, start=start, end=end,
-        total_sales_amount=total_sales_amount, total_outstanding=total_outstanding)
+        total_sales_amount=total_sales_amount, total_outstanding=total_outstanding,
+        draft_count=draft_count, cancelled_count=cancelled_count)
 
 
 @sales_bp.route('/new', methods=['GET', 'POST'])

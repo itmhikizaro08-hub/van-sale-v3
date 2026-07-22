@@ -20,6 +20,13 @@
       <div><div class="stat-label">Outstanding</div><div class="stat-value">GHS {{ "%.2f"|format(total_outstanding) }}</div></div>
     </div>
   </div>
+  {% if draft_count or cancelled_count %}
+  <div class="col-6 col-md-4">
+    <div class="stat-card warning"><div class="stat-icon"><i class="fas fa-ban"></i></div>
+      <div><div class="stat-label">Not Counted Above</div><div class="stat-value fs-13">{{ draft_count }} draft, {{ cancelled_count }} cancelled</div></div>
+    </div>
+  </div>
+  {% endif %}
 </div>
 
 <div class="card mb-3"><div class="card-body py-2">
@@ -33,18 +40,19 @@
 <table class="table table-hover dt-table mb-0" id="salesTable">
   <thead>
     <tr><th>Invoice</th><th>Customer</th><th>Date</th><th>Rep</th><th>Van</th><th class="text-end">Total</th>
-    <th>Payment</th><th></th></tr>
+    <th>Payment</th><th>Status</th><th></th></tr>
   </thead>
   <tbody>
     {% for s in sales %}
-    <tr>
-      <td><a href="{{ url_for('invoices.view', sale_id=s.id) }}" class="fw-600">{{ s.invoice_number }}</a></td>
+    <tr class="{{ 'opacity-50' if s.status == 'cancelled' }}">
+      <td><a href="{{ url_for('invoices.view', sale_id=s.id) }}" class="fw-600 {{ 'text-decoration-line-through' if s.status == 'cancelled' }}">{{ s.invoice_number }}</a></td>
       <td>{{ s.customer.name if s.customer else '—' }}</td>
       <td class="text-muted fs-12">{{ s.sale_date.strftime('%d %b %Y') if s.sale_date else '' }}</td>
       <td class="fs-12">{{ s.sales_rep.full_name if s.sales_rep else '—' }}</td>
       <td class="fs-12">{{ s.van.van_number if s.van else 'WH' }}</td>
       <td class="text-end fw-600">GHS {{ "%.2f"|format(s.total_amount) }}</td>
       <td><span class="badge {{ s.payment_badge }}">{{ s.payment_status|title }}</span></td>
+      <td><span class="badge {{ s.status_badge }}">{{ s.status|title }}</span></td>
       <td>
         <div class="d-flex gap-1">
           <a href="{{ url_for('invoices.view', sale_id=s.id) }}" class="btn btn-icon btn-sm btn-outline-primary"><i class="fas fa-eye"></i></a>
