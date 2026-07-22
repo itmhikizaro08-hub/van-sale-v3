@@ -157,9 +157,12 @@ def new():
         has_items = False
         for i, pid in enumerate(product_ids):
             if not pid: continue
-            qty   = int(quantities[i]) if i < len(quantities) and quantities[i] else 0
+            try:
+                qty = int(quantities[i]) if i < len(quantities) and quantities[i] else 0
+                price = float(prices[i]) if i < len(prices) and prices[i] else 0.0
+            except (TypeError, ValueError):
+                continue
             if qty <= 0: continue
-            price  = float(prices[i]) if i < len(prices) and prices[i] else 0.0
             reason = reasons[i] if i < len(reasons) else 'sales_return'
             item = ReturnOrderItem(
                 return_order_id=order.id,
