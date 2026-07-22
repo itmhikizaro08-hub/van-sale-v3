@@ -290,7 +290,16 @@ def loading_new():
             ))
             has_items = True
 
+            before = product.stock_quantity
             product.stock_quantity -= qty
+            db.session.add(InventoryMovement(
+                product_id=product.id, movement_type='transfer_out',
+                quantity=-qty, quantity_before=before, quantity_after=product.stock_quantity,
+                van_id=int(van_id), reference_id=sheet.id, reference_type='loading_sheet',
+                reference_note=reference_note,
+                notes=f'Loaded to van via {sheet.sheet_number}',
+                created_by_id=current_user.id
+            ))
 
             vs = VanStock.query.filter_by(
                 van_id=int(van_id),
