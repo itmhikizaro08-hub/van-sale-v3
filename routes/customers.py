@@ -249,6 +249,42 @@ def quick_add_dashboard():
         by_type=by_type, with_gps=with_gps, gps_pct=gps_pct)
 
 
+@customers_bp.route('/quick-add/routes')
+@login_required
+def quick_add_routes():
+    if not current_user.can_write('customers'):
+        flash('Permission denied.', 'danger')
+        return redirect(url_for('dashboard.index'))
+
+    q = Customer.query
+    if current_user.scope('customers') == 'own':
+        q = q.filter_by(sales_rep_id=current_user.id)
+    customers = q.all()
+
+    by_route = {}
+    unassigned = []
+    for c in customers:
+        if c.assigned_route_id:
+            by_route.setdefault(c.assigned_route_id, []).append(c)
+        else:
+            unassigned.append(c)
+
+    active_routes = Route.query.filter_by(status='active').order_by(Route.route_name).all()
+    routes_data = []
+    for r in active_routes:
+        members = by_route.get(r.id, [])
+        with_gps = sum(1 for c in members if c.gps_latitude and c.gps_longitude)
+        routes_data.append({
+            'route': r, 'count': len(members),
+            'with_gps': with_gps,
+            'gps_pct': round(with_gps / len(members) * 100) if members else 0
+        })
+    routes_data.sort(key=lambda d: d['count'], reverse=True)
+
+    return render_template('customers/quick_add_routes.html',
+        routes_data=routes_data, unassigned_count=len(unassigned), total=len(customers))
+
+
 @customers_bp.route('/add', methods=['GET', 'POST'])
 @login_required
 def add():
