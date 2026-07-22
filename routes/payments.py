@@ -76,7 +76,11 @@ def add():
     if request.method == 'POST':
         sale_id = request.form.get('sale_id', type=int)
         customer_id = request.form.get('customer_id', type=int)
-        amount = float(request.form.get('amount') or 0)
+        try:
+            amount = float(request.form.get('amount') or 0)
+        except ValueError:
+            flash('Enter a valid payment amount.', 'danger')
+            return redirect(url_for('payments.add', customer_id=customer_id, sale_id=sale_id))
         method = request.form.get('payment_method', 'cash')
         reference = request.form.get('reference_number')
 
@@ -179,7 +183,11 @@ def edit(payment_id):
     sale = Sale.query.get(payment.sale_id) if payment.sale_id else None
 
     if request.method == 'POST':
-        requested_amount = float(request.form.get('amount') or 0)
+        try:
+            requested_amount = float(request.form.get('amount') or 0)
+        except ValueError:
+            flash('Enter a valid payment amount.', 'danger')
+            return redirect(url_for('payments.edit', payment_id=payment.id))
         if requested_amount <= 0:
             flash('Enter a valid payment amount.', 'danger')
             return redirect(url_for('payments.edit', payment_id=payment.id))
