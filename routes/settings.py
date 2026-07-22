@@ -123,7 +123,11 @@ def update_system():
         return redirect(url_for('settings.index'))
 
     s = Settings.get()
-    reorder_level = max(0, int(request.form.get('default_reorder_level') or 10))
+    try:
+        reorder_level = max(0, int(request.form.get('default_reorder_level') or 10))
+    except ValueError:
+        flash('Default reorder level must be a whole number.', 'danger')
+        return redirect(url_for('settings.index', tab='system'))
     updates = {
         'default_reorder_level': reorder_level,
         'invoice_prefix': (request.form.get('invoice_prefix') or 'INV-').strip(),
