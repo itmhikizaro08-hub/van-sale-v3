@@ -51,6 +51,9 @@
             {% if sale.tax_amount > 0 %}<tr><td colspan="4" class="text-end text-muted">Tax</td><td class="text-end">GHS {{ "%.2f"|format(sale.tax_amount) }}</td></tr>{% endif %}
             <tr><td colspan="4" class="text-end fw-800 fs-14">TOTAL</td><td class="text-end fw-800 fs-14 text-primary">GHS {{ "%.2f"|format(sale.total_amount) }}</td></tr>
             <tr><td colspan="4" class="text-end text-success">Paid</td><td class="text-end text-success fw-600">GHS {{ "%.2f"|format(sale.amount_paid) }}</td></tr>
+            {% if credit_total > 0 %}
+            <tr><td colspan="4" class="text-end text-muted">Credit Notes Applied <span class="text-muted fs-11">(account credit, see below)</span></td><td class="text-end text-danger">- GHS {{ "%.2f"|format(credit_total) }}</td></tr>
+            {% endif %}
             <tr><td colspan="4" class="text-end {{ 'text-danger' if sale.balance_due > 0 else 'text-muted' }}">Balance Due</td>
                 <td class="text-end fw-700 {{ 'text-danger' if sale.balance_due > 0 else 'text-muted' }}">GHS {{ "%.2f"|format(sale.balance_due) }}</td></tr>
           </tfoot>
@@ -121,6 +124,25 @@
       <a href="{{ url_for('payments.add') }}?sale_id={{ sale.id }}&customer_id={{ sale.customer_id }}" class="btn btn-success w-100">
         <i class="fas fa-money-bill me-1"></i>Record Payment
       </a>
+    </div>
+    {% endif %}
+
+    {% if credit_notes %}
+    <div class="card mt-3">
+      <div class="card-header"><i class="fas fa-receipt text-success me-2"></i>Credit Notes on this Invoice</div>
+      <div class="card-body p-0">
+        <table class="table table-sm mb-0">
+          <tbody>
+            {% for cn in credit_notes %}
+            <tr>
+              <td class="fs-13">{{ cn.note_number }}<div class="text-muted fs-11">{{ cn.created_at.strftime('%d %b %Y') if cn.created_at else '' }}</div></td>
+              <td class="text-end fw-600 text-success fs-13">GHS {{ "%.2f"|format(cn.amount) }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+          <tfoot><tr><td class="fw-700 fs-13">Total</td><td class="text-end fw-800 text-success fs-13">GHS {{ "%.2f"|format(credit_total) }}</td></tr></tfoot>
+        </table>
+      </div>
     </div>
     {% endif %}
   </div>

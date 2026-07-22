@@ -50,7 +50,15 @@ def view(sale_id):
         'phone': s.company_phone,
         'email': s.company_email,
     }
-    return render_template('invoices/view.html', sale=sale, company=company)
+    # Credit notes are applied at the customer's account-wide balance, not
+    # against this specific Sale's own total_amount/balance_due — so without
+    # this, viewing an invoice that had part of it returned gives no clue a
+    # credit was ever issued against it.
+    from models.v4_models import CreditNote
+    credit_notes = CreditNote.query.filter_by(sale_id=sale_id, status='applied').all()
+    credit_total = round(sum(cn.amount for cn in credit_notes), 2)
+    return render_template('invoices/view.html', sale=sale, company=company,
+        credit_notes=credit_notes, credit_total=credit_total)
 
 
 @invoices_bp.route('/<int:sale_id>/pdf')
