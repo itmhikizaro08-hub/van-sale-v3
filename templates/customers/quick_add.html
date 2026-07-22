@@ -2,10 +2,10 @@
 <html lang="en" data-theme="light">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>Add Customer | {{ company_name }}</title>
   <link rel="manifest" href="{{ url_for('customers.quick_add_manifest') }}">
-  <meta name="theme-color" content="#16a34a">
+  <meta name="theme-color" content="#0f172a">
   <link rel="apple-touch-icon" href="{{ url_for('static', filename='icons/icon-180.png') }}">
   <link rel="icon" type="image/png" sizes="192x192" href="{{ url_for('static', filename='icons/icon-192.png') }}">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css">
@@ -13,81 +13,110 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
   <style>
     *{box-sizing:border-box;margin:0;padding:0}
-    body{font-family:'Inter',sans-serif;min-height:100vh;background:#0f172a;display:flex;align-items:center;justify-content:center;padding:20px}
-    .card-wrap{width:100%;max-width:440px}
-    .card{background:rgba(30,41,59,.85);backdrop-filter:blur(20px);border:1px solid rgba(255,255,255,.1);border-radius:20px;padding:32px;box-shadow:0 25px 50px rgba(0,0,0,.5)}
-    .brand-logo{width:56px;height:56px;background:linear-gradient(135deg,#16a34a,#0891b2);border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:24px;color:#fff;margin:0 auto 16px;box-shadow:0 8px 24px rgba(22,163,74,.4)}
-    h1{font-size:22px;font-weight:800;color:#f1f5f9;text-align:center;margin-bottom:4px}
-    .subtitle{text-align:center;color:#64748b;font-size:13.5px;margin-bottom:24px}
+    body{font-family:'Inter',sans-serif;background:#0b1220;color:#f1f5f9;min-height:100vh;min-height:100dvh;display:flex;flex-direction:column}
+    .bg-glow{position:fixed;inset:0;pointer-events:none;z-index:0;background:
+      radial-gradient(500px circle at 15% 0%, rgba(22,163,74,.16), transparent 60%),
+      radial-gradient(500px circle at 100% 20%, rgba(8,145,178,.14), transparent 55%)}
 
-    .form-label{font-size:13px;font-weight:500;color:#94a3b8;margin-bottom:6px}
-    .form-control,.form-select{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);color:#f1f5f9;font-size:16px;padding:12px 14px;border-radius:10px}
-    .form-control:focus,.form-select:focus{background:rgba(255,255,255,.08);border-color:#16a34a;box-shadow:none;color:#f1f5f9}
+    .topbar{position:sticky;top:0;z-index:20;display:flex;align-items:center;gap:10px;padding:14px 18px;padding-top:calc(14px + env(safe-area-inset-top));background:rgba(11,18,32,.85);backdrop-filter:blur(16px);border-bottom:1px solid rgba(255,255,255,.06)}
+    .topbar-logo{width:30px;height:30px;border-radius:9px;background:linear-gradient(135deg,#16a34a,#0891b2);display:flex;align-items:center;justify-content:center;font-size:13px;color:#fff;flex:none}
+    .topbar-name{font-size:14px;font-weight:700;color:#e2e8f0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .topbar-sub{font-size:10.5px;color:#64748b}
+
+    .content{position:relative;z-index:1;flex:1;width:100%;max-width:480px;margin:0 auto;padding:20px 16px calc(96px + env(safe-area-inset-bottom))}
+
+    .hero{text-align:center;margin-bottom:20px}
+    .hero-icon{width:54px;height:54px;border-radius:16px;background:linear-gradient(135deg,#16a34a,#0891b2);display:flex;align-items:center;justify-content:center;font-size:22px;color:#fff;margin:0 auto 12px;box-shadow:0 10px 28px rgba(22,163,74,.35)}
+    .hero h1{font-size:20px;font-weight:800;color:#f8fafc;margin-bottom:2px}
+    .hero p{font-size:12.5px;color:#64748b}
+
+    .form-card{background:rgba(255,255,255,.035);border:1px solid rgba(255,255,255,.08);border-radius:16px;padding:16px;margin-bottom:14px}
+    .form-card-header{display:flex;align-items:center;gap:9px;font-size:12px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;color:#94a3b8;margin-bottom:14px}
+    .form-card-header i{width:26px;height:26px;border-radius:8px;background:rgba(22,163,74,.15);color:#4ade80;display:flex;align-items:center;justify-content:center;font-size:12px}
+
+    .form-label{font-size:12.5px;font-weight:500;color:#94a3b8;margin-bottom:6px;display:block}
+    .form-control,.form-select{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);color:#f1f5f9;font-size:16px;padding:11px 13px;border-radius:11px}
+    .form-control:focus,.form-select:focus{background:rgba(255,255,255,.07);border-color:#16a34a;box-shadow:0 0 0 3px rgba(22,163,74,.15);color:#f1f5f9}
     .form-control::placeholder{color:#475569}
     .form-select option{background:#1e293b;color:#f1f5f9}
-    .input-group-text{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);color:#64748b}
+    .input-group-text{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);color:#64748b}
 
-    .section-label{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#475569;margin:22px 0 12px;padding-top:14px;border-top:1px solid rgba(255,255,255,.08)}
-    .section-label:first-of-type{margin-top:0;padding-top:0;border-top:none}
+    .field-pick-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
+    .field-pick-row .form-label{margin-bottom:0}
+    .btn-chip{background:rgba(8,145,178,.15);border:1px solid rgba(8,145,178,.35);color:#67e8f9;font-size:11px;font-weight:600;padding:4px 10px;border-radius:999px}
 
-    .btn-gps{width:100%;background:rgba(8,145,178,.15);border:1px solid rgba(8,145,178,.35);color:#67e8f9;font-weight:600;font-size:14px;padding:11px;border-radius:10px;margin-top:4px}
-    .btn-gps:active{transform:translateY(1px)}
-    .gps-status{font-size:12px;color:#64748b;margin-top:6px;text-align:center;min-height:16px}
+    .btn-gps{width:100%;background:rgba(8,145,178,.12);border:1px dashed rgba(8,145,178,.4);color:#67e8f9;font-weight:600;font-size:13.5px;padding:11px;border-radius:11px}
+    .btn-gps:active{transform:scale(.98)}
+    .gps-status{font-size:11.5px;color:#64748b;margin-top:7px;text-align:center;min-height:14px}
     .gps-status.ok{color:#6ee7b7}
 
-    .btn-save{width:100%;background:linear-gradient(135deg,#16a34a,#0891b2);border:none;color:#fff;font-weight:700;font-size:15px;padding:14px;border-radius:10px;margin-top:18px}
-    .btn-save:active{transform:translateY(1px)}
+    .btn-save{width:100%;background:linear-gradient(135deg,#16a34a,#0891b2);border:none;color:#fff;font-weight:700;font-size:15px;padding:15px;border-radius:13px;box-shadow:0 10px 26px rgba(22,163,74,.3)}
+    .btn-save:active{transform:scale(.99)}
+    .btn-save:disabled{opacity:.45;box-shadow:none}
 
-    .alert{border-radius:10px;font-size:13.5px;border:none;padding:10px 14px}
+    .alert{border-radius:12px;font-size:13px;border:none;padding:11px 14px;margin-bottom:14px}
     .alert-danger{background:rgba(239,68,68,.15);color:#fca5a5;border:1px solid rgba(239,68,68,.3)}
     .alert-warning{background:rgba(245,158,11,.15);color:#fcd34d;border:1px solid rgba(245,158,11,.3)}
     .alert-success{background:rgba(16,185,129,.15);color:#6ee7b7;border:1px solid rgba(16,185,129,.3)}
 
-    .full-app-link{display:block;text-align:center;margin-top:18px;font-size:12.5px;color:#475569}
-    .full-app-link a{color:#67e8f9;text-decoration:none}
-
-    #installBtn{width:100%;margin-top:10px}
-
-    .offline-banner{display:none;align-items:center;gap:8px;background:rgba(239,68,68,.15);border:1px solid rgba(239,68,68,.3);color:#fca5a5;font-size:12.5px;font-weight:600;padding:10px 14px;border-radius:10px;margin-bottom:14px}
+    .offline-banner{display:none;align-items:center;gap:9px;background:rgba(239,68,68,.15);border:1px solid rgba(239,68,68,.3);color:#fca5a5;font-size:12.5px;font-weight:600;padding:11px 14px;border-radius:12px;margin-bottom:14px}
     .offline-banner.show{display:flex}
-    .btn-save:disabled{opacity:.5}
 
-    .ios-hint{display:none;background:rgba(8,145,178,.1);border:1px solid rgba(8,145,178,.3);color:#67e8f9;font-size:12px;padding:10px 14px;border-radius:10px;margin-top:10px;text-align:center}
+    .ios-hint{display:none;background:rgba(8,145,178,.1);border:1px solid rgba(8,145,178,.3);color:#67e8f9;font-size:12px;padding:11px 14px;border-radius:12px;margin-top:12px;text-align:center}
     .ios-hint.show{display:block}
+    #installBtn{width:100%;margin-top:12px;background:rgba(8,145,178,.12);border:1px solid rgba(8,145,178,.35);color:#67e8f9;font-weight:600;font-size:13.5px;padding:12px;border-radius:12px}
+
+    .full-app-link{display:block;text-align:center;margin-top:16px;font-size:12px;color:#475569}
+    .full-app-link a{color:#64748b;text-decoration:none}
+
+    .bottom-nav{position:fixed;left:0;right:0;bottom:0;z-index:20;display:flex;background:rgba(11,18,32,.92);backdrop-filter:blur(16px);border-top:1px solid rgba(255,255,255,.08);padding:8px 10px calc(8px + env(safe-area-inset-bottom))}
+    .nav-item{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;padding:6px 0;color:#64748b;text-decoration:none;font-size:10.5px;font-weight:600;border-radius:12px}
+    .nav-item i{font-size:17px}
+    .nav-item.active{color:#4ade80}
+    .nav-item.active i{filter:drop-shadow(0 0 8px rgba(74,222,128,.5))}
   </style>
 </head>
 <body>
-<div class="card-wrap">
-  <div class="card">
-    <div class="d-flex justify-content-end mb-2">
-      <a href="{{ url_for('customers.quick_add_dashboard') }}" style="color:#67e8f9;text-decoration:none;font-size:12.5px"><i class="fas fa-chart-simple me-1"></i>My Customers</a>
-    </div>
-    <div class="brand-logo"><i class="fa-solid fa-user-plus"></i></div>
+<div class="bg-glow"></div>
+
+<header class="topbar">
+  <div class="topbar-logo"><i class="fa-solid fa-truck-fast"></i></div>
+  <div>
+    <div class="topbar-name">{{ company_name }}</div>
+    <div class="topbar-sub">Field Quick-Add</div>
+  </div>
+</header>
+
+<main class="content">
+  <div class="hero">
+    <div class="hero-icon"><i class="fa-solid fa-user-plus"></i></div>
     <h1>Add Customer</h1>
-    <p class="subtitle">{{ company_name }} — quick field entry</p>
+    <p>Register a new customer from the field</p>
+  </div>
 
-    <div class="offline-banner" id="offlineBanner">
-      <i class="fas fa-wifi"></i><span>No connection — saving is disabled until you're back online. Your typed details are kept.</span>
+  <div class="offline-banner" id="offlineBanner">
+    <i class="fas fa-wifi"></i><span>No connection — saving is disabled until you're back online. Your typed details are kept.</span>
+  </div>
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% for category, message in messages %}
+    <div class="alert alert-{{ 'success' if category == 'success' else category }}">
+      <i class="fas fa-{{ 'check-circle' if category == 'success' else 'exclamation-triangle' }} me-2"></i>{{ message }}
     </div>
+    {% endfor %}
+  {% endwith %}
 
-    {% with messages = get_flashed_messages(with_categories=true) %}
-      {% for category, message in messages %}
-      <div class="alert alert-{{ 'success' if category == 'success' else category }} mb-3">
-        <i class="fas fa-{{ 'check-circle' if category == 'success' else 'exclamation-triangle' }} me-2"></i>{{ message }}
-      </div>
-      {% endfor %}
-    {% endwith %}
-
-    <form method="POST" id="quickAddForm">
-      <div class="section-label">Basic Info</div>
+  <form method="POST" id="quickAddForm">
+    <div class="form-card">
+      <div class="form-card-header"><i class="fas fa-id-card"></i>Basic Info</div>
       <div class="mb-3">
-        <div class="d-flex justify-content-between align-items-center">
-          <label class="form-label mb-0">Customer Name *</label>
-          <button type="button" class="btn btn-sm d-none" id="pickContactBtn" style="background:rgba(8,145,178,.15);border:1px solid rgba(8,145,178,.35);color:#67e8f9;font-size:11.5px;padding:3px 10px">
+        <div class="field-pick-row">
+          <label class="form-label">Customer Name *</label>
+          <button type="button" class="btn-chip d-none" id="pickContactBtn">
             <i class="fas fa-address-book me-1"></i>From Contacts
           </button>
         </div>
-        <input type="text" name="name" id="nameInput" class="form-control mt-1" placeholder="e.g. Mama Ama's Shop" required autofocus>
+        <input type="text" name="name" id="nameInput" class="form-control" placeholder="e.g. Mama Ama's Shop" required autofocus>
       </div>
       <div class="mb-3">
         <label class="form-label">Phone</label>
@@ -97,7 +126,7 @@
         <label class="form-label">Email</label>
         <input type="email" name="email" class="form-control" placeholder="optional">
       </div>
-      <div class="mb-3">
+      <div>
         <label class="form-label">Customer Type</label>
         <select name="customer_type" class="form-select">
           <option value="retail">Retail</option>
@@ -105,8 +134,10 @@
           <option value="distributor">Distributor</option>
         </select>
       </div>
+    </div>
 
-      <div class="section-label">Location</div>
+    <div class="form-card">
+      <div class="form-card-header"><i class="fas fa-location-dot"></i>Location</div>
       <input type="hidden" name="gps_latitude" id="gpsLat">
       <input type="hidden" name="gps_longitude" id="gpsLng">
       <button type="button" class="btn-gps" id="gpsBtn" onclick="captureGps()">
@@ -115,14 +146,16 @@
       <div class="gps-status" id="gpsStatus"></div>
       <div class="mb-3 mt-3">
         <label class="form-label">Address</label>
-        <textarea name="address" id="addressInput" class="form-control" rows="2" placeholder="Street / building / area — fills in automatically after Capture My Location"></textarea>
+        <textarea name="address" id="addressInput" class="form-control" rows="2" placeholder="Fills in automatically after Capture My Location"></textarea>
       </div>
-      <div class="mb-3">
+      <div>
         <label class="form-label">Location / Landmark</label>
         <input type="text" name="location" id="locationInput" class="form-control" placeholder="e.g. Near Kejetia Market">
       </div>
+    </div>
 
-      <div class="section-label">Account Settings</div>
+    <div class="form-card">
+      <div class="form-card-header"><i class="fas fa-gear"></i>Account Settings</div>
       <div class="mb-3">
         <label class="form-label">Credit Limit (GHS)</label>
         <div class="input-group">
@@ -156,7 +189,7 @@
           {% endfor %}
         </select>
       </div>
-      <div class="mb-3">
+      <div>
         <label class="form-label">Sales Representative</label>
         <select name="sales_rep_id" class="form-select">
           <option value="">— {{ 'Me (' ~ current_user.full_name ~ ')' if current_user.role == 'sales_rep' else 'None' }} —</option>
@@ -165,29 +198,34 @@
           {% endfor %}
         </select>
       </div>
+    </div>
 
-      <div class="section-label">Notes</div>
-      <div class="mb-3">
-        <textarea name="notes" class="form-control" rows="3" placeholder="Additional notes about this customer..."></textarea>
-      </div>
+    <div class="form-card">
+      <div class="form-card-header"><i class="fas fa-note-sticky"></i>Notes</div>
+      <textarea name="notes" class="form-control" rows="3" placeholder="Additional notes about this customer..."></textarea>
+    </div>
 
-      <button type="submit" class="btn-save" id="saveBtn">
-        <i class="fas fa-check me-2"></i>Save Customer
-      </button>
-    </form>
-
-    <button type="button" id="installBtn" class="btn-gps d-none">
-      <i class="fas fa-download me-1"></i>Install This App
+    <button type="submit" class="btn-save" id="saveBtn">
+      <i class="fas fa-check me-2"></i>Save Customer
     </button>
-    <div class="ios-hint" id="iosHint">
-      <i class="fas fa-share-from-square me-1"></i>To install: tap <b>Share</b>, then <b>Add to Home Screen</b>.
-    </div>
+  </form>
 
-    <div class="full-app-link">
-      <a href="{{ url_for('dashboard.index') }}"><i class="fas fa-arrow-left me-1"></i>Open Full App</a>
-    </div>
+  <button type="button" id="installBtn" class="d-none">
+    <i class="fas fa-download me-1"></i>Install This App
+  </button>
+  <div class="ios-hint" id="iosHint">
+    <i class="fas fa-share-from-square me-1"></i>To install: tap <b>Share</b>, then <b>Add to Home Screen</b>.
   </div>
-</div>
+
+  <div class="full-app-link">
+    <a href="{{ url_for('dashboard.index') }}"><i class="fas fa-arrow-left me-1"></i>Open Full App</a>
+  </div>
+</main>
+
+<nav class="bottom-nav">
+  <a href="{{ url_for('customers.quick_add') }}" class="nav-item active"><i class="fas fa-user-plus"></i><span>Add</span></a>
+  <a href="{{ url_for('customers.quick_add_dashboard') }}" class="nav-item"><i class="fas fa-chart-simple"></i><span>Dashboard</span></a>
+</nav>
 
 <script>
 async function captureGps() {
