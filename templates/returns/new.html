@@ -44,6 +44,13 @@
               {% for v in vans %}<option value="{{ v.id }}">{{ v.van_number }}{% if v.registration_number %} ({{ v.registration_number }}){% endif %}</option>{% endfor %}
             </select>
           </div>
+          <div class="col-md-6 d-none" id="repField">
+            <label class="form-label">Received By (Rep) <span class="text-danger">*</span> <small class="text-muted fw-400">— whose van stock gets credited</small></label>
+            <select name="received_by_rep_id" class="form-select" id="repSel">
+              <option value="">— Select Rep —</option>
+              {% for r in reps %}<option value="{{ r.id }}" {{ 'selected' if r.id == current_user.id }}>{{ r.full_name }}</option>{% endfor %}
+            </select>
+          </div>
           <div class="col-md-6">
             <label class="form-label">Refund Method</label>
             <select name="refund_method" class="form-select">
@@ -159,6 +166,8 @@ function toggleVanField() {
   const isVan = document.getElementById('destSel').value === 'van_stock';
   document.getElementById('vanField').classList.toggle('d-none', !isVan);
   document.getElementById('vanSel').required = isVan;
+  document.getElementById('repField').classList.toggle('d-none', !isVan);
+  document.getElementById('repSel').required = isVan;
 }
 
 addLine();

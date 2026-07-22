@@ -185,9 +185,13 @@ def new():
     from models.customer import Customer
     from models.product import Product
     from models.van import Van
+    from models.user import User
     customers = Customer.query.filter_by(status='active').order_by(Customer.name).all()
     products = Product.query.filter_by(status='active').order_by(Product.product_name).all()
     vans = Van.query.filter_by(status='active').all()
+    reps = User.query.filter(
+        User.role.in_(['sales_rep', 'supervisor']), User.is_active == True
+    ).order_by(User.full_name).all()
     if request.method == 'POST':
         from models.v4_models import ReturnOrder, ReturnOrderItem
         from services.sequence import next_return_order_number
@@ -197,14 +201,26 @@ def new():
             return redirect(url_for('returns.new'))
         return_destination = request.form.get('return_destination', 'warehouse')
         van_id = request.form.get('van_id') or None
-        if return_destination == 'van_stock' and not van_id:
-            flash('Select a van for "Back to Van Stock" returns.', 'danger')
-            return redirect(url_for('returns.new'))
+        # Which rep's van custody actually gets credited — NOT necessarily
+        # whoever is typing this in. An admin/warehouse manager logging a
+        # return on a rep's behalf must say which rep, otherwise the stock
+        # would land under the admin's own id and the real rep would never
+        # see it in their van stock.
+        received_by_rep_id = request.form.get('received_by_rep_id') or None
+        if return_destination == 'van_stock':
+            if not van_id:
+                flash('Select a van for "Back to Van Stock" returns.', 'danger')
+                return redirect(url_for('returns.new'))
+            if not received_by_rep_id:
+                flash('Select which rep\'s van stock receives this return.', 'danger')
+                return redirect(url_for('returns.new'))
+        else:
+            received_by_rep_id = current_user.id
         order = ReturnOrder(
             return_number=next_return_order_number(),
             sale_id=request.form.get('sale_id') or None,
             customer_id=customer_id,
-            received_by_rep_id=current_user.id,
+            received_by_rep_id=received_by_rep_id,
             van_id=van_id,
             return_destination=return_destination,
             refund_method=request.form.get('refund_method', 'credit'),
@@ -248,7 +264,7 @@ def new():
         db.session.commit()
         flash(f'Return order {order.return_number} submitted.', 'success')
         return redirect(url_for('returns.view', order_id=order.id))
-    return render_template('returns/new.html', customers=customers, products=products, vans=vans)
+    return render_template('returns/new.html', customers=customers, products=products, vans=vans, reps=reps)
 
 
 @returns_bp.route('/<int:order_id>')
