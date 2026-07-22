@@ -54,6 +54,29 @@ class Sale(db.Model):
     def has_tips(self):
         return any((i.tip_amount or 0) > 0 for i in self.items)
 
+    @property
+    def return_status(self):
+        """'full' | 'partial' | 'none' — matched by product_id rather than
+        ReturnOrderItem.sale_item_id, since the return-creation form never
+        wires that field through (it only sends product_id/quantity/price)."""
+        from models.v4_models import ReturnOrder
+        returned_by_product = {}
+        for order in ReturnOrder.query.filter_by(sale_id=self.id).all():
+            for item in order.items:
+                if item.line_status == 'approved':
+                    returned_by_product[item.product_id] = returned_by_product.get(item.product_id, 0) + item.quantity
+        if not returned_by_product:
+            return 'none'
+        sold_by_product = {}
+        for i in self.items:
+            sold_by_product[i.product_id] = sold_by_product.get(i.product_id, 0) + i.quantity
+        fully = all(returned_by_product.get(pid, 0) >= qty for pid, qty in sold_by_product.items())
+        return 'full' if fully else 'partial'
+
+    @property
+    def return_status_badge(self):
+        return {'full': 'bg-danger', 'partial': 'bg-warning text-dark'}.get(self.return_status, '')
+
     def recalculate(self):
         self.subtotal = round(sum(item.line_total for item in self.items), 2)
         self.company_sales_total = round(sum((item.official_price or 0) * item.quantity for item in self.items), 2)

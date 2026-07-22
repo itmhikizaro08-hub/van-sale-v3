@@ -44,15 +44,20 @@
   </thead>
   <tbody>
     {% for s in sales %}
-    <tr class="{{ 'opacity-50' if s.status == 'cancelled' }}">
-      <td><a href="{{ url_for('invoices.view', sale_id=s.id) }}" class="fw-600 {{ 'text-decoration-line-through' if s.status == 'cancelled' }}">{{ s.invoice_number }}</a></td>
+    {% set return_status = s.return_status %}
+    <tr class="{{ 'opacity-50' if s.status == 'cancelled' or return_status == 'full' }}">
+      <td><a href="{{ url_for('invoices.view', sale_id=s.id) }}" class="fw-600 {{ 'text-decoration-line-through' if s.status == 'cancelled' or return_status == 'full' }}">{{ s.invoice_number }}</a></td>
       <td>{{ s.customer.name if s.customer else '—' }}</td>
       <td class="text-muted fs-12">{{ s.sale_date.strftime('%d %b %Y') if s.sale_date else '' }}</td>
       <td class="fs-12">{{ s.sales_rep.full_name if s.sales_rep else '—' }}</td>
       <td class="fs-12">{{ s.van.van_number if s.van else 'WH' }}</td>
       <td class="text-end fw-600">GHS {{ "%.2f"|format(s.total_amount) }}</td>
       <td><span class="badge {{ s.payment_badge }}">{{ s.payment_status|title }}</span></td>
-      <td><span class="badge {{ s.status_badge }}">{{ s.status|title }}</span></td>
+      <td>
+        <span class="badge {{ s.status_badge }}">{{ s.status|title }}</span>
+        {% if return_status == 'full' %}<span class="badge bg-danger">Returned</span>
+        {% elif return_status == 'partial' %}<span class="badge bg-warning text-dark">Partial Return</span>{% endif %}
+      </td>
       <td>
         <div class="d-flex gap-1">
           <a href="{{ url_for('invoices.view', sale_id=s.id) }}" class="btn btn-icon btn-sm btn-outline-primary"><i class="fas fa-eye"></i></a>
