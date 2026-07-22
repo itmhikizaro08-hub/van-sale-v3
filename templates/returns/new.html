@@ -31,10 +31,17 @@
           </div>
           <div class="col-md-6">
             <label class="form-label">Return Destination</label>
-            <select name="return_destination" class="form-select">
+            <select name="return_destination" class="form-select" id="destSel" onchange="toggleVanField()">
               <option value="warehouse">Warehouse (default)</option>
               <option value="van_stock">Back to Van Stock</option>
               <option value="scrap">Scrap (damaged/expired)</option>
+            </select>
+          </div>
+          <div class="col-md-6 d-none" id="vanField">
+            <label class="form-label">Van <span class="text-danger">*</span></label>
+            <select name="van_id" class="form-select" id="vanSel">
+              <option value="">— Select Van —</option>
+              {% for v in vans %}<option value="{{ v.id }}">{{ v.van_number }}{% if v.registration_number %} ({{ v.registration_number }}){% endif %}</option>{% endfor %}
             </select>
           </div>
           <div class="col-md-6">
@@ -148,6 +155,13 @@ async function loadSaleItems(saleId) {
   } catch {}
 }
 
+function toggleVanField() {
+  const isVan = document.getElementById('destSel').value === 'van_stock';
+  document.getElementById('vanField').classList.toggle('d-none', !isVan);
+  document.getElementById('vanSel').required = isVan;
+}
+
 addLine();
+toggleVanField();
 </script>
 {% endblock %}

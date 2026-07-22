@@ -29,6 +29,30 @@ def _log_stock_movement(product, delta, movement_type, reference_type, reference
     ))
 
 
+def _credit_returned_stock(order, item):
+    """Route an approved return line's quantity back into stock. Warehouse is
+    straightforward; van_stock requires a van_id — the new() form now enforces
+    that at submission time, but any pending order created before that
+    validation existed could still reach approval with van_id=None. Rather
+    than silently dropping the stock (the original bug), fall back to
+    crediting the warehouse so the goods are never lost."""
+    from models.product import Product
+    from models.notification import VanStock
+    if order.return_destination == 'van_stock' and order.van_id and order.received_by_rep_id:
+        vs = VanStock.query.filter_by(
+            van_id=order.van_id, sales_rep_id=order.received_by_rep_id, product_id=item.product_id
+        ).first()
+        if vs: vs.quantity += item.quantity
+        else:
+            db.session.add(VanStock(van_id=order.van_id, sales_rep_id=order.received_by_rep_id,
+                                    product_id=item.product_id, quantity=item.quantity))
+    else:
+        p = Product.query.get(item.product_id)
+        if p:
+            p.stock_quantity += item.quantity
+            _log_stock_movement(p, item.quantity, 'customer_return', 'return_order', order.id, order.reference_note)
+
+
 def _record_cash_refund(order, item):
     """A cash-refunded return line pays real money out of the till — track
     it the same way every other cash movement is tracked, so it correctly
@@ -88,8 +112,6 @@ def _bulk_resolve(order, new_status):
     approve_line/reject_line but applied to the whole order at once."""
     from models.v4_models import ReturnOrderItem, CreditNote
     from services.sequence import next_credit_note_number
-    from models.product import Product
-    from models.notification import VanStock
 
     pending_items = [i for i in order.items if i.line_status == 'pending']
     if not pending_items:
@@ -100,19 +122,8 @@ def _bulk_resolve(order, new_status):
         if new_status != 'approved':
             continue
 
-        if order.return_destination == 'warehouse':
-            p = Product.query.get(item.product_id)
-            if p:
-                p.stock_quantity += item.quantity
-                _log_stock_movement(p, item.quantity, 'customer_return', 'return_order', order.id, order.reference_note)
-        elif order.return_destination == 'van_stock' and order.van_id and order.received_by_rep_id:
-            vs = VanStock.query.filter_by(
-                van_id=order.van_id, sales_rep_id=order.received_by_rep_id, product_id=item.product_id
-            ).first()
-            if vs: vs.quantity += item.quantity
-            else:
-                db.session.add(VanStock(van_id=order.van_id, sales_rep_id=order.received_by_rep_id,
-                                        product_id=item.product_id, quantity=item.quantity))
+        if order.return_destination != 'scrap':
+            _credit_returned_stock(order, item)
 
         cn = CreditNote(
             note_number=next_credit_note_number(),
@@ -184,13 +195,18 @@ def new():
         if not customer_id:
             flash('Customer is required.', 'danger')
             return redirect(url_for('returns.new'))
+        return_destination = request.form.get('return_destination', 'warehouse')
+        van_id = request.form.get('van_id') or None
+        if return_destination == 'van_stock' and not van_id:
+            flash('Select a van for "Back to Van Stock" returns.', 'danger')
+            return redirect(url_for('returns.new'))
         order = ReturnOrder(
             return_number=next_return_order_number(),
             sale_id=request.form.get('sale_id') or None,
             customer_id=customer_id,
             received_by_rep_id=current_user.id,
-            van_id=request.form.get('van_id') or None,
-            return_destination=request.form.get('return_destination', 'warehouse'),
+            van_id=van_id,
+            return_destination=return_destination,
             refund_method=request.form.get('refund_method', 'credit'),
             notes=request.form.get('notes'),
             reference_note=request.form.get('reference_note'),
@@ -295,21 +311,8 @@ def approve_line(order_id, item_id):
 
     item.line_status = 'approved'
     # Route stock
-    from models.product import Product
-    if order.return_destination == 'warehouse':
-        p = Product.query.get(item.product_id)
-        if p:
-            p.stock_quantity += item.quantity
-            _log_stock_movement(p, item.quantity, 'customer_return', 'return_order', order.id, order.reference_note)
-    elif order.return_destination == 'van_stock' and order.van_id and order.received_by_rep_id:
-        from models.notification import VanStock
-        vs = VanStock.query.filter_by(
-            van_id=order.van_id, sales_rep_id=order.received_by_rep_id, product_id=item.product_id
-        ).first()
-        if vs: vs.quantity += item.quantity
-        else:
-            db.session.add(VanStock(van_id=order.van_id, sales_rep_id=order.received_by_rep_id,
-                                    product_id=item.product_id, quantity=item.quantity))
+    if order.return_destination != 'scrap':
+        _credit_returned_stock(order, item)
 
     # Credit note for this line
     cn = CreditNote(
