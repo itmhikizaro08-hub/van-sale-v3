@@ -289,6 +289,22 @@ def cancel(sale_id):
                 item.product.stock_quantity += item.quantity
         sale.status = 'cancelled'
         sale.customer.outstanding_balance -= sale.balance_due
+
+        # Any payment collected against this sale no longer represents a
+        # live transaction — void it so the Payments page stops showing
+        # "Completed" for money tied to a cancelled invoice. Do NOT touch
+        # customer.outstanding_balance here (unlike payments.void()) — the
+        # line above already reverses this sale's entire net effect on the
+        # customer's balance, upfront or later payments alike; adjusting it
+        # again per-payment would double-count the reversal.
+        for payment in sale.payments:
+            if payment.status != 'void':
+                payment.status = 'void'
+                payment.voided_by_id = current_user.id
+                payment.voided_at = datetime.utcnow()
+        sale.amount_paid = 0
+        sale.recalculate()
+
         db.session.commit()
         return jsonify({'success': True})
     return jsonify({'error': 'Cannot cancel this sale'}), 400
