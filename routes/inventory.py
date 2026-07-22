@@ -88,7 +88,10 @@ def stock_in():
         for pid, qty_str in zip(product_ids, quantities):
             if not pid or not qty_str:
                 continue
-            qty = int(qty_str)
+            try:
+                qty = int(qty_str)
+            except ValueError:
+                continue
             if qty <= 0:
                 continue
             product = Product.query.get(pid)
@@ -150,7 +153,14 @@ def stock_out():
     products = Product.query.filter_by(status='active').order_by(Product.product_name).all()
     if request.method == 'POST':
         product = Product.query.get_or_404(request.form['product_id'])
-        qty = int(request.form.get('quantity') or 0)
+        try:
+            qty = int(request.form.get('quantity') or 0)
+        except ValueError:
+            flash('Enter a valid quantity.', 'danger')
+            return redirect(url_for('inventory.stock_out'))
+        if qty <= 0:
+            flash('Quantity must be greater than zero.', 'danger')
+            return redirect(url_for('inventory.stock_out'))
         if qty > product.stock_quantity:
             flash('Insufficient stock.', 'danger')
             return redirect(url_for('inventory.stock_out'))
@@ -183,7 +193,14 @@ def adjustment():
     products = Product.query.filter_by(status='active').order_by(Product.product_name).all()
     if request.method == 'POST':
         product = Product.query.get_or_404(request.form['product_id'])
-        new_qty = int(request.form.get('new_quantity') or 0)
+        try:
+            new_qty = int(request.form.get('new_quantity') or 0)
+        except ValueError:
+            flash('Enter a valid quantity.', 'danger')
+            return redirect(url_for('inventory.adjustment'))
+        if new_qty < 0:
+            flash('Quantity cannot be negative.', 'danger')
+            return redirect(url_for('inventory.adjustment'))
         qty_before = product.stock_quantity
         diff = new_qty - qty_before
         product.stock_quantity = new_qty
