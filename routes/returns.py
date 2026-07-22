@@ -9,6 +9,51 @@ from models.sale import Sale
 returns_bp = Blueprint('returns', __name__)
 
 
+def _log_stock_movement(product, delta, movement_type, reference_type, reference_id, reference_note=None):
+    """Record a warehouse stock change so it shows up on the Inventory
+    Movements audit log, the same as stock_in/stock_out/adjustment do —
+    approving a return previously mutated Product.stock_quantity directly
+    with no trace left anywhere else in the app.
+    Call AFTER product.stock_quantity has already been updated by `delta`."""
+    from models.notification import InventoryMovement
+    db.session.add(InventoryMovement(
+        product_id=product.id,
+        movement_type=movement_type,
+        quantity=delta,
+        quantity_before=product.stock_quantity - delta,
+        quantity_after=product.stock_quantity,
+        reference_id=reference_id,
+        reference_type=reference_type,
+        reference_note=reference_note,
+        created_by_id=current_user.id
+    ))
+
+
+def _record_cash_refund(order, item):
+    """A cash-refunded return line pays real money out of the till — track
+    it the same way every other cash movement is tracked, so it correctly
+    reduces the rep's cash-on-hand liability (services/cash_decl.py sums
+    Payment.amount directly; a negative cash payment nets out exactly like
+    a reversal). Only possible when the return references the original
+    sale — Payment.sale_id is required, and a return can be logged without
+    one (e.g. no invoice on hand)."""
+    if not order.sale_id:
+        return
+    from models.payment import Payment
+    from services.sequence import next_payment_number
+    db.session.add(Payment(
+        payment_number=next_payment_number(),
+        sale_id=order.sale_id,
+        customer_id=order.customer_id,
+        amount=-round(item.line_total, 2),
+        payment_method='cash',
+        reference_note=order.reference_note,
+        notes=f'Cash refund — Return {order.return_number} — '
+              f'{item.product.product_name if item.product else "item"}',
+        received_by_id=current_user.id
+    ))
+
+
 @returns_bp.route('/')
 @login_required
 def index():
@@ -57,7 +102,9 @@ def _bulk_resolve(order, new_status):
 
         if order.return_destination == 'warehouse':
             p = Product.query.get(item.product_id)
-            if p: p.stock_quantity += item.quantity
+            if p:
+                p.stock_quantity += item.quantity
+                _log_stock_movement(p, item.quantity, 'customer_return', 'return_order', order.id, order.reference_note)
         elif order.return_destination == 'van_stock' and order.van_id and order.received_by_rep_id:
             vs = VanStock.query.filter_by(
                 van_id=order.van_id, sales_rep_id=order.received_by_rep_id, product_id=item.product_id
@@ -81,6 +128,8 @@ def _bulk_resolve(order, new_status):
         db.session.add(cn)
         if order.refund_method == 'credit' and order.customer:
             order.customer.outstanding_balance = max(0, order.customer.outstanding_balance - item.line_total)
+        elif order.refund_method == 'cash':
+            _record_cash_refund(order, item)
 
     order.recalculate()
     statuses = {i.line_status for i in order.items}
@@ -249,7 +298,9 @@ def approve_line(order_id, item_id):
     from models.product import Product
     if order.return_destination == 'warehouse':
         p = Product.query.get(item.product_id)
-        if p: p.stock_quantity += item.quantity
+        if p:
+            p.stock_quantity += item.quantity
+            _log_stock_movement(p, item.quantity, 'customer_return', 'return_order', order.id, order.reference_note)
     elif order.return_destination == 'van_stock' and order.van_id and order.received_by_rep_id:
         from models.notification import VanStock
         vs = VanStock.query.filter_by(
@@ -275,6 +326,8 @@ def approve_line(order_id, item_id):
     db.session.add(cn)
     if order.refund_method == 'credit' and order.customer:
         order.customer.outstanding_balance = max(0, order.customer.outstanding_balance - item.line_total)
+    elif order.refund_method == 'cash':
+        _record_cash_refund(order, item)
 
     order.recalculate()
     statuses = {i.line_status for i in order.items}
@@ -441,7 +494,10 @@ def _supplier_bulk_resolve(ret, new_status):
 
         product = Product.query.get(item.product_id)
         if product:
+            qty_before = product.stock_quantity
             product.stock_quantity = max(0, product.stock_quantity - item.quantity)
+            _log_stock_movement(product, product.stock_quantity - qty_before, 'supplier_return',
+                                 'supplier_return', ret.id, ret.reference_note)
 
         if ret.supplier:
             ret.supplier.outstanding_balance = max(0, ret.supplier.outstanding_balance - item.line_total)
@@ -494,7 +550,10 @@ def supplier_approve_line(return_id, item_id):
     item.line_status = 'approved'
     product = Product.query.get(item.product_id)
     if product:
+        qty_before = product.stock_quantity
         product.stock_quantity = max(0, product.stock_quantity - item.quantity)
+        _log_stock_movement(product, product.stock_quantity - qty_before, 'supplier_return',
+                             'supplier_return', ret.id, ret.reference_note)
     if ret.supplier:
         ret.supplier.outstanding_balance = max(0, ret.supplier.outstanding_balance - item.line_total)
 
