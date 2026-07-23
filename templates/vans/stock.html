@@ -40,7 +40,6 @@
       <td class="text-nowrap">
         {% if vs.van_id and vs.sales_rep_id %}
         <a href="{{ url_for('vans.stock_statement', van_id=vs.van_id, rep_id=vs.sales_rep_id, product_id=vs.product_id) }}" class="btn btn-icon btn-sm btn-outline-primary" title="This Item's Movement"><i class="fas fa-list"></i></a>
-        <a href="{{ url_for('vans.stock_statement', van_id=vs.van_id, rep_id=vs.sales_rep_id) }}" class="btn btn-icon btn-sm btn-outline-secondary" title="All Items Statement"><i class="fas fa-file-invoice"></i></a>
         {% endif %}
       </td>
     </tr>
