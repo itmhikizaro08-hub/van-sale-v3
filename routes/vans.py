@@ -180,8 +180,23 @@ def stock():
         return redirect(url_for('dashboard.index'))
 
     q = VanStock.query.filter(VanStock.quantity > 0)
+    van_filter_id = None
+    rep_filter_id = None
+    vans = reps = []
     if current_user.scope('van_stock') == 'own':
         q = q.filter_by(sales_rep_id=current_user.id)
+    else:
+        van_filter_id = request.args.get('van_id', type=int)
+        rep_filter_id = request.args.get('rep_id', type=int)
+        if van_filter_id:
+            q = q.filter_by(van_id=van_filter_id)
+        if rep_filter_id:
+            q = q.filter_by(sales_rep_id=rep_filter_id)
+        vans = Van.query.filter_by(status='active').order_by(Van.van_number).all()
+        rep_ids_with_stock = {vs.sales_rep_id for vs in VanStock.query.filter(
+            VanStock.quantity > 0, VanStock.sales_rep_id.isnot(None)
+        ).all()}
+        reps = User.query.filter(User.id.in_(rep_ids_with_stock)).order_by(User.full_name).all()
     stocks = q.all()
 
     total_qty = round(sum(vs.quantity for vs in stocks), 2)
@@ -189,7 +204,8 @@ def stock():
     rep_count = len({vs.sales_rep_id for vs in stocks if vs.sales_rep_id})
 
     return render_template('vans/stock.html', stocks=stocks,
-        total_qty=total_qty, total_value=total_value, rep_count=rep_count)
+        total_qty=total_qty, total_value=total_value, rep_count=rep_count,
+        vans=vans, reps=reps, van_filter_id=van_filter_id, rep_filter_id=rep_filter_id)
 
 
 @vans_bp.route('/stock/statement/<int:van_id>/<int:rep_id>')

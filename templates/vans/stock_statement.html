@@ -47,7 +47,7 @@
         {% for vs in current_stock %}
         <tr>
           <td class="fw-600">{{ vs.product.product_name if vs.product else '—' }}</td>
-          <td class="text-end"><span class="badge {{ 'bg-warning text-dark' if vs.quantity <= 5 else 'bg-success' }}">{{ vs.quantity|qty }}</span></td>
+          <td class="text-end"><span class="badge {{ 'bg-warning text-dark' if vs.is_low_stock else 'bg-success' }}">{{ vs.quantity|qty }}</span></td>
           {% if current_user.see_cost_prices() %}<td class="text-end fw-600">GHS {{ "%.2f"|format(vs.quantity * (vs.product.cost_price if vs.product else 0)) }}</td>{% endif %}
         </tr>
         {% else %}

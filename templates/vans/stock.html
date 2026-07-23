@@ -26,6 +26,30 @@
   {% endif %}
 </div>
 
+{% if current_user.scope('van_stock') != 'own' %}
+<div class="card mb-3"><div class="card-body py-2">
+  <form method="GET" class="row g-2 align-items-end">
+    <div class="col-md-4">
+      <label class="form-label">Van</label>
+      <select name="van_id" class="form-select" onchange="this.form.submit()">
+        <option value="">All Vans</option>
+        {% for v in vans %}<option value="{{ v.id }}" {{ 'selected' if van_filter_id == v.id }}>{{ v.van_number }}</option>{% endfor %}
+      </select>
+    </div>
+    <div class="col-md-4">
+      <label class="form-label">Rep</label>
+      <select name="rep_id" class="form-select" onchange="this.form.submit()">
+        <option value="">All Reps</option>
+        {% for r in reps %}<option value="{{ r.id }}" {{ 'selected' if rep_filter_id == r.id }}>{{ r.full_name }}</option>{% endfor %}
+      </select>
+    </div>
+    {% if van_filter_id or rep_filter_id %}
+    <div class="col-md-4"><a href="{{ url_for('vans.stock') }}" class="btn btn-outline-secondary w-100"><i class="fas fa-times me-1"></i>Clear Filters</a></div>
+    {% endif %}
+  </form>
+</div></div>
+{% endif %}
+
 <div class="card"><div class="card-body p-0"><div class="table-responsive">
 <table class="table table-hover dt-table mb-0" id="vanStockTable">
   <thead><tr><th>Van</th>{% if current_user.scope('van_stock') != 'own' %}<th>Rep</th>{% endif %}<th>Product</th><th class="text-end">Qty</th>{% if current_user.see_cost_prices() %}<th class="text-end">Value</th>{% endif %}<th></th></tr></thead>
@@ -35,7 +59,7 @@
       <td class="fw-600">{{ vs.van.van_number if vs.van else '—' }}</td>
       {% if current_user.scope('van_stock') != 'own' %}<td>{{ vs.sales_rep.full_name if vs.sales_rep else '—' }}</td>{% endif %}
       <td class="fw-600">{{ vs.product.product_name if vs.product else '—' }}</td>
-      <td class="text-end"><span class="badge {{ 'bg-warning text-dark' if vs.quantity <= 5 else 'bg-success' }}">{{ vs.quantity|qty }}</span></td>
+      <td class="text-end"><span class="badge {{ 'bg-warning text-dark' if vs.is_low_stock else 'bg-success' }}">{{ vs.quantity|qty }}</span></td>
       {% if current_user.see_cost_prices() %}<td class="text-end fw-600">GHS {{ "%.2f"|format(vs.quantity * (vs.product.cost_price if vs.product else 0)) }}</td>{% endif %}
       <td class="text-nowrap">
         {% if vs.van_id and vs.sales_rep_id %}

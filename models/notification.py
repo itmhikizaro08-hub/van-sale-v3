@@ -71,6 +71,14 @@ class VanStock(db.Model):
     def stock_value(self):
         return round(self.quantity * (self.product.cost_price if self.product else 0), 2)
 
+    @property
+    def is_low_stock(self):
+        """Matches Product.is_low_stock's threshold (reorder_level) rather
+        than a hardcoded number — a van holding 8 units of a product whose
+        reorder_level is 20 is just as much a restocking risk as one
+        holding 8 units of something whose threshold is 5."""
+        return self.product is not None and self.quantity <= self.product.reorder_level
+
 
 # ── Return ─────────────────────────────────────────────────────────────────────
 class Return(db.Model):
