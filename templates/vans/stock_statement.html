@@ -13,6 +13,7 @@
     {% if product %}
     <a href="{{ url_for('vans.stock_statement', van_id=van.id, rep_id=rep.id, start=start, end=end) }}" class="btn btn-outline-primary btn-sm"><i class="fas fa-th-list me-1"></i>All Items</a>
     {% endif %}
+    <a href="{{ url_for('vans.stock_statement_pdf', van_id=van.id, rep_id=rep.id, product_id=product.id if product else none, start=start, end=end) }}" class="btn btn-primary btn-sm"><i class="fas fa-file-pdf me-1"></i>Download PDF</a>
     <a href="{{ url_for('vans.stock') }}" class="btn btn-outline-secondary btn-sm"><i class="fas fa-arrow-left me-1"></i>Back</a>
   </div>
 </div>
