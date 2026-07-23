@@ -182,15 +182,8 @@ a:hover { color: var(--brand-dark); }
 }
 .menu-item.active i { color: var(--brand); }
 
-/* Sidebar footer */
-.sidebar-footer {
-  padding: 12px 14px;
-  border-top: 1px solid rgba(255,255,255,.06);
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-.user-info { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; }
+/* Avatar circle — used on customer/supplier/van detail headers and the rep
+   liability report (each overrides size/font inline for its own context) */
 .user-avatar {
   width: 34px; height: 34px;
   background: linear-gradient(135deg, var(--brand), #7c3aed);
@@ -199,15 +192,6 @@ a:hover { color: var(--brand-dark); }
   font-weight: 700; font-size: 14px; color: #fff;
   flex-shrink: 0;
 }
-.user-name { font-size: 12.5px; font-weight: 600; color: #e2e8f0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.user-role { font-size: 10px !important; }
-.btn-logout {
-  background: none; border: none;
-  color: #475569; padding: 6px;
-  cursor: pointer; border-radius: 6px;
-  transition: color .15s;
-}
-.btn-logout:hover { color: var(--danger); }
 
 /* ── Sidebar collapsed ───────────────────────────────────────── */
 .sidebar-collapsed .sidebar { width: 60px; }
@@ -215,8 +199,6 @@ a:hover { color: var(--brand-dark); }
 .sidebar-collapsed .sidebar .menu-label,
 .sidebar-collapsed .sidebar .menu-item span,
 .sidebar-collapsed .sidebar .sidebar-search,
-.sidebar-collapsed .sidebar .user-name,
-.sidebar-collapsed .sidebar .user-role,
 .sidebar-collapsed .sidebar .brand-version { display: none; }
 .sidebar-collapsed .main-wrapper { margin-left: 60px; }
 .sidebar-collapsed .menu-item { justify-content: center; padding: 11px; }
@@ -704,21 +686,6 @@ a:hover { color: var(--brand-dark); }
   .stat-value { font-size: 20px; }
   .page-title { font-size: 18px; }
   .page-content { padding: 12px; }
-}
-
-/* ══════════════════════════════════════════════════════════════
-   GLASSMORPHISM ACCENTS
-   ══════════════════════════════════════════════════════════════ */
-.glass-card {
-  background: rgba(255,255,255,.75);
-  backdrop-filter: blur(12px);
-  border: 1px solid rgba(255,255,255,.5);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow);
-}
-[data-theme="dark"] .glass-card {
-  background: rgba(30,41,59,.75);
-  border-color: rgba(255,255,255,.08);
 }
 
 /* ══════════════════════════════════════════════════════════════

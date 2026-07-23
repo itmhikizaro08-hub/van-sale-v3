@@ -219,10 +219,3 @@ def adjustment():
         flash(f'Stock adjusted for {product.product_name} to {new_qty} units.', 'success')
         return redirect(url_for('inventory.index'))
     return render_template('inventory/adjustment.html', products=products)
-
-
-@inventory_bp.route('/van-stock')
-@login_required
-def van_stock():
-    # Superseded by the canonical van stock view in the Van Management module.
-    return redirect(url_for('vans.stock'))

@@ -80,36 +80,6 @@ class VanStock(db.Model):
         return self.product is not None and self.quantity <= self.product.reorder_level
 
 
-# ── Return ─────────────────────────────────────────────────────────────────────
-class Return(db.Model):
-    __tablename__ = 'returns'
-
-    id = db.Column(db.Integer, primary_key=True)
-    return_number = db.Column(db.String(30), unique=True, nullable=False)
-    sale_id = db.Column(db.Integer, db.ForeignKey('sales.id'), nullable=True)
-    customer_id = db.Column(db.Integer, db.ForeignKey('customers.id'), nullable=False)
-    product_id = db.Column(db.Integer, db.ForeignKey('products.id'), nullable=False)
-    quantity = db.Column(db.Integer, nullable=False)
-    reason = db.Column(db.String(200))
-    return_type = db.Column(db.String(30), default='sales_return')
-    # sales_return, damaged, expired
-    refund_amount = db.Column(db.Float, default=0.0)
-    status = db.Column(db.String(20), default='pending')  # pending, approved, rejected
-    approved_by_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
-    notes = db.Column(db.Text)
-    created_by_id = db.Column(db.Integer, db.ForeignKey('users.id'))
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-
-    customer = db.relationship('Customer', foreign_keys=[customer_id])
-    product = db.relationship('Product', foreign_keys=[product_id])
-    approved_by = db.relationship('User', foreign_keys=[approved_by_id])
-    created_by = db.relationship('User', foreign_keys=[created_by_id])
-
-    @property
-    def status_badge(self):
-        return {'pending': 'bg-warning text-dark', 'approved': 'bg-success', 'rejected': 'bg-danger'}.get(self.status, 'bg-secondary')
-
-
 # ── Supplier ───────────────────────────────────────────────────────────────────
 class Supplier(db.Model):
     __tablename__ = 'suppliers'

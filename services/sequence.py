@@ -18,13 +18,6 @@ def next_payment_number():
     return f'PAY-{n:06d}'
 
 
-def next_return_number():
-    from models.notification import Return
-    last = Return.query.order_by(Return.id.desc()).first()
-    n = (last.id + 1) if last else 1
-    return f'RET-{n:05d}'
-
-
 def next_expense_number():
     from models.notification import Expense
     last = Expense.query.order_by(Expense.id.desc()).first()

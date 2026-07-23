@@ -328,19 +328,6 @@ function debounce(fn, wait = 300) {
   };
 }
 
-// ── Delete confirmation via POST form ──────────────────
-document.addEventListener('click', e => {
-  const btn = e.target.closest('[data-delete-url]');
-  if (!btn) return;
-  e.preventDefault();
-  if (!confirmAction('Delete this record? This cannot be undone.')) return;
-  const form = document.createElement('form');
-  form.method = 'POST';
-  form.action = btn.dataset.deleteUrl;
-  document.body.appendChild(form);
-  form.submit();
-});
-
 // ── Approve / Reject via AJAX ──────────────────────────
 document.addEventListener('click', async e => {
   const btn = e.target.closest('[data-action-url]');

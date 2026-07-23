@@ -62,7 +62,11 @@ class Customer(db.Model):
 
     @property
     def wallet_balance(self):
-        return self.wallet.balance if self.wallet else 0.0
+        # No wallet subsystem exists — dead CustomerWallet model/tables were
+        # removed (never instantiated anywhere). Kept as a stable 0.0 rather
+        # than deleting the property outright, since reports/customers.html
+        # still renders this column.
+        return 0.0
 
     @property
     def lifetime_sales_value(self):

@@ -100,13 +100,6 @@ def index():
     return render_template('returns/index.html', orders=orders, start=start, end=end)
 
 
-@returns_bp.route('/add')
-@login_required
-def add():
-    # Legacy single-item return flow — superseded by the multi-item returns.new form.
-    return redirect(url_for('returns.new'))
-
-
 def _bulk_resolve(order, new_status):
     """Approve or reject every still-pending line on a return order, mirroring
     approve_line/reject_line but applied to the whole order at once."""

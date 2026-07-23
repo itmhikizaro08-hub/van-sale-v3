@@ -1,7 +1,6 @@
 """
 Van Sales V4 — Sprint 1 Models
-ReturnOrder, CreditNote, DebitNote,
-PaymentAllocation, CustomerWallet, WalletTransaction, PaymentReversal
+ReturnOrder, CreditNote, DebitNote
 
 (LoadingSheet/LoadingSheetItem moved to models/van_management.py)
 """
@@ -131,61 +130,3 @@ class DebitNote(db.Model):
     @property
     def status_badge(self):
         return {'issued': 'bg-warning text-dark', 'void': 'bg-secondary'}.get(self.status, 'bg-secondary')
-
-
-# ── Payment Allocation / Customer Wallet ──────────────────────────────────────
-class PaymentAllocation(db.Model):
-    __tablename__ = 'payment_allocations'
-    id         = db.Column(db.Integer, primary_key=True)
-    payment_id = db.Column(db.Integer, db.ForeignKey('payments.id'), nullable=False)
-    sale_id    = db.Column(db.Integer, db.ForeignKey('sales.id'),    nullable=False)
-    amount     = db.Column(db.Float, nullable=False, default=0.0)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-
-    payment = db.relationship('Payment', foreign_keys=[payment_id], backref='allocations')
-    sale    = db.relationship('Sale',    foreign_keys=[sale_id])
-
-
-class CustomerWallet(db.Model):
-    __tablename__ = 'customer_wallets'
-    id          = db.Column(db.Integer, primary_key=True)
-    customer_id = db.Column(db.Integer, db.ForeignKey('customers.id'), unique=True, nullable=False)
-    balance     = db.Column(db.Float, default=0.0)
-    updated_at  = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-
-    customer = db.relationship('Customer', foreign_keys=[customer_id],
-                                backref=db.backref('wallet', uselist=False))
-
-
-class WalletTransaction(db.Model):
-    __tablename__ = 'wallet_transactions'
-    id               = db.Column(db.Integer, primary_key=True)
-    wallet_id        = db.Column(db.Integer, db.ForeignKey('customer_wallets.id'), nullable=False)
-    transaction_type = db.Column(db.String(20), nullable=False)  # credit | debit
-    amount           = db.Column(db.Float, nullable=False)
-    source_type      = db.Column(db.String(30))
-    source_id        = db.Column(db.Integer)
-    notes            = db.Column(db.Text)
-    created_at       = db.Column(db.DateTime, default=datetime.utcnow)
-
-    wallet = db.relationship('CustomerWallet', foreign_keys=[wallet_id], backref='transactions')
-
-
-class PaymentReversal(db.Model):
-    __tablename__ = 'payment_reversals'
-    id             = db.Column(db.Integer, primary_key=True)
-    payment_id     = db.Column(db.Integer, db.ForeignKey('payments.id'), nullable=False)
-    reason         = db.Column(db.Text, nullable=False)
-    reversed_by_id = db.Column(db.Integer, db.ForeignKey('users.id'))
-    approved_by_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
-    status         = db.Column(db.String(20), default='pending')  # pending | approved | rejected
-    created_at     = db.Column(db.DateTime, default=datetime.utcnow)
-
-    payment     = db.relationship('Payment', foreign_keys=[payment_id], backref='reversal')
-    reversed_by = db.relationship('User',    foreign_keys=[reversed_by_id])
-    approved_by = db.relationship('User',    foreign_keys=[approved_by_id])
-
-    @property
-    def status_badge(self):
-        return {'pending': 'bg-warning text-dark', 'approved': 'bg-danger',
-                'rejected': 'bg-secondary'}.get(self.status, 'bg-secondary')
