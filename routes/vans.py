@@ -180,8 +180,23 @@ def stock():
         return redirect(url_for('dashboard.index'))
 
     q = VanStock.query.filter(VanStock.quantity > 0)
+    van_filter_id = None
+    rep_filter_id = None
+    vans = reps = []
     if current_user.scope('van_stock') == 'own':
         q = q.filter_by(sales_rep_id=current_user.id)
+    else:
+        van_filter_id = request.args.get('van_id', type=int)
+        rep_filter_id = request.args.get('rep_id', type=int)
+        if van_filter_id:
+            q = q.filter_by(van_id=van_filter_id)
+        if rep_filter_id:
+            q = q.filter_by(sales_rep_id=rep_filter_id)
+        vans = Van.query.filter_by(status='active').order_by(Van.van_number).all()
+        rep_ids_with_stock = {vs.sales_rep_id for vs in VanStock.query.filter(
+            VanStock.quantity > 0, VanStock.sales_rep_id.isnot(None)
+        ).all()}
+        reps = User.query.filter(User.id.in_(rep_ids_with_stock)).order_by(User.full_name).all()
     stocks = q.all()
 
     total_qty = round(sum(vs.quantity for vs in stocks), 2)
@@ -189,7 +204,8 @@ def stock():
     rep_count = len({vs.sales_rep_id for vs in stocks if vs.sales_rep_id})
 
     return render_template('vans/stock.html', stocks=stocks,
-        total_qty=total_qty, total_value=total_value, rep_count=rep_count)
+        total_qty=total_qty, total_value=total_value, rep_count=rep_count,
+        vans=vans, reps=reps, van_filter_id=van_filter_id, rep_filter_id=rep_filter_id)
 
 
 @vans_bp.route('/stock/statement/<int:van_id>/<int:rep_id>')
@@ -227,6 +243,56 @@ def stock_statement(van_id, rep_id):
     return render_template('vans/stock_statement.html', van=van, rep=rep, product=product, rows=rows,
         current_stock=current_stock, current_total_qty=current_total_qty,
         current_total_value=current_total_value, start=start, end=end)
+
+
+@vans_bp.route('/stock/statement/<int:van_id>/<int:rep_id>/pdf')
+@login_required
+def stock_statement_pdf(van_id, rep_id):
+    if not current_user.can_access('van_stock'):
+        flash('Access denied.', 'danger')
+        return redirect(url_for('dashboard.index'))
+    if current_user.scope('van_stock') == 'own' and rep_id != current_user.id:
+        flash('Access denied.', 'danger')
+        return redirect(url_for('vans.stock'))
+
+    from flask import make_response
+    van = Van.query.get_or_404(van_id)
+    rep = User.query.get_or_404(rep_id)
+    product_id = request.args.get('product_id', type=int)
+    product = Product.query.get_or_404(product_id) if product_id else None
+
+    start = request.args.get('start', (datetime.utcnow() - timedelta(days=30)).strftime('%Y-%m-%d'))
+    end = request.args.get('end', datetime.utcnow().strftime('%Y-%m-%d'))
+
+    from services.statements import van_stock_ledger_rows
+    rows = van_stock_ledger_rows(van_id, rep_id, start, end, product_id=product_id)
+
+    current_stock_q = VanStock.query.filter_by(van_id=van_id, sales_rep_id=rep_id).filter(
+        VanStock.quantity > 0
+    )
+    if product_id:
+        current_stock_q = current_stock_q.filter_by(product_id=product_id)
+    current_stock = current_stock_q.order_by(VanStock.quantity.desc()).all()
+    current_total_qty = round(sum(vs.quantity for vs in current_stock), 2)
+    current_total_value = round(sum(
+        vs.quantity * (vs.product.cost_price if vs.product else 0) for vs in current_stock
+    ), 2)
+
+    from services.pdf_service import generate_van_stock_statement_pdf
+    from models.settings import Settings
+    s = Settings.get()
+    company = {'name': s.company_name, 'address': s.company_address,
+               'phone': s.company_phone, 'email': s.company_email}
+
+    pdf_bytes = generate_van_stock_statement_pdf(
+        van, rep, product, company, start, end, current_stock, current_total_qty,
+        current_total_value, rows, show_value=current_user.see_cost_prices()
+    )
+    response = make_response(pdf_bytes)
+    response.headers['Content-Type'] = 'application/pdf'
+    filename = f'van_stock_statement_{van.van_number}_{rep.full_name.replace(" ", "_")}_{start}_to_{end}.pdf'
+    response.headers['Content-Disposition'] = f'attachment; filename={filename}'
+    return response
 
 
 # ── Loading Sheets (warehouse → van) ─────────────────────────────────────────

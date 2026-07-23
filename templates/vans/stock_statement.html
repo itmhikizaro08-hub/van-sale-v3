@@ -13,6 +13,7 @@
     {% if product %}
     <a href="{{ url_for('vans.stock_statement', van_id=van.id, rep_id=rep.id, start=start, end=end) }}" class="btn btn-outline-primary btn-sm"><i class="fas fa-th-list me-1"></i>All Items</a>
     {% endif %}
+    <a href="{{ url_for('vans.stock_statement_pdf', van_id=van.id, rep_id=rep.id, product_id=product.id if product else none, start=start, end=end) }}" class="btn btn-primary btn-sm"><i class="fas fa-file-pdf me-1"></i>Download PDF</a>
     <a href="{{ url_for('vans.stock') }}" class="btn btn-outline-secondary btn-sm"><i class="fas fa-arrow-left me-1"></i>Back</a>
   </div>
 </div>
@@ -46,7 +47,7 @@
         {% for vs in current_stock %}
         <tr>
           <td class="fw-600">{{ vs.product.product_name if vs.product else '—' }}</td>
-          <td class="text-end"><span class="badge {{ 'bg-warning text-dark' if vs.quantity <= 5 else 'bg-success' }}">{{ vs.quantity|qty }}</span></td>
+          <td class="text-end"><span class="badge {{ 'bg-warning text-dark' if vs.is_low_stock else 'bg-success' }}">{{ vs.quantity|qty }}</span></td>
           {% if current_user.see_cost_prices() %}<td class="text-end fw-600">GHS {{ "%.2f"|format(vs.quantity * (vs.product.cost_price if vs.product else 0)) }}</td>{% endif %}
         </tr>
         {% else %}
