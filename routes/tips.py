@@ -283,7 +283,7 @@ def api_summary():
         SaleItem.tip_amount > 0
     )
 
-    if current_user.role == 'sales_rep':
+    if current_user.scope('tips') == 'own':
         q = q.filter(Sale.sales_rep_id == current_user.id)
 
     total_all_time = q.scalar() or 0
