@@ -26,7 +26,15 @@ def index():
         q = q.filter_by(sales_rep_id=current_user.id)
     sales = q.order_by(Sale.sale_date.desc()).limit(200).all()
 
-    total_sales_amount = round(sum(s.total_amount for s in sales), 2)
+    # company_sales_total, not total_amount — same convention as
+    # reports/profit_loss.py, reports/sales.py's Gross/Net Sales, and the
+    # dashboards: a rep's tip markup on top of the official price belongs
+    # to the rep, not the company, so this aggregate must exclude it.
+    # total_outstanding stays total_amount-derived (via balance_due) since
+    # it's real money still owed on the invoice, not a revenue figure; the
+    # per-invoice "Total" column below is unaffected either, for the same
+    # reason (it's each invoice's real total, not a company-revenue KPI).
+    total_sales_amount = round(sum(s.company_sales_total or 0 for s in sales), 2)
     total_outstanding = round(sum(s.balance_due for s in sales), 2)
 
     return render_template('invoices/index.html', sales=sales, start=start, end=end,
