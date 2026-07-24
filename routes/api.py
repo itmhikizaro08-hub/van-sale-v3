@@ -23,7 +23,7 @@ def products_search():
     # Sales reps sell out of their own van custody, not the warehouse —
     # show/enforce their van stock instead of company-wide stock_quantity.
     van_qty = {}
-    if current_user.role == 'sales_rep':
+    if current_user.scope('van_stock') == 'own':
         from models.notification import VanStock
         rows = db.session.query(VanStock.product_id, func.sum(VanStock.quantity)).filter(
             VanStock.sales_rep_id == current_user.id
@@ -35,7 +35,7 @@ def products_search():
         d = p.to_dict()
         if not current_user.see_cost_prices():
             d.pop('cost_price', None)
-        if current_user.role == 'sales_rep':
+        if current_user.scope('van_stock') == 'own':
             d['stock_quantity'] = van_qty.get(p.id, 0)
         results.append(d)
     return jsonify(results)
