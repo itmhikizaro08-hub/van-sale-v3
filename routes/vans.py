@@ -12,10 +12,11 @@ from models.van import Van, Driver, Route, CustomerVisit
 from models.customer import Customer
 from models.user import User
 from models.product import Product
-from models.notification import VanStock, InventoryMovement
+from models.inventory import VanStock, InventoryMovement
 from models.van_management import LoadingSheet, LoadingSheetItem, StockOffload, StockOffloadItem
 from services.sequence import next_loading_sheet_number, next_stock_offload_number
 from services.rbac import require_module
+from services.van_offload import validate_offload_items, reconcile_offload_item
 
 vans_bp = Blueprint('vans', __name__)
 
@@ -506,24 +507,10 @@ def offload_submit():
     product_ids = request.form.getlist('product_id[]')
     quantities = request.form.getlist('quantity[]')
 
-    items_data = []
-    for pid, qty_str in zip(product_ids, quantities):
-        if not pid or not qty_str:
-            continue
-        try:
-            qty = round(float(qty_str), 3)
-        except ValueError:
-            flash(f'"{qty_str}" is not a valid quantity.', 'danger')
-            return redirect(url_for('vans.offload_index'))
-        if qty <= 0:
-            continue
-        vs = VanStock.query.filter_by(
-            sales_rep_id=current_user.id, product_id=int(pid)).first()
-        held = vs.quantity if vs else 0
-        if qty > held:
-            flash(f'Cannot offload {qty} of {vs.product.product_name if vs and vs.product else "a product"} — you only hold {held}.', 'danger')
-            return redirect(url_for('vans.offload_index'))
-        items_data.append((int(pid), qty, vs.van_id))
+    items_data, error = validate_offload_items(product_ids, quantities, current_user.id)
+    if error:
+        flash(error, 'danger')
+        return redirect(url_for('vans.offload_index'))
 
     if not items_data:
         flash('Select at least one product with quantity > 0.', 'warning')
@@ -558,32 +545,8 @@ def offload_confirm(offload_id):
     any_mismatch = False
     for item in offload.items:
         received = request.form.get(f'received_{item.id}', type=float)
-        if received is None:
-            received = item.quantity_declared
-        # Clamp to [0, declared] — a warehouse manager typing a value larger
-        # than what was declared must not be able to inflate warehouse stock
-        # beyond what the rep actually said they were returning.
-        received = round(min(max(0, received), item.quantity_declared), 3)
-        item.quantity_received = received
-        if abs(received - item.quantity_declared) > 0.001:
+        if reconcile_offload_item(item, received, offload):
             any_mismatch = True
-
-        vs = VanStock.query.filter_by(
-            sales_rep_id=offload.sales_rep_id, product_id=item.product_id).first()
-        if vs:
-            vs.quantity = max(0, vs.quantity - received)
-
-        product = Product.query.get(item.product_id)
-        if product and received > 0:
-            before = product.stock_quantity
-            product.stock_quantity += received
-            db.session.add(InventoryMovement(
-                product_id=product.id, movement_type='transfer_in',
-                quantity=received, quantity_before=before, quantity_after=product.stock_quantity,
-                van_id=offload.van_id, reference_id=offload.id, reference_type='stock_offload',
-                notes=f'Offload {offload.offload_number} from {offload.sales_rep.full_name if offload.sales_rep else "rep"}',
-                created_by_id=current_user.id
-            ))
 
     offload.status = 'discrepancy' if any_mismatch else 'confirmed'
     offload.confirmed_by_id = current_user.id
