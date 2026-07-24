@@ -16,7 +16,7 @@
   <div class="d-flex gap-2">
     {% if ret.status in ['pending','partial'] and current_user.can_approve_module('procurement') %}
     <button class="btn btn-success btn-sm" data-action-url="{{ url_for('returns.supplier_approve', return_id=ret.id) }}" data-confirm="Approve all pending lines?" data-success-msg="Approved!"><i class="fas fa-check me-1"></i>Approve All</button>
-    <button class="btn btn-outline-danger btn-sm" data-action-url="{{ url_for('returns.supplier_reject', return_id=ret.id) }}" data-confirm="Reject all?" data-success-msg="Rejected."><i class="fas fa-times me-1"></i>Reject All</button>
+    <button class="btn btn-outline-danger btn-sm" data-action-url="{{ url_for('returns.supplier_reject', return_id=ret.id) }}" data-confirm="Reject all?" data-success-msg="Rejected."><i class="fas fa-ban me-1"></i>Reject All</button>
     {% endif %}
   </div>
 </div>
@@ -44,7 +44,7 @@
                 {% if item.line_status == 'pending' %}
                 <div class="d-flex gap-1">
                   <button class="btn btn-icon btn-sm btn-success" onclick="approveLine({{ ret.id }}, {{ item.id }})"><i class="fas fa-check"></i></button>
-                  <button class="btn btn-icon btn-sm btn-outline-danger" onclick="rejectLine({{ ret.id }}, {{ item.id }})"><i class="fas fa-times"></i></button>
+                  <button class="btn btn-icon btn-sm btn-outline-danger" onclick="rejectLine({{ ret.id }}, {{ item.id }})"><i class="fas fa-ban"></i></button>
                 </div>
                 {% else %}<span class="text-muted fs-12">Done</span>{% endif %}
               </td>

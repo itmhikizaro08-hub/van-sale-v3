@@ -52,7 +52,7 @@
         {% if e.status == 'pending' and current_user.can_approve_module('expenses') %}
         <div class="d-flex gap-1">
           <button class="btn btn-icon btn-sm btn-outline-success" data-action-url="{{ url_for('expenses.approve', expense_id=e.id) }}" data-confirm="Approve this expense?" data-success-msg="Expense approved."><i class="fas fa-check"></i></button>
-          <button class="btn btn-icon btn-sm btn-outline-danger" data-action-url="{{ url_for('expenses.reject', expense_id=e.id) }}" data-confirm="Reject this expense?" data-success-msg="Expense rejected."><i class="fas fa-times"></i></button>
+          <button class="btn btn-icon btn-sm btn-outline-danger" data-action-url="{{ url_for('expenses.reject', expense_id=e.id) }}" data-confirm="Reject this expense?" data-success-msg="Expense rejected."><i class="fas fa-ban"></i></button>
         </div>
         {% endif %}
       </td>

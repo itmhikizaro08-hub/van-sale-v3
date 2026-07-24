@@ -19,7 +19,7 @@
   <div class="col-6 col-md-3"><div class="stat-card warning"><div class="stat-icon"><i class="fas fa-clock"></i></div><div><div class="stat-label">Pending</div><div class="stat-value">{{ orders|selectattr('status','eq','pending')|list|length }}</div></div></div></div>
   <div class="col-6 col-md-3"><div class="stat-card success"><div class="stat-icon"><i class="fas fa-check"></i></div><div><div class="stat-label">Approved</div><div class="stat-value">{{ orders|selectattr('status','eq','approved')|list|length }}</div></div></div></div>
   <div class="col-6 col-md-3"><div class="stat-card info"><div class="stat-icon"><i class="fas fa-adjust"></i></div><div><div class="stat-label">Partial</div><div class="stat-value">{{ orders|selectattr('status','eq','partial')|list|length }}</div></div></div></div>
-  <div class="col-6 col-md-3"><div class="stat-card danger"><div class="stat-icon"><i class="fas fa-times"></i></div><div><div class="stat-label">Rejected</div><div class="stat-value">{{ orders|selectattr('status','eq','rejected')|list|length }}</div></div></div></div>
+  <div class="col-6 col-md-3"><div class="stat-card danger"><div class="stat-icon"><i class="fas fa-times-circle"></i></div><div><div class="stat-label">Rejected</div><div class="stat-value">{{ orders|selectattr('status','eq','rejected')|list|length }}</div></div></div></div>
 </div>
 
 <div class="card mb-3"><div class="card-body py-2">
@@ -49,7 +49,7 @@
           <a href="{{ url_for('returns.view', order_id=o.id) }}" class="btn btn-icon btn-sm btn-outline-primary"><i class="fas fa-eye"></i></a>
           {% if o.status in ['pending','partial'] and current_user.can_approve_module('returns') %}
           <button class="btn btn-icon btn-sm btn-outline-success" data-action-url="{{ url_for('returns.approve', order_id=o.id) }}" data-confirm="Approve all pending lines?" data-success-msg="Approved!"><i class="fas fa-check"></i></button>
-          <button class="btn btn-icon btn-sm btn-outline-danger" data-action-url="{{ url_for('returns.reject', order_id=o.id) }}" data-confirm="Reject all pending lines?" data-success-msg="Rejected."><i class="fas fa-times"></i></button>
+          <button class="btn btn-icon btn-sm btn-outline-danger" data-action-url="{{ url_for('returns.reject', order_id=o.id) }}" data-confirm="Reject all pending lines?" data-success-msg="Rejected."><i class="fas fa-ban"></i></button>
           {% endif %}
         </div>
       </td>

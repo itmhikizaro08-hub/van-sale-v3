@@ -170,7 +170,7 @@
                       {% if p.status == 'pending' %}
                       <div class="d-flex gap-1">
                         <button class="btn btn-icon btn-sm btn-outline-success" data-action-url="{{ url_for('suppliers.approve_payment', payment_id=p.id) }}" data-confirm="Approve this GHS {{ '%.2f'|format(p.amount) }} payment to {{ supplier.name }}?" data-success-msg="Payment approved."><i class="fas fa-check"></i></button>
-                        <button class="btn btn-icon btn-sm btn-outline-danger" data-action-url="{{ url_for('suppliers.reject_payment', payment_id=p.id) }}" data-confirm="Reject this payment proposal?" data-success-msg="Payment rejected."><i class="fas fa-times"></i></button>
+                        <button class="btn btn-icon btn-sm btn-outline-danger" data-action-url="{{ url_for('suppliers.reject_payment', payment_id=p.id) }}" data-confirm="Reject this payment proposal?" data-success-msg="Payment rejected."><i class="fas fa-ban"></i></button>
                       </div>
                       {% endif %}
                     </td>

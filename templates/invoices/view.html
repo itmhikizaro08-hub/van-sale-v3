@@ -21,7 +21,7 @@
       data-action-url="{{ url_for('sales.cancel', sale_id=sale.id) }}"
       data-confirm="Cancel invoice {{ sale.invoice_number }}?"
       data-success-msg="Sale cancelled.">
-      <i class="fas fa-times me-1"></i>Cancel
+      <i class="fas fa-ban me-1"></i>Cancel
     </button>
     {% endif %}
   </div>

@@ -128,7 +128,7 @@ function addRow() {
         min="1" placeholder="0" oninput="calcLine(${lid})">
     </td>
     <td class="text-end fw-600" id="val-${lid}">—</td>
-    <td><button type="button" class="btn btn-icon btn-sm btn-outline-danger" onclick="this.closest('tr').remove(); updateSummary()"><i class="fas fa-times"></i></button></td>`;
+    <td><button type="button" class="btn btn-icon btn-sm btn-outline-danger" onclick="this.closest('tr').remove(); updateSummary()"><i class="fas fa-trash"></i></button></td>`;
   document.getElementById('productRows').appendChild(tr);
   updateSummary();
 }

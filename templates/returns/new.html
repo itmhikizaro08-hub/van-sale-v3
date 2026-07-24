@@ -117,7 +117,7 @@ function addLine(productId='', qty=1, price=0, reason='sales_return') {
     <td><input type="number" step="0.01" name="unit_price[]" id="price-${lineCount}" class="form-control form-control-sm" value="${price.toFixed(2)}" oninput="calc(${lineCount})"></td>
     <td><select name="reason[]" class="form-select form-select-sm">${rOpts}</select></td>
     <td class="fw-700" id="lt-${lineCount}">GHS 0.00</td>
-    <td><button type="button" class="btn btn-icon btn-sm btn-outline-danger" onclick="document.getElementById('line-${lineCount}').remove();calcTotal()"><i class="fas fa-times"></i></button></td>`;
+    <td><button type="button" class="btn btn-icon btn-sm btn-outline-danger" onclick="document.getElementById('line-${lineCount}').remove();calcTotal()"><i class="fas fa-trash"></i></button></td>`;
   document.getElementById('returnLines').appendChild(tr);
   calc(lineCount);
 }

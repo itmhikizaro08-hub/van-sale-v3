@@ -17,7 +17,7 @@
     <button onclick="window.print()" class="btn btn-outline-secondary btn-sm no-print"><i class="fas fa-print me-1"></i>Print</button>
     {% if order.status in ['pending','partial'] and current_user.can_approve_module('returns') %}
     <button class="btn btn-success btn-sm" data-action-url="{{ url_for('returns.approve', order_id=order.id) }}" data-confirm="Approve all pending lines?" data-success-msg="Approved!"><i class="fas fa-check me-1"></i>Approve All</button>
-    <button class="btn btn-outline-danger btn-sm" data-action-url="{{ url_for('returns.reject', order_id=order.id) }}" data-confirm="Reject all?" data-success-msg="Rejected."><i class="fas fa-times me-1"></i>Reject All</button>
+    <button class="btn btn-outline-danger btn-sm" data-action-url="{{ url_for('returns.reject', order_id=order.id) }}" data-confirm="Reject all?" data-success-msg="Rejected."><i class="fas fa-ban me-1"></i>Reject All</button>
     {% endif %}
   </div>
 </div>
@@ -45,7 +45,7 @@
                 {% if item.line_status == 'pending' %}
                 <div class="d-flex gap-1">
                   <button class="btn btn-icon btn-sm btn-success" onclick="approveLine({{ order.id }}, {{ item.id }})"><i class="fas fa-check"></i></button>
-                  <button class="btn btn-icon btn-sm btn-outline-danger" onclick="rejectLine({{ order.id }}, {{ item.id }})"><i class="fas fa-times"></i></button>
+                  <button class="btn btn-icon btn-sm btn-outline-danger" onclick="rejectLine({{ order.id }}, {{ item.id }})"><i class="fas fa-ban"></i></button>
                 </div>
                 {% else %}<span class="text-muted fs-12">Done</span>{% endif %}
               </td>
