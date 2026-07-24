@@ -48,7 +48,11 @@ def profit_loss():
     # of the official price. That markup belongs to the rep, not the company,
     # so it must never be counted as revenue or flow into profit here.
     gross_revenue = round(sum(s.company_sales_total for s in sales), 2)
-    tips_total = round(sum(s.total_tips_amount or 0 for s in sales), 2)
+    # This report's own access gate (see_cost_prices()) also passes supervisor
+    # and warehouse_manager, who have no 'tips' access at all — only show the
+    # tips aside line to roles with full tips oversight (admin/manager).
+    show_tips = current_user.scope('tips') == 'all'
+    tips_total = round(sum(s.total_tips_amount or 0 for s in sales), 2) if show_tips else None
 
     # COGS: quantity sold × each product's CURRENT cost price. There's no
     # historical cost snapshot per sale item (unlike official_price for
@@ -108,7 +112,7 @@ def profit_loss():
         gross_revenue=gross_revenue, total_credits=total_credits, net_revenue=net_revenue,
         cogs=cogs, gross_profit=gross_profit, gross_margin_pct=gross_margin_pct,
         expenses_by_category=expenses_by_category, total_expenses=total_expenses,
-        net_profit=net_profit, net_margin_pct=net_margin_pct, tips_total=tips_total,
+        net_profit=net_profit, net_margin_pct=net_margin_pct, tips_total=tips_total, show_tips=show_tips,
         trend_labels=trend_labels, revenue_trend=revenue_trend, expense_trend=expense_trend)
 
 

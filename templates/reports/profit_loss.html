@@ -59,7 +59,7 @@
     <table class="table mb-0">
       <tbody>
         <tr><td class="fw-700">Gross Sales Revenue</td><td class="text-end">GHS {{ "%.2f"|format(gross_revenue) }}</td></tr>
-        {% if tips_total > 0 %}
+        {% if show_tips and tips_total > 0 %}
         <tr><td class="text-muted ps-4 fst-italic">Rep tips (excluded — not company revenue)</td><td class="text-end text-muted fs-12">GHS {{ "%.2f"|format(tips_total) }}</td></tr>
         {% endif %}
         {% if total_credits > 0 %}
