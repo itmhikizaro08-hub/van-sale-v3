@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>{{ route.route_name }} | {{ company_name }}</title>
+  <link rel="manifest" href="{{ url_for('customers.quick_add_manifest') }}">
+  <meta name="theme-color" content="#0a0e1a">
+  <link rel="apple-touch-icon" href="{{ url_for('static', filename='icons/icon-180.png') }}">
+  <link rel="icon" type="image/png" sizes="192x192" href="{{ url_for('static', filename='icons/icon-192.png') }}">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <style>
+    :root{
+      --pwa-bg: #0a0e1a; --pwa-bg-rgb: 10,14,26;
+      --pwa-text: #f1f5f9; --pwa-text-heading: #ffffff; --pwa-text-bright: #e2e8f0;
+      --pwa-text-dim: #94a3b8; --pwa-text-muted: #64748b; --pwa-text-faint: #475569;
+      --pwa-white-rgb: 255,255,255;
+      --pwa-em: #10b981; --pwa-em-rgb: 16,185,129; --pwa-em-light: #34d399;
+      --pwa-indigo: #6366f1; --pwa-indigo-rgb: 99,102,241; --pwa-indigo-light: #a5b4fc;
+    }
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:'Inter',sans-serif;background:var(--pwa-bg);color:var(--pwa-text);min-height:100vh;min-height:100dvh;display:flex;flex-direction:column;-webkit-tap-highlight-color:transparent}
+    .bg-glow{position:fixed;inset:0;pointer-events:none;z-index:0;background:
+      radial-gradient(600px circle at -5% -10%, rgba(var(--pwa-em-rgb),.20), transparent 55%),
+      radial-gradient(600px circle at 110% 10%, rgba(var(--pwa-indigo-rgb),.18), transparent 55%)}
+
+    .topbar{position:sticky;top:0;z-index:20;display:flex;align-items:center;gap:12px;padding:16px 20px;padding-top:calc(16px + env(safe-area-inset-top));background:rgba(var(--pwa-bg-rgb),.78);backdrop-filter:blur(20px);border-bottom:1px solid rgba(var(--pwa-white-rgb),.07)}
+    .topbar-back{color:var(--pwa-text-dim);text-decoration:none;font-size:16px;width:32px;height:32px;border-radius:10px;background:rgba(var(--pwa-white-rgb),.05);display:flex;align-items:center;justify-content:center;flex:none}
+    .topbar-name{font-size:14.5px;font-weight:800;color:var(--pwa-text-heading);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .topbar-sub{font-size:10.5px;color:var(--pwa-text-muted);font-weight:600}
+
+    .content{position:relative;z-index:1;flex:1;width:100%;max-width:480px;margin:0 auto;padding:24px 18px 40px}
+
+    .stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:11px;margin-bottom:16px}
+    .stat-card{background:rgba(var(--pwa-white-rgb),.04);border:1px solid rgba(var(--pwa-white-rgb),.08);border-radius:16px;padding:16px;box-shadow:0 8px 24px rgba(0,0,0,.15)}
+    .stat-card .val{font-size:24px;font-weight:900;color:var(--pwa-text);letter-spacing:-.01em}
+    .stat-card .lbl{font-size:11px;color:var(--pwa-text-muted);margin-top:3px;font-weight:600}
+
+    .card{background:rgba(var(--pwa-white-rgb),.04);border:1px solid rgba(var(--pwa-white-rgb),.08);border-radius:20px;padding:18px;box-shadow:0 8px 24px rgba(0,0,0,.15)}
+    .card-title{display:flex;align-items:center;gap:10px;font-size:11.5px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:var(--pwa-text-dim);margin-bottom:16px}
+    .card-title i{width:28px;height:28px;border-radius:9px;background:rgba(var(--pwa-em-rgb),.16);color:var(--pwa-em-light);display:flex;align-items:center;justify-content:center;font-size:12px}
+
+    .cust-row{display:flex;justify-content:space-between;align-items:center;padding:11px 0;border-bottom:1px solid rgba(var(--pwa-white-rgb),.06);text-decoration:none;color:inherit;transition:opacity .15s}
+    .cust-row:last-child{border-bottom:none}
+    .cust-row:active{opacity:.7}
+    .cust-avatar{width:34px;height:34px;border-radius:10px;background:rgba(var(--pwa-indigo-rgb),.16);color:var(--pwa-indigo-light);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;flex:none}
+    .cust-info{display:flex;align-items:center;gap:11px}
+    .cust-name{font-size:13.5px;font-weight:700;color:var(--pwa-text)}
+    .cust-meta{font-size:11px;color:var(--pwa-text-muted);font-weight:500}
+    .cust-chevron{color:var(--pwa-text-faint);font-size:12px}
+    .empty{text-align:center;color:var(--pwa-text-faint);font-size:13.5px;padding:44px 0;font-weight:500}
+    .empty i{font-size:2.1rem;display:block;margin-bottom:14px;opacity:.5}
+  </style>
+</head>
+<body>
+<div class="bg-glow"></div>
+
+<header class="topbar">
+  <a href="{{ url_for('customers.quick_add_routes') }}" class="topbar-back"><i class="fas fa-arrow-left"></i></a>
+  <div>
+    <div class="topbar-name">{{ route.route_name }}</div>
+    <div class="topbar-sub">{{ route.area or 'No area set' }}</div>
+  </div>
+</header>
+
+<main class="content">
+  <div class="stat-grid">
+    <div class="stat-card"><div class="val">{{ customers|length }}</div><div class="lbl">Customers</div></div>
+    <div class="stat-card"><div class="val">{{ gps_pct }}%</div><div class="lbl">GPS Captured</div></div>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><i class="fas fa-users"></i>Customers on This Route</div>
+    {% for c in customers %}
+    <a href="{{ url_for('customers.view', customer_id=c.id) }}" class="cust-row">
+      <div class="cust-info">
+        <div class="cust-avatar">{{ c.name[0]|upper }}</div>
+        <div>
+          <div class="cust-name">{{ c.name }}</div>
+          <div class="cust-meta">{{ c.customer_code }}{% if c.phone %} • {{ c.phone }}{% endif %}</div>
+        </div>
+      </div>
+      <i class="fas fa-chevron-right cust-chevron"></i>
+    </a>
+    {% else %}
+    <div class="empty">
+      <i class="fas fa-users"></i>
+      No customers on this route yet.
+    </div>
+    {% endfor %}
+  </div>
+</main>
+
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').catch(() => {});
+  });
+}
+</script>
+</body>
+</html>

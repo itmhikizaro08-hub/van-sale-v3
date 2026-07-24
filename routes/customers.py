@@ -285,6 +285,31 @@ def quick_add_routes():
         routes_data=routes_data, unassigned_count=len(unassigned), total=len(customers))
 
 
+@customers_bp.route('/quick-add/routes/<int:route_id>')
+@login_required
+def quick_add_route_view(route_id):
+    # A route-detail page inside this mini app rather than linking out to the
+    # full desktop routes.view — sales_rep has zero 'routes' RBAC access at
+    # all, so a link to that page would dead-end for exactly the users this
+    # app is built for. Same can_write('customers') gate as every other page
+    # here, and the same own/all scoping as quick_add_routes().
+    if not current_user.can_write('customers'):
+        flash('Permission denied.', 'danger')
+        return redirect(url_for('dashboard.index'))
+
+    route = Route.query.get_or_404(route_id)
+    q = Customer.query.filter_by(assigned_route_id=route_id)
+    if current_user.scope('customers') == 'own':
+        q = q.filter_by(sales_rep_id=current_user.id)
+    customers = q.order_by(Customer.name).all()
+
+    with_gps = sum(1 for c in customers if c.gps_latitude and c.gps_longitude)
+    gps_pct = round(with_gps / len(customers) * 100) if customers else 0
+
+    return render_template('customers/quick_add_route_view.html',
+        route=route, customers=customers, with_gps=with_gps, gps_pct=gps_pct)
+
+
 @customers_bp.route('/quick-add/routes/new', methods=['GET', 'POST'])
 @login_required
 def quick_add_route_new():
