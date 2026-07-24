@@ -12,37 +12,55 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
   <style>
+    /* Field PWA color tokens — copied verbatim from what this page already
+       used (kept separate from main.css since this is a standalone,
+       installable page — see quick_add.html for the same convention). */
+    :root{
+      --pwa-bg: #0b1220; --pwa-bg-rgb: 11,18,32;
+      --pwa-text: #f1f5f9;
+      --pwa-text-heading: #f8fafc;
+      --pwa-text-bright: #e2e8f0;
+      --pwa-text-dim: #94a3b8;
+      --pwa-text-muted: #64748b;
+      --pwa-text-faint: #475569;
+      --pwa-white-rgb: 255,255,255;
+      --pwa-green: #16a34a; --pwa-green-rgb: 22,163,74;
+      --pwa-cyan: #0891b2;
+      --pwa-danger-rgb: 239,68,68; --pwa-danger-text: #fca5a5;
+      --pwa-warning-rgb: 245,158,11; --pwa-warning-text: #fcd34d;
+      --pwa-success-rgb: 16,185,129; --pwa-success-text: #6ee7b7;
+    }
     *{box-sizing:border-box;margin:0;padding:0}
-    body{font-family:'Inter',sans-serif;background:#0b1220;color:#f1f5f9;min-height:100vh;min-height:100dvh;display:flex;flex-direction:column}
+    body{font-family:'Inter',sans-serif;background:var(--pwa-bg);color:var(--pwa-text);min-height:100vh;min-height:100dvh;display:flex;flex-direction:column}
     .bg-glow{position:fixed;inset:0;pointer-events:none;z-index:0;background:
-      radial-gradient(500px circle at 15% 0%, rgba(22,163,74,.16), transparent 60%),
+      radial-gradient(500px circle at 15% 0%, rgba(var(--pwa-green-rgb),.16), transparent 60%),
       radial-gradient(500px circle at 100% 20%, rgba(8,145,178,.14), transparent 55%)}
 
-    .topbar{position:sticky;top:0;z-index:20;display:flex;align-items:center;gap:10px;padding:14px 18px;padding-top:calc(14px + env(safe-area-inset-top));background:rgba(11,18,32,.85);backdrop-filter:blur(16px);border-bottom:1px solid rgba(255,255,255,.06)}
-    .topbar-back{color:#94a3b8;text-decoration:none;font-size:16px;width:30px;height:30px;display:flex;align-items:center;justify-content:center}
-    .topbar-name{font-size:14px;font-weight:700;color:#e2e8f0}
-    .topbar-sub{font-size:10.5px;color:#64748b}
+    .topbar{position:sticky;top:0;z-index:20;display:flex;align-items:center;gap:10px;padding:14px 18px;padding-top:calc(14px + env(safe-area-inset-top));background:rgba(var(--pwa-bg-rgb),.85);backdrop-filter:blur(16px);border-bottom:1px solid rgba(var(--pwa-white-rgb),.06)}
+    .topbar-back{color:var(--pwa-text-dim);text-decoration:none;font-size:16px;width:30px;height:30px;display:flex;align-items:center;justify-content:center}
+    .topbar-name{font-size:14px;font-weight:700;color:var(--pwa-text-bright)}
+    .topbar-sub{font-size:10.5px;color:var(--pwa-text-muted)}
 
     .content{position:relative;z-index:1;flex:1;width:100%;max-width:480px;margin:0 auto;padding:20px 16px calc(40px + env(safe-area-inset-bottom))}
 
     .hero{text-align:center;margin-bottom:20px}
-    .hero-icon{width:54px;height:54px;border-radius:16px;background:linear-gradient(135deg,#16a34a,#0891b2);display:flex;align-items:center;justify-content:center;font-size:22px;color:#fff;margin:0 auto 12px;box-shadow:0 10px 28px rgba(22,163,74,.35)}
-    .hero h1{font-size:20px;font-weight:800;color:#f8fafc;margin-bottom:2px}
-    .hero p{font-size:12.5px;color:#64748b}
+    .hero-icon{width:54px;height:54px;border-radius:16px;background:linear-gradient(135deg,var(--pwa-green),var(--pwa-cyan));display:flex;align-items:center;justify-content:center;font-size:22px;color:#fff;margin:0 auto 12px;box-shadow:0 10px 28px rgba(var(--pwa-green-rgb),.35)}
+    .hero h1{font-size:20px;font-weight:800;color:var(--pwa-text-heading);margin-bottom:2px}
+    .hero p{font-size:12.5px;color:var(--pwa-text-muted)}
 
-    .form-card{background:rgba(255,255,255,.035);border:1px solid rgba(255,255,255,.08);border-radius:16px;padding:16px;margin-bottom:14px}
-    .form-label{font-size:12.5px;font-weight:500;color:#94a3b8;margin-bottom:6px;display:block}
-    .form-control{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);color:#f1f5f9;font-size:16px;padding:11px 13px;border-radius:11px}
-    .form-control:focus{background:rgba(255,255,255,.07);border-color:#16a34a;box-shadow:0 0 0 3px rgba(22,163,74,.15);color:#f1f5f9}
-    .form-control::placeholder{color:#475569}
+    .form-card{background:rgba(var(--pwa-white-rgb),.035);border:1px solid rgba(var(--pwa-white-rgb),.08);border-radius:16px;padding:16px;margin-bottom:14px}
+    .form-label{font-size:12.5px;font-weight:500;color:var(--pwa-text-dim);margin-bottom:6px;display:block}
+    .form-control{background:rgba(var(--pwa-white-rgb),.04);border:1px solid rgba(var(--pwa-white-rgb),.1);color:var(--pwa-text);font-size:16px;padding:11px 13px;border-radius:11px}
+    .form-control:focus{background:rgba(var(--pwa-white-rgb),.07);border-color:var(--pwa-green);box-shadow:0 0 0 3px rgba(var(--pwa-green-rgb),.15);color:var(--pwa-text)}
+    .form-control::placeholder{color:var(--pwa-text-faint)}
 
-    .btn-save{width:100%;background:linear-gradient(135deg,#16a34a,#0891b2);border:none;color:#fff;font-weight:700;font-size:15px;padding:15px;border-radius:13px;box-shadow:0 10px 26px rgba(22,163,74,.3)}
+    .btn-save{width:100%;background:linear-gradient(135deg,var(--pwa-green),var(--pwa-cyan));border:none;color:#fff;font-weight:700;font-size:15px;padding:15px;border-radius:13px;box-shadow:0 10px 26px rgba(var(--pwa-green-rgb),.3)}
     .btn-save:active{transform:scale(.99)}
 
     .alert{border-radius:12px;font-size:13px;border:none;padding:11px 14px;margin-bottom:14px}
-    .alert-danger{background:rgba(239,68,68,.15);color:#fca5a5;border:1px solid rgba(239,68,68,.3)}
-    .alert-warning{background:rgba(245,158,11,.15);color:#fcd34d;border:1px solid rgba(245,158,11,.3)}
-    .alert-success{background:rgba(16,185,129,.15);color:#6ee7b7;border:1px solid rgba(16,185,129,.3)}
+    .alert-danger{background:rgba(var(--pwa-danger-rgb),.15);color:var(--pwa-danger-text);border:1px solid rgba(var(--pwa-danger-rgb),.3)}
+    .alert-warning{background:rgba(var(--pwa-warning-rgb),.15);color:var(--pwa-warning-text);border:1px solid rgba(var(--pwa-warning-rgb),.3)}
+    .alert-success{background:rgba(var(--pwa-success-rgb),.15);color:var(--pwa-success-text);border:1px solid rgba(var(--pwa-success-rgb),.3)}
   </style>
 </head>
 <body>

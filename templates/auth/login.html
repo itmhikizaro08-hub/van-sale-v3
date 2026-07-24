@@ -12,43 +12,64 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
   <style>
+    /* Login-page color tokens — this page runs standalone before the user
+       is authenticated (no base.html/main.css), so it keeps its own token
+       set. Every value below is copied verbatim from what this file
+       already used, so a future rebrand only needs to edit here. */
+    :root{
+      --login-bg: #0f172a;
+      --login-blue: #2563EB; --login-blue-rgb: 37,99,235;
+      --login-purple: #7c3aed;
+      --login-cyan: #0891b2;
+      --login-card-bg-rgb: 30,41,59;
+      --login-white-rgb: 255,255,255;
+      --login-black-rgb: 0,0,0;
+      --login-text: #f1f5f9;
+      --login-text-dim: #94a3b8;
+      --login-text-muted: #64748b;
+      --login-text-faint: #475569;
+      --login-danger-rgb: 239,68,68; --login-danger-text: #fca5a5;
+      --login-success-rgb: 16,185,129; --login-success-text: #6ee7b7;
+      --login-info-rgb: 59,130,246; --login-info-text: #93c5fd;
+      --login-info-text-strong: #60a5fa;
+    }
     *{box-sizing:border-box;margin:0;padding:0}
-    body{font-family:'Inter',sans-serif;min-height:100vh;background:#0f172a;display:flex;align-items:center;justify-content:center;overflow:hidden;}
+    body{font-family:'Inter',sans-serif;min-height:100vh;background:var(--login-bg);display:flex;align-items:center;justify-content:center;overflow:hidden;}
     .bg-blobs{position:fixed;inset:0;pointer-events:none;overflow:hidden;z-index:0}
     .blob{position:absolute;border-radius:50%;filter:blur(80px);opacity:.25}
-    .blob-1{width:600px;height:600px;background:#2563EB;top:-200px;left:-200px;animation:float 8s ease-in-out infinite}
-    .blob-2{width:400px;height:400px;background:#7c3aed;bottom:-100px;right:-100px;animation:float 10s ease-in-out infinite reverse}
-    .blob-3{width:300px;height:300px;background:#0891b2;top:50%;left:60%;animation:float 7s ease-in-out infinite 2s}
+    .blob-1{width:600px;height:600px;background:var(--login-blue);top:-200px;left:-200px;animation:float 8s ease-in-out infinite}
+    .blob-2{width:400px;height:400px;background:var(--login-purple);bottom:-100px;right:-100px;animation:float 10s ease-in-out infinite reverse}
+    .blob-3{width:300px;height:300px;background:var(--login-cyan);top:50%;left:60%;animation:float 7s ease-in-out infinite 2s}
     @keyframes float{0%,100%{transform:translate(0,0) scale(1)}50%{transform:translate(30px,-30px) scale(1.05)}}
 
     .login-card{position:relative;z-index:1;width:100%;max-width:420px;padding:20px}
-    .card{background:rgba(30,41,59,.85);backdrop-filter:blur(20px);border:1px solid rgba(255,255,255,.1);border-radius:20px;padding:40px;box-shadow:0 25px 50px rgba(0,0,0,.5)}
-    .brand-logo{width:56px;height:56px;background:linear-gradient(135deg,#2563EB,#7c3aed);border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:24px;color:#fff;margin:0 auto 20px;box-shadow:0 8px 24px rgba(37,99,235,.4);overflow:hidden}
+    .card{background:rgba(var(--login-card-bg-rgb),.85);backdrop-filter:blur(20px);border:1px solid rgba(var(--login-white-rgb),.1);border-radius:20px;padding:40px;box-shadow:0 25px 50px rgba(var(--login-black-rgb),.5)}
+    .brand-logo{width:56px;height:56px;background:linear-gradient(135deg,var(--login-blue),var(--login-purple));border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:24px;color:#fff;margin:0 auto 20px;box-shadow:0 8px 24px rgba(var(--login-blue-rgb),.4);overflow:hidden}
     .brand-logo img{width:100%;height:100%;object-fit:contain;padding:6px}
-    h1{font-size:26px;font-weight:800;color:#f1f5f9;text-align:center;margin-bottom:4px}
-    .subtitle{text-align:center;color:#64748b;font-size:14px;margin-bottom:32px}
+    h1{font-size:26px;font-weight:800;color:var(--login-text);text-align:center;margin-bottom:4px}
+    .subtitle{text-align:center;color:var(--login-text-muted);font-size:14px;margin-bottom:32px}
 
-    .form-label{font-size:13px;font-weight:500;color:#94a3b8;margin-bottom:6px}
-    .input-group-text{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);color:#64748b;border-right:none}
-    .form-control{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-left:none;color:#f1f5f9;font-size:14px;padding:10px 12px}
-    .form-control:focus{background:rgba(255,255,255,.08);border-color:#2563EB;box-shadow:none;color:#f1f5f9}
-    .form-control::placeholder{color:#475569}
+    .form-label{font-size:13px;font-weight:500;color:var(--login-text-dim);margin-bottom:6px}
+    .input-group-text{background:rgba(var(--login-white-rgb),.05);border:1px solid rgba(var(--login-white-rgb),.1);color:var(--login-text-muted);border-right:none}
+    .form-control{background:rgba(var(--login-white-rgb),.05);border:1px solid rgba(var(--login-white-rgb),.1);border-left:none;color:var(--login-text);font-size:14px;padding:10px 12px}
+    .form-control:focus{background:rgba(var(--login-white-rgb),.08);border-color:var(--login-blue);box-shadow:none;color:var(--login-text)}
+    .form-control::placeholder{color:var(--login-text-faint)}
 
-    .btn-login{width:100%;background:linear-gradient(135deg,#2563EB,#7c3aed);border:none;color:#fff;font-weight:600;font-size:15px;padding:12px;border-radius:10px;transition:opacity .2s,transform .1s;cursor:pointer;margin-top:8px}
+    .btn-login{width:100%;background:linear-gradient(135deg,var(--login-blue),var(--login-purple));border:none;color:#fff;font-weight:600;font-size:15px;padding:12px;border-radius:10px;transition:opacity .2s,transform .1s;cursor:pointer;margin-top:8px}
     .btn-login:hover{opacity:.9;transform:translateY(-1px)}
     .btn-login:active{transform:translateY(0)}
 
     .alert{border-radius:10px;font-size:13.5px;border:none;padding:10px 14px}
-    .alert-danger{background:rgba(239,68,68,.15);color:#fca5a5;border:1px solid rgba(239,68,68,.3)}
-    .alert-success{background:rgba(16,185,129,.15);color:#6ee7b7;border:1px solid rgba(16,185,129,.3)}
-    .alert-info{background:rgba(59,130,246,.15);color:#93c5fd;border:1px solid rgba(59,130,246,.3)}
+    .alert-danger{background:rgba(var(--login-danger-rgb),.15);color:var(--login-danger-text);border:1px solid rgba(var(--login-danger-rgb),.3)}
+    .alert-success{background:rgba(var(--login-success-rgb),.15);color:var(--login-success-text);border:1px solid rgba(var(--login-success-rgb),.3)}
+    .alert-info{background:rgba(var(--login-info-rgb),.15);color:var(--login-info-text);border:1px solid rgba(var(--login-info-rgb),.3)}
 
-    .form-check-input{background-color:rgba(255,255,255,.1);border-color:rgba(255,255,255,.2)}
-    .form-check-input:checked{background-color:#2563EB;border-color:#2563EB}
-    .form-check-label{font-size:13px;color:#94a3b8}
+    .form-check-input{background-color:rgba(var(--login-white-rgb),.1);border-color:rgba(var(--login-white-rgb),.2)}
+    .form-check-input:checked{background-color:var(--login-blue);border-color:var(--login-blue)}
+    .form-check-label{font-size:13px;color:var(--login-text-dim)}
 
-    .default-creds{margin-top:20px;background:rgba(37,99,235,.1);border:1px solid rgba(37,99,235,.2);border-radius:10px;padding:12px 16px;font-size:12.5px;color:#93c5fd}
-    .default-creds b{color:#60a5fa}
+    .default-creds{margin-top:20px;background:rgba(var(--login-blue-rgb),.1);border:1px solid rgba(var(--login-blue-rgb),.2);border-radius:10px;padding:12px 16px;font-size:12.5px;color:var(--login-info-text)}
+    .default-creds b{color:var(--login-info-text-strong)}
   </style>
 </head>
 <body>
