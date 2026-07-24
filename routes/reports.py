@@ -145,7 +145,16 @@ def sales_report():
             s.credit_note_total = 0
             s.net_total = s.total_amount
 
-    total            = round(sum(s.total_amount for s in sales), 2)
+    # "Gross/Net Sales" (and every aggregate below) use company_sales_total,
+    # not total_amount — total_amount includes a rep's tip markup on top of
+    # the official price, which belongs to the rep, not the company (same
+    # convention as reports/profit_loss.py and the dashboards). total_paid/
+    # total_outstanding stay as total_amount-derived figures on purpose:
+    # those are real cash actually collected/still owed on the invoice, not
+    # a company-revenue metric, so the tip portion legitimately belongs in
+    # them. The itemized per-invoice table below is unaffected by any of
+    # this — it shows each invoice's real total/paid/balance, unchanged.
+    total            = round(sum(s.company_sales_total or 0 for s in sales), 2)
     total_paid       = round(sum(s.amount_paid for s in sales), 2)
     total_outstanding= round(sum(s.balance_due for s in sales), 2)
     total_credits    = round(sum(s.credit_note_total for s in sales), 2)
@@ -153,14 +162,15 @@ def sales_report():
 
     rep_map, van_map, method_map, daily = {}, {}, {}, {}
     for s in sales:
+        company_net = (s.company_sales_total or 0) - (s.credit_note_total or 0)
         rname = s.sales_rep.full_name if s.sales_rep else 'Unassigned'
-        rep_map[rname] = rep_map.get(rname, 0) + s.net_total
+        rep_map[rname] = rep_map.get(rname, 0) + company_net
         vname = s.van.van_number if s.van else 'Warehouse'
-        van_map[vname] = van_map.get(vname, 0) + s.net_total
-        method_map[s.payment_method] = method_map.get(s.payment_method, 0) + s.total_amount
+        van_map[vname] = van_map.get(vname, 0) + company_net
+        method_map[s.payment_method] = method_map.get(s.payment_method, 0) + (s.company_sales_total or 0)
         if s.sale_date:
             day = s.sale_date.date()
-            daily[day] = daily.get(day, 0) + s.net_total
+            daily[day] = daily.get(day, 0) + company_net
 
     by_rep    = sorted(rep_map.items(), key=lambda x: x[1], reverse=True)
     by_van    = sorted(van_map.items(), key=lambda x: x[1], reverse=True)
