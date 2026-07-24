@@ -98,45 +98,8 @@ def create_app():
     app.register_blueprint(settings_bp, url_prefix='/settings')
     app.register_blueprint(insights_bp, url_prefix='/insights')
 
-    # ── Uploaded files (logos, avatars) ────────────────────────────────────────
-    @app.route('/uploads/<path:filename>')
-    def uploads(filename):
-        from flask import send_from_directory
-        return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
-
-    # ── PWA service worker ─────────────────────────────────────────────────────
-    # Served from the root, not /static/sw.js — a service worker's default
-    # scope is everything at or below the path it's served from, so serving it
-    # from /static/ would only ever let it control /static/ assets, not the
-    # actual app pages the manifest's start_url points to.
-    @app.route('/sw.js')
-    def service_worker():
-        from flask import send_from_directory
-        return send_from_directory('static', 'sw.js', mimetype='application/javascript')
-
-    # ── PWA manifest — served dynamically (not a static file) so the name a
-    # user sees when installing the app reflects their actual configured
-    # company name, not a hardcoded generic one ─────────────────────────────
-    @app.route('/manifest.json')
-    def pwa_manifest():
-        from flask import jsonify
-        from models.settings import Settings
-        name = Settings.get().company_name or app.config['COMPANY_NAME']
-        return jsonify({
-            'name': name,
-            'short_name': name[:20],
-            'description': f'{name} — Van Sales ERP',
-            'start_url': '/',
-            'scope': '/',
-            'display': 'standalone',
-            'background_color': '#0f172a',
-            'theme_color': '#2563EB',
-            'orientation': 'any',
-            'icons': [
-                {'src': '/static/icons/icon-192.png', 'sizes': '192x192', 'type': 'image/png', 'purpose': 'any maskable'},
-                {'src': '/static/icons/icon-512.png', 'sizes': '512x512', 'type': 'image/png', 'purpose': 'any maskable'}
-            ]
-        })
+    from routes.misc import misc_bp
+    app.register_blueprint(misc_bp)
 
     # ── Friendly error for oversized uploads ───────────────────────────────────
     @app.errorhandler(413)
@@ -193,7 +156,8 @@ def create_app():
         run_migrations(db)
         # Create any brand-new tables
         db.create_all()
-        _seed_defaults()
+        from services.seed import seed_defaults
+        seed_defaults()
 
         from models.user import load_role_permissions
         load_role_permissions()
@@ -207,62 +171,6 @@ def create_app():
         return {'now': datetime.utcnow()}
 
     return app
-
-
-def _seed_defaults():
-    """Seed default admin user and reference data on first run."""
-    from models.user import User
-    from models.product import Category
-    from werkzeug.security import generate_password_hash
-
-    if not User.query.filter_by(username='admin').first():
-        # ADMIN_PASSWORD lets a production deploy set a real password on first
-        # boot instead of inheriting the well-known local-dev default — change
-        # it immediately after first login either way.
-        admin_password = os.getenv('ADMIN_PASSWORD', 'admin123')
-        admin = User(
-            username='admin',
-            email='admin@vansalesv3.com',
-            full_name='System Administrator',
-            role='admin',
-            is_active=True,
-            password_hash=generate_password_hash(admin_password)
-        )
-        admin.apply_role_defaults()
-        db.session.add(admin)
-
-    # Demo accounts are handy for local development but every one of them
-    # shares a single well-known password — never auto-create them on a real
-    # deployment. Opt in explicitly (e.g. in a local .env) if you want them.
-    if os.getenv('SEED_DEMO_USERS', 'false').lower() == 'true':
-        demo_users = [
-            ('manager1',  'manager@demo.com',   'Demo Manager',          'manager'),
-            ('warehouse1','warehouse@demo.com',  'Demo Warehouse Manager','warehouse_manager'),
-            ('cashier1',  'cashier@demo.com',    'Demo Cashier',          'cashier'),
-            ('rep1',      'rep@demo.com',        'Demo Sales Rep',        'sales_rep'),
-            ('supervisor1','super@demo.com',     'Demo Supervisor',       'supervisor'),
-        ]
-        for uname, email, fname, role in demo_users:
-            if not User.query.filter_by(username=uname).first():
-                u = User(username=uname, email=email, full_name=fname,
-                         role=role, is_active=True,
-                         password_hash=generate_password_hash('demo1234'))
-                u.apply_role_defaults()
-                db.session.add(u)
-
-    default_categories = ['Beverages', 'Snacks', 'Dairy', 'Household', 'Personal Care', 'Other']
-    for cat_name in default_categories:
-        if not Category.query.filter_by(name=cat_name).first():
-            db.session.add(Category(name=cat_name))
-
-    db.session.commit()
-
-
-# ── User loader ────────────────────────────────────────────────────────────────
-@login_manager.user_loader
-def load_user(user_id):
-    from models.user import User
-    return User.query.get(int(user_id))
 
 
 if __name__ == '__main__':

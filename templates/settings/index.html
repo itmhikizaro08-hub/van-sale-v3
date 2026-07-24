@@ -42,7 +42,7 @@
           <div class="col-md-4 text-center">
             <div class="mb-2">
               {% if settings.company_logo %}
-              <img src="{{ url_for('uploads', filename=settings.company_logo) }}" alt="Logo"
+              <img src="{{ url_for('misc.uploads', filename=settings.company_logo) }}" alt="Logo"
                    style="max-width:140px;max-height:140px;border-radius:8px;border:1px solid var(--border-color)">
               {% else %}
               <div style="width:140px;height:140px;border-radius:8px;border:1px dashed var(--border-color);display:flex;align-items:center;justify-content:center;color:var(--text-muted);margin:0 auto">

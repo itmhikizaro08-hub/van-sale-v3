@@ -46,7 +46,7 @@
       <td class="text-muted fs-12">{{ e.created_at.strftime('%d %b %Y') if e.created_at else '' }}</td>
       <td class="text-end fw-600">GHS {{ "%.2f"|format(e.amount) }}</td>
       <td>{% if e.reference_note %}<span class="ref-note-badge"><i class="fas fa-book me-1"></i>{{ e.reference_note[:20] }}</span>{% else %}<span class="text-muted fs-12">—</span>{% endif %}</td>
-      <td>{% if e.receipt_image %}<a href="{{ url_for('uploads', filename=e.receipt_image) }}" target="_blank" class="btn btn-icon btn-sm btn-outline-info" title="View receipt"><i class="fas fa-image"></i></a>{% else %}<span class="text-muted fs-12">—</span>{% endif %}</td>
+      <td>{% if e.receipt_image %}<a href="{{ url_for('misc.uploads', filename=e.receipt_image) }}" target="_blank" class="btn btn-icon btn-sm btn-outline-info" title="View receipt"><i class="fas fa-image"></i></a>{% else %}<span class="text-muted fs-12">—</span>{% endif %}</td>
       <td><span class="badge {{ e.status_badge }}">{{ e.status|title }}</span></td>
       <td>
         {% if e.status == 'pending' and current_user.can_approve_module('expenses') %}
