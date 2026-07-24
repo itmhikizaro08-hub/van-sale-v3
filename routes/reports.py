@@ -462,6 +462,15 @@ def rep_statement():
         return render_template('reports/rep_statement.html', reps=reps, rep=None,
             own_scope=(current_user.scope('reports') == 'own'), start=start, end=end)
 
+    # Tips are a rep's own money on top of the company price — visible to
+    # whoever has full tips oversight (admin/manager, scope 'all'), or to the
+    # rep viewing their own statement. Everyone else who can reach this report
+    # (supervisor/warehouse_manager/cashier, tips scope 'none') must not see it,
+    # even though they can see the rest of this rep's statement.
+    show_tips = current_user.scope('tips') == 'all' or (
+        current_user.scope('tips') == 'own' and rep.id == current_user.id
+    )
+
     # ── Sales ──────────────────────────────────────────────────────────────────
     sales = Sale.query.filter(
         Sale.sales_rep_id == rep.id, Sale.status == 'completed',
@@ -470,7 +479,7 @@ def rep_statement():
     sales_count = len(sales)
     sales_total = round(sum(s.total_amount or 0 for s in sales), 2)
     company_sales_total = round(sum(s.company_sales_total or 0 for s in sales), 2)
-    tips_total = round(sum(s.total_tips_amount or 0 for s in sales), 2)
+    tips_total = round(sum(s.total_tips_amount or 0 for s in sales), 2) if show_tips else None
 
     # ── Cash ───────────────────────────────────────────────────────────────────
     cash = rep_cash_summary_range(rep.id, start, end)
@@ -505,7 +514,7 @@ def rep_statement():
     return render_template('reports/rep_statement.html', reps=reps, rep=rep,
         own_scope=(current_user.scope('reports') == 'own'), start=start, end=end,
         sales=sales, sales_count=sales_count, sales_total=sales_total,
-        company_sales_total=company_sales_total, tips_total=tips_total,
+        company_sales_total=company_sales_total, tips_total=tips_total, show_tips=show_tips,
         cash=cash, cash_to_declare=cash_to_declare, declarations=declarations,
         offloads=offloads, offload_count=offload_count, offload_value=offload_value,
         liability_value=liability_value, liability_qty=liability_qty)

@@ -44,11 +44,13 @@
       <div><div class="stat-label">Company Sales</div><div class="stat-value" style="font-size:16px">GHS {{ "%.2f"|format(company_sales_total) }}</div></div>
     </div>
   </div>
+  {% if show_tips %}
   <div class="col-6 col-md-3">
     <div class="stat-card success"><div class="stat-icon"><i class="fas fa-coins"></i></div>
       <div><div class="stat-label">Tips Earned</div><div class="stat-value" style="font-size:16px">GHS {{ "%.2f"|format(tips_total) }}</div></div>
     </div>
   </div>
+  {% endif %}
   <div class="col-6 col-md-3">
     <div class="stat-card {{ 'danger' if liability_value > 0 else 'success' }}"><div class="stat-icon"><i class="fas fa-truck-loading"></i></div>
       <div><div class="stat-label">Van Stock Liability</div><div class="stat-value" style="font-size:16px">GHS {{ "%.2f"|format(liability_value) }}</div>
