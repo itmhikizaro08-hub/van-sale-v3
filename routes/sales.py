@@ -121,7 +121,7 @@ def create():
         # loading a van already moved this stock out of Product.stock_quantity,
         # so a rep's sale must draw down VanStock, not the warehouse figure again.
         van_stock_row = None
-        if current_user.role == 'sales_rep':
+        if current_user.scope('van_stock') == 'own':
             van_stock_row = VanStock.query.filter_by(
                 sales_rep_id=current_user.id, product_id=product.id
             ).first()
