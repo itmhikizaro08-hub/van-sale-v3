@@ -2,6 +2,8 @@
 from app import db
 from models.sale import Sale
 from models.payment import Payment
+from models.expense import Expense
+from models.supplier import SupplierPayment
 
 
 def next_invoice_number():
@@ -19,7 +21,6 @@ def next_payment_number():
 
 
 def next_expense_number():
-    from models.notification import Expense
     last = Expense.query.order_by(Expense.id.desc()).first()
     n = (last.id + 1) if last else 1
     return f'EXP-{n:05d}'
@@ -37,7 +38,7 @@ def next_loading_sheet_number():
 
 def next_return_order_number():
     try:
-        from models.v4_models import ReturnOrder
+        from models.returns import ReturnOrder
         last = ReturnOrder.query.order_by(ReturnOrder.id.desc()).first()
         n = (last.id + 1) if last else 1
     except Exception:
@@ -47,7 +48,7 @@ def next_return_order_number():
 
 def next_credit_note_number():
     try:
-        from models.v4_models import CreditNote
+        from models.notes import CreditNote
         last = CreditNote.query.order_by(CreditNote.id.desc()).first()
         n = (last.id + 1) if last else 1
     except Exception:
@@ -57,7 +58,7 @@ def next_credit_note_number():
 
 def next_debit_note_number():
     try:
-        from models.v4_models import DebitNote
+        from models.notes import DebitNote
         last = DebitNote.query.order_by(DebitNote.id.desc()).first()
         n = (last.id + 1) if last else 1
     except Exception:
@@ -73,7 +74,6 @@ def next_stock_offload_number():
 
 
 def next_supplier_payment_number():
-    from models.notification import SupplierPayment
     last = SupplierPayment.query.order_by(SupplierPayment.id.desc()).first()
     n = (last.id + 1) if last else 1
     return f'SPAY-{n:05d}'

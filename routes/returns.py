@@ -5,28 +5,13 @@ from app import db
 from models.customer import Customer
 from models.product import Product
 from models.sale import Sale
+from models.inventory import VanStock
+from models.returns import ReturnOrder, ReturnOrderItem
+from models.notes import CreditNote
+from models.supplier import Supplier
+from services.stock import log_stock_movement
 
 returns_bp = Blueprint('returns', __name__)
-
-
-def _log_stock_movement(product, delta, movement_type, reference_type, reference_id, reference_note=None):
-    """Record a warehouse stock change so it shows up on the Inventory
-    Movements audit log, the same as stock_in/stock_out/adjustment do —
-    approving a return previously mutated Product.stock_quantity directly
-    with no trace left anywhere else in the app.
-    Call AFTER product.stock_quantity has already been updated by `delta`."""
-    from models.notification import InventoryMovement
-    db.session.add(InventoryMovement(
-        product_id=product.id,
-        movement_type=movement_type,
-        quantity=delta,
-        quantity_before=product.stock_quantity - delta,
-        quantity_after=product.stock_quantity,
-        reference_id=reference_id,
-        reference_type=reference_type,
-        reference_note=reference_note,
-        created_by_id=current_user.id
-    ))
 
 
 def _credit_returned_stock(order, item):
@@ -36,8 +21,6 @@ def _credit_returned_stock(order, item):
     validation existed could still reach approval with van_id=None. Rather
     than silently dropping the stock (the original bug), fall back to
     crediting the warehouse so the goods are never lost."""
-    from models.product import Product
-    from models.notification import VanStock
     if order.return_destination == 'van_stock' and order.van_id and order.received_by_rep_id:
         vs = VanStock.query.filter_by(
             van_id=order.van_id, sales_rep_id=order.received_by_rep_id, product_id=item.product_id
@@ -50,7 +33,7 @@ def _credit_returned_stock(order, item):
         p = Product.query.get(item.product_id)
         if p:
             p.stock_quantity += item.quantity
-            _log_stock_movement(p, item.quantity, 'customer_return', 'return_order', order.id, order.reference_note)
+            log_stock_movement(p, item.quantity, 'customer_return', 'return_order', order.id, order.reference_note)
 
 
 def _record_cash_refund(order, item):
@@ -85,7 +68,6 @@ def index():
         flash('Access denied.', 'danger')
         return redirect(url_for('dashboard.index'))
 
-    from models.v4_models import ReturnOrder
     start = request.args.get('start', (datetime.utcnow() - timedelta(days=30)).strftime('%Y-%m-%d'))
     end   = request.args.get('end',   datetime.utcnow().strftime('%Y-%m-%d'))
 
@@ -103,7 +85,6 @@ def index():
 def _bulk_resolve(order, new_status):
     """Approve or reject every still-pending line on a return order, mirroring
     approve_line/reject_line but applied to the whole order at once."""
-    from models.v4_models import ReturnOrderItem, CreditNote
     from services.sequence import next_credit_note_number
 
     pending_items = [i for i in order.items if i.line_status == 'pending']
@@ -148,7 +129,6 @@ def _bulk_resolve(order, new_status):
 def approve(order_id):
     if not current_user.can_approve_module('returns'):
         return jsonify({'error': 'Permission denied'}), 403
-    from models.v4_models import ReturnOrder
     order = ReturnOrder.query.get_or_404(order_id)
     if not _bulk_resolve(order, 'approved'):
         return jsonify({'error': 'No pending lines to approve'}), 400
@@ -161,7 +141,6 @@ def approve(order_id):
 def reject(order_id):
     if not current_user.can_approve_module('returns'):
         return jsonify({'error': 'Permission denied'}), 403
-    from models.v4_models import ReturnOrder
     order = ReturnOrder.query.get_or_404(order_id)
     if not _bulk_resolve(order, 'rejected'):
         return jsonify({'error': 'No pending lines to reject'}), 400
@@ -175,8 +154,6 @@ def new():
     if not current_user.can_write('returns'):
         flash('Permission denied.', 'danger')
         return redirect(url_for('returns.index'))
-    from models.customer import Customer
-    from models.product import Product
     from models.van import Van
     from models.user import User
     customers = Customer.query.filter_by(status='active').order_by(Customer.name).all()
@@ -186,7 +163,6 @@ def new():
         User.role.in_(['sales_rep', 'supervisor']), User.is_active == True
     ).order_by(User.full_name).all()
     if request.method == 'POST':
-        from models.v4_models import ReturnOrder, ReturnOrderItem
         from services.sequence import next_return_order_number
         customer_id = request.form.get('customer_id')
         if not customer_id:
@@ -266,7 +242,6 @@ def view(order_id):
     if not current_user.can_access('returns'):
         flash('Access denied.', 'danger')
         return redirect(url_for('dashboard.index'))
-    from models.v4_models import ReturnOrder
     order = ReturnOrder.query.get_or_404(order_id)
     if current_user.scope('returns') == 'own' and order.received_by_rep_id != current_user.id:
         flash('Access denied.', 'danger')
@@ -279,7 +254,6 @@ def view(order_id):
 def customer_sales(customer_id):
     if not current_user.can_write('returns'):
         return jsonify([]), 403
-    from models.sale import Sale
     sales = Sale.query.filter_by(
         customer_id=customer_id, status='completed'
     ).order_by(Sale.sale_date.desc()).limit(20).all()
@@ -295,7 +269,7 @@ def customer_sales(customer_id):
 def sale_items(sale_id):
     if not current_user.can_write('returns'):
         return jsonify([]), 403
-    from models.sale import Sale, SaleItem
+    from models.sale import SaleItem
     sale = Sale.query.get_or_404(sale_id)
     return jsonify([{
         'sale_item_id': i.id,
@@ -311,7 +285,6 @@ def sale_items(sale_id):
 def approve_line(order_id, item_id):
     if not current_user.can_approve_module('returns'):
         return jsonify({'error': 'Permission denied'}), 403
-    from models.v4_models import ReturnOrder, ReturnOrderItem, CreditNote
     from services.sequence import next_credit_note_number
     order = ReturnOrder.query.get_or_404(order_id)
     item  = ReturnOrderItem.query.filter_by(id=item_id, return_order_id=order.id).first_or_404()
@@ -345,7 +318,6 @@ def approve_line(order_id, item_id):
     statuses = {i.line_status for i in order.items}
     order.status = 'approved' if statuses == {'approved'} else 'rejected' if statuses == {'rejected'} else 'partial'
     order.approved_by_id = current_user.id
-    from datetime import datetime
     order.approved_at = datetime.utcnow()
     db.session.commit()
     return jsonify({'success': True, 'status': order.status, 'credit_note': cn.note_number})
@@ -356,7 +328,6 @@ def approve_line(order_id, item_id):
 def reject_line(order_id, item_id):
     if not current_user.can_approve_module('returns'):
         return jsonify({'error': 'Permission denied'}), 403
-    from models.v4_models import ReturnOrder, ReturnOrderItem
     order = ReturnOrder.query.get_or_404(order_id)
     item  = ReturnOrderItem.query.filter_by(id=item_id, return_order_id=order.id).first_or_404()
     if item.line_status != 'pending':
@@ -365,7 +336,6 @@ def reject_line(order_id, item_id):
     statuses = {i.line_status for i in order.items}
     order.status = 'approved' if statuses == {'approved'} else 'rejected' if statuses == {'rejected'} else 'partial'
     order.approved_by_id = current_user.id
-    from datetime import datetime
     order.approved_at = datetime.utcnow()
     db.session.commit()
     return jsonify({'success': True, 'status': order.status})
@@ -405,8 +375,6 @@ def supplier_new():
         flash('Permission denied.', 'danger')
         return redirect(url_for('returns.supplier_index'))
 
-    from models.notification import Supplier
-    from models.product import Product
     suppliers = Supplier.query.filter_by(status='active').order_by(Supplier.name).all()
     products = Product.query.filter_by(status='active').order_by(Product.product_name).all()
 
@@ -493,8 +461,6 @@ def supplier_view(return_id):
 def _supplier_bulk_resolve(ret, new_status):
     """Approve or reject every still-pending line, mirroring the customer
     return's _bulk_resolve but decrementing stock/supplier balance instead."""
-    from models.product import Product
-
     pending_items = [i for i in ret.items if i.line_status == 'pending']
     if not pending_items:
         return False
@@ -508,8 +474,8 @@ def _supplier_bulk_resolve(ret, new_status):
         if product:
             qty_before = product.stock_quantity
             product.stock_quantity = max(0, product.stock_quantity - item.quantity)
-            _log_stock_movement(product, product.stock_quantity - qty_before, 'supplier_return',
-                                 'supplier_return', ret.id, ret.reference_note)
+            log_stock_movement(product, product.stock_quantity - qty_before, 'supplier_return',
+                                'supplier_return', ret.id, ret.reference_note)
 
         if ret.supplier:
             ret.supplier.outstanding_balance = max(0, ret.supplier.outstanding_balance - item.line_total)
@@ -553,7 +519,6 @@ def supplier_approve_line(return_id, item_id):
     if not current_user.can_approve_module('procurement'):
         return jsonify({'error': 'Permission denied'}), 403
     from models.supplier_return import SupplierReturn, SupplierReturnItem
-    from models.product import Product
     ret  = SupplierReturn.query.get_or_404(return_id)
     item = SupplierReturnItem.query.filter_by(id=item_id, supplier_return_id=ret.id).first_or_404()
     if item.line_status != 'pending':
@@ -564,8 +529,8 @@ def supplier_approve_line(return_id, item_id):
     if product:
         qty_before = product.stock_quantity
         product.stock_quantity = max(0, product.stock_quantity - item.quantity)
-        _log_stock_movement(product, product.stock_quantity - qty_before, 'supplier_return',
-                             'supplier_return', ret.id, ret.reference_note)
+        log_stock_movement(product, product.stock_quantity - qty_before, 'supplier_return',
+                            'supplier_return', ret.id, ret.reference_note)
     if ret.supplier:
         ret.supplier.outstanding_balance = max(0, ret.supplier.outstanding_balance - item.line_total)
 

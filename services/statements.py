@@ -9,7 +9,8 @@ routes/suppliers.py (supplier) for the mutation call sites this mirrors.
 """
 from models.sale import Sale
 from models.payment import Payment
-from models.notification import InventoryMovement, SupplierPayment
+from models.inventory import InventoryMovement
+from models.supplier import SupplierPayment
 
 
 def van_stock_ledger_rows(van_id, rep_id, start, end, product_id=None):
@@ -64,7 +65,7 @@ def van_stock_ledger_rows(van_id, rep_id, start, end, product_id=None):
             name = item.product.product_name if item.product else 'item'
             events.append((dt, 'Sold', name, -item.quantity, f'Invoice {s.invoice_number}'))
 
-    from models.v4_models import ReturnOrder
+    from models.returns import ReturnOrder
     orders = ReturnOrder.query.filter_by(
         van_id=van_id, received_by_rep_id=rep_id, return_destination='van_stock'
     ).all()
@@ -140,7 +141,8 @@ def customer_statement_rows(customer, start, end):
         dt = p.payment_date.strftime('%Y-%m-%d %H:%M:%S') if p.payment_date else ''
         events.append((dt, f'Payment {p.payment_number}', 0.0, round(p.amount or 0, 2)))
 
-    from models.v4_models import DebitNote, CreditNote, ReturnOrder
+    from models.notes import DebitNote, CreditNote
+    from models.returns import ReturnOrder
     debit_notes = DebitNote.query.filter(
         DebitNote.customer_id == customer.id, DebitNote.status != 'void'
     ).all()

@@ -13,7 +13,7 @@ reports.rep_liability, which reads VanStock directly). See routes/vans.py
 `offload_submit()` / `offload_confirm()`.
 
 VanStock itself (the actual custody ledger both of these mutate) lives in
-models/notification.py — it's shared far beyond these two features (sales
+models/inventory.py — it's shared far beyond these two features (sales
 deduction, returns restocking, inventory/dashboard/report reads), so it isn't
 moved here.
 """

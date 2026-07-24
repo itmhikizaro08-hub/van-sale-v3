@@ -9,7 +9,7 @@ notes_bp = Blueprint('notes', __name__)
 
 def _models():
     try:
-        from models.v4_models import CreditNote, DebitNote
+        from models.notes import CreditNote, DebitNote
         return CreditNote, DebitNote
     except ImportError:
         return None, None

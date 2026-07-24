@@ -288,7 +288,7 @@ def view(product_id):
         return redirect(url_for('dashboard.index'))
     product = Product.query.get_or_404(product_id)
 
-    from models.notification import VanStock, InventoryMovement
+    from models.inventory import VanStock, InventoryMovement
     from models.sale import Sale, SaleItem
 
     field_stock = VanStock.query.filter_by(product_id=product_id).filter(VanStock.quantity > 0).all()

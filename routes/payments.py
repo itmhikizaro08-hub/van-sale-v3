@@ -7,7 +7,7 @@ from app import db
 from models.payment import Payment
 from models.sale import Sale
 from models.customer import Customer
-from models.notification import SupplierPayment
+from models.supplier import SupplierPayment
 from services.sequence import next_payment_number
 from services.sms_service import send_payment_sms
 

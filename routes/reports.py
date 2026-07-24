@@ -34,7 +34,7 @@ def profit_loss():
         flash('Access denied.', 'danger')
         return redirect(url_for('dashboard.index'))
 
-    from models.notification import Expense
+    from models.expense import Expense
     start, end = _date_range()
     end_bound = end + ' 23:59:59'
 
@@ -64,7 +64,7 @@ def profit_loss():
     # sales_report()'s net_total.
     total_credits = 0.0
     try:
-        from models.v4_models import CreditNote
+        from models.notes import CreditNote
         credit_notes = CreditNote.query.filter(
             CreditNote.status == 'applied',
             CreditNote.created_at >= start, CreditNote.created_at <= end_bound
@@ -131,7 +131,7 @@ def sales_report():
 
     # Attach credit note totals
     try:
-        from models.v4_models import CreditNote
+        from models.notes import CreditNote
         for s in sales:
             cns = CreditNote.query.filter_by(sale_id=s.id, status='applied').all()
             s.credit_note_total = sum(cn.amount for cn in cns)
@@ -265,7 +265,7 @@ def inventory_report():
     if not current_user.can_access('inventory'):
         flash('Access denied.', 'danger')
         return redirect(url_for('dashboard.index'))
-    from models.notification import VanStock
+    from models.inventory import VanStock
     products = Product.query.filter_by(status='active').order_by(Product.product_name).all()
     warehouse_value = round(sum(p.stock_quantity * p.cost_price for p in products), 2)
     field_stocks = db.session.query(
@@ -303,7 +303,7 @@ def inventory_excel():
         flash('Access denied.', 'danger')
         return redirect(url_for('dashboard.index'))
     import pandas as pd, io
-    from models.notification import VanStock
+    from models.inventory import VanStock
     products = Product.query.filter_by(status='active').all()
     field_stocks = db.session.query(
         VanStock.product_id, func.sum(VanStock.quantity).label('fq')
@@ -399,7 +399,7 @@ def rep_liability():
     if not current_user.can_access('van_stock'):
         flash('Access denied.', 'danger')
         return redirect(url_for('dashboard.index'))
-    from models.notification import VanStock
+    from models.inventory import VanStock
     from models.user import User
     reps = User.query.filter(
         User.role.in_(['sales_rep', 'supervisor']), User.is_active == True
@@ -441,7 +441,7 @@ def rep_statement():
         return redirect(url_for('dashboard.index'))
 
     from models.user import User
-    from models.notification import VanStock
+    from models.inventory import VanStock
     from models.cash_declaration import CashDeclaration
     from models.van_management import StockOffload, StockOffloadItem
     from services.cash_decl import rep_cash_summary_range, rep_cash_balance
@@ -518,7 +518,7 @@ def returns_analysis():
     if not current_user.can_access('returns'):
         flash('Access denied.', 'danger')
         return redirect(url_for('dashboard.index'))
-    from models.v4_models import ReturnOrder
+    from models.returns import ReturnOrder
     start, end = _date_range()
     orders = ReturnOrder.query.filter(
         ReturnOrder.created_at >= start,

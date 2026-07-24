@@ -393,7 +393,7 @@ def view(customer_id):
     recent_payments = Payment.query.filter_by(customer_id=customer_id).order_by(Payment.payment_date.desc()).limit(10).all()
     from models.van import CustomerVisit
     recent_visits = CustomerVisit.query.filter_by(customer_id=customer_id).order_by(CustomerVisit.visit_date.desc()).limit(10).all()
-    from models.v4_models import ReturnOrder
+    from models.returns import ReturnOrder
     recent_returns = ReturnOrder.query.filter_by(customer_id=customer_id).order_by(ReturnOrder.created_at.desc()).limit(10).all()
 
     from models.sale import SaleItem

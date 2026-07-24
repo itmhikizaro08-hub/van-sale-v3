@@ -1,7 +1,7 @@
 from flask import Blueprint, render_template, request, jsonify, flash, redirect, url_for
 from flask_login import login_required, current_user
 from app import db
-from models.notification import SMSLog
+from models.sms import SMSLog
 from models.customer import Customer
 from services.sms_service import send_sms, send_overdue_reminders
 

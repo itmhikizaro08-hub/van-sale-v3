@@ -4,7 +4,8 @@ from flask import Blueprint, render_template, redirect, url_for, flash, request,
 from flask_login import login_required, current_user
 from datetime import datetime, timedelta
 from app import db
-from models.notification import Supplier, InventoryMovement, SupplierPayment
+from models.supplier import Supplier, SupplierPayment
+from models.inventory import InventoryMovement
 from services.sequence import next_supplier_payment_number
 
 suppliers_bp = Blueprint('suppliers', __name__)

@@ -211,7 +211,7 @@ def test_sms():
     success = send_sms(phone, 'Test message from Van Sales V3 — your SMS setup is working!',
                         sms_type='custom', recipient_name='Test')
 
-    from models.notification import SMSLog
+    from models.sms import SMSLog
     last = SMSLog.query.filter_by(phone_number=phone).order_by(SMSLog.id.desc()).first()
     detail = last.provider_response if last else ''
 

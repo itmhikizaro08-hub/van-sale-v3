@@ -4,7 +4,8 @@ from datetime import datetime, timedelta
 from app import db
 from models.product import Product
 from models.van import Van
-from models.notification import InventoryMovement, VanStock, Supplier
+from models.inventory import InventoryMovement, VanStock
+from models.supplier import Supplier
 
 inventory_bp = Blueprint('inventory', __name__)
 

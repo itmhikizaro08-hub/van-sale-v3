@@ -1,14 +1,14 @@
 """
-Van Sales V4 — Sprint 1 Models
-ReturnOrder, CreditNote, DebitNote
-
-(LoadingSheet/LoadingSheetItem moved to models/van_management.py)
+Multi-item Return Orders
+========================
+See models/notes.py for CreditNote/DebitNote, and models/supplier_return.py
+for supplier-side (outbound) returns — this file covers customer-side
+(inbound) returns only.
 """
 from app import db
 from datetime import datetime
 
 
-# ── Multi-item Return Orders ──────────────────────────────────────────────────
 class ReturnOrder(db.Model):
     __tablename__ = 'return_orders'
     id                  = db.Column(db.Integer, primary_key=True)
@@ -82,51 +82,3 @@ class ReturnOrderItem(db.Model):
 
     def calculate_total(self):
         self.line_total = round(self.unit_price * self.quantity, 2)
-
-
-# ── Credit / Debit Notes ──────────────────────────────────────────────────────
-class CreditNote(db.Model):
-    __tablename__ = 'credit_notes'
-    id              = db.Column(db.Integer, primary_key=True)
-    note_number     = db.Column(db.String(30), unique=True, nullable=False, index=True)
-    customer_id     = db.Column(db.Integer, db.ForeignKey('customers.id'), nullable=False)
-    sale_id         = db.Column(db.Integer, db.ForeignKey('sales.id'), nullable=True)
-    return_order_id = db.Column(db.Integer, db.ForeignKey('return_orders.id'), nullable=True)
-    amount          = db.Column(db.Float, nullable=False, default=0.0)
-    reason          = db.Column(db.Text)
-    status          = db.Column(db.String(20), default='issued')  # issued | applied | void
-    reference_note  = db.Column(db.String(255))
-    created_by_id   = db.Column(db.Integer, db.ForeignKey('users.id'))
-    created_at      = db.Column(db.DateTime, default=datetime.utcnow)
-
-    customer     = db.relationship('Customer',    foreign_keys=[customer_id])
-    sale         = db.relationship('Sale',        foreign_keys=[sale_id])
-    return_order = db.relationship('ReturnOrder', foreign_keys=[return_order_id])
-    created_by   = db.relationship('User',        foreign_keys=[created_by_id])
-
-    @property
-    def status_badge(self):
-        return {'issued': 'bg-info text-dark', 'applied': 'bg-success',
-                'void': 'bg-secondary'}.get(self.status, 'bg-secondary')
-
-
-class DebitNote(db.Model):
-    __tablename__ = 'debit_notes'
-    id             = db.Column(db.Integer, primary_key=True)
-    note_number    = db.Column(db.String(30), unique=True, nullable=False, index=True)
-    customer_id    = db.Column(db.Integer, db.ForeignKey('customers.id'), nullable=False)
-    sale_id        = db.Column(db.Integer, db.ForeignKey('sales.id'), nullable=True)
-    amount         = db.Column(db.Float, nullable=False, default=0.0)
-    reason         = db.Column(db.Text)
-    status         = db.Column(db.String(20), default='issued')  # issued | void
-    reference_note = db.Column(db.String(255))
-    created_by_id  = db.Column(db.Integer, db.ForeignKey('users.id'))
-    created_at     = db.Column(db.DateTime, default=datetime.utcnow)
-
-    customer   = db.relationship('Customer', foreign_keys=[customer_id])
-    sale       = db.relationship('Sale',     foreign_keys=[sale_id])
-    created_by = db.relationship('User',     foreign_keys=[created_by_id])
-
-    @property
-    def status_badge(self):
-        return {'issued': 'bg-warning text-dark', 'void': 'bg-secondary'}.get(self.status, 'bg-secondary')

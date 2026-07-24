@@ -3,7 +3,7 @@ import os
 import requests
 from datetime import datetime
 from app import db
-from models.notification import SMSLog
+from models.sms import SMSLog
 
 
 def _config():

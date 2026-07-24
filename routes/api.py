@@ -24,7 +24,7 @@ def products_search():
     # show/enforce their van stock instead of company-wide stock_quantity.
     van_qty = {}
     if current_user.scope('van_stock') == 'own':
-        from models.notification import VanStock
+        from models.inventory import VanStock
         rows = db.session.query(VanStock.product_id, func.sum(VanStock.quantity)).filter(
             VanStock.sales_rep_id == current_user.id
         ).group_by(VanStock.product_id).all()

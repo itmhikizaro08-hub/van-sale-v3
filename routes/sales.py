@@ -6,7 +6,7 @@ from models.sale import Sale, SaleItem
 from models.customer import Customer
 from models.product import Product
 from models.van import Van
-from models.notification import InventoryMovement, VanStock
+from models.inventory import InventoryMovement, VanStock
 from models.audit import PricingAuditLog
 from services.sms_service import send_invoice_sms
 from services.sequence import next_invoice_number

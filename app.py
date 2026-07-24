@@ -185,7 +185,8 @@ def create_app():
 
     # ── Create DB tables ───────────────────────────────────────────────────────
     with app.app_context():
-        from models import v4_models  # noqa - registers V4 tables
+        from models import returns  # noqa - registers ReturnOrder/ReturnOrderItem tables
+        from models import notes  # noqa - registers CreditNote/DebitNote tables
         from models import supplier_return  # noqa - registers SupplierReturn tables
         # Run migrations first (handles existing DBs without breaking them)
         from services.migrate import run_migrations

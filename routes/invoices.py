@@ -54,7 +54,7 @@ def view(sale_id):
     # against this specific Sale's own total_amount/balance_due — so without
     # this, viewing an invoice that had part of it returned gives no clue a
     # credit was ever issued against it.
-    from models.v4_models import CreditNote
+    from models.notes import CreditNote
     credit_notes = CreditNote.query.filter_by(sale_id=sale_id, status='applied').all()
     credit_total = round(sum(cn.amount for cn in credit_notes), 2)
     return render_template('invoices/view.html', sale=sale, company=company,

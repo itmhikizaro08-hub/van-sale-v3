@@ -5,7 +5,7 @@ from models.sale import Sale
 from models.customer import Customer
 from models.product import Product
 from models.payment import Payment
-from models.notification import VanStock
+from models.inventory import VanStock
 from models.cash_declaration import CashDeclaration
 from models.van_management import StockOffload
 from services.cash_decl import rep_cash_balance

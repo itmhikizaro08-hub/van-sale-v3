@@ -2,7 +2,7 @@ from flask import Blueprint, render_template, redirect, url_for, flash, request,
 from flask_login import login_required, current_user
 from datetime import datetime, timedelta
 from app import db
-from models.notification import Expense
+from models.expense import Expense
 from models.van import Van
 from services.sequence import next_expense_number
 from services.uploads import save_upload

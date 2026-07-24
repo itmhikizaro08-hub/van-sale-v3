@@ -59,7 +59,7 @@ class Sale(db.Model):
         """'full' | 'partial' | 'none' — matched by product_id rather than
         ReturnOrderItem.sale_item_id, since the return-creation form never
         wires that field through (it only sends product_id/quantity/price)."""
-        from models.v4_models import ReturnOrder
+        from models.returns import ReturnOrder
         returned_by_product = {}
         for order in ReturnOrder.query.filter_by(sale_id=self.id).all():
             for item in order.items:
