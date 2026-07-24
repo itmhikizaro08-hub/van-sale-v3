@@ -55,13 +55,17 @@ def index():
     ctx = {'dashboard_date': today, 'is_today': today == real_today, 'real_today': real_today}
 
     if current_user.role in ('admin', 'manager'):
-        ctx['total_sales_today'] = db.session.query(func.sum(Sale.total_amount)).filter(
+        # company_sales_total (official_price × qty), not total_amount — a
+        # rep's tip markup on top of the official price belongs to the rep,
+        # not the company, so it must never inflate the company's sales
+        # figures (same convention as reports/profit_loss.py's gross_revenue).
+        ctx['total_sales_today'] = db.session.query(func.sum(Sale.company_sales_total)).filter(
             Sale.status == 'completed', func.date(Sale.sale_date) == today
         ).scalar() or 0
-        ctx['total_sales_yesterday'] = db.session.query(func.sum(Sale.total_amount)).filter(
+        ctx['total_sales_yesterday'] = db.session.query(func.sum(Sale.company_sales_total)).filter(
             Sale.status == 'completed', func.date(Sale.sale_date) == yesterday
         ).scalar() or 0
-        ctx['total_sales_month'] = db.session.query(func.sum(Sale.total_amount)).filter(
+        ctx['total_sales_month'] = db.session.query(func.sum(Sale.company_sales_total)).filter(
             Sale.status == 'completed', Sale.sale_date >= month_start
         ).scalar() or 0
         ctx['total_outstanding'] = db.session.query(func.sum(Customer.outstanding_balance)).scalar() or 0
@@ -71,17 +75,20 @@ def index():
         ).count()
 
         ctx['trend_labels'], ctx['trend_values'] = _daily_series(
-            Sale.sale_date, Sale.total_amount, [Sale.status == 'completed'], end_date=today)
+            Sale.sale_date, Sale.company_sales_total, [Sale.status == 'completed'], end_date=today)
 
         ctx['recent_sales'] = Sale.query.filter_by(status='completed').order_by(
             Sale.sale_date.desc()).limit(8).all()
 
     elif current_user.role == 'sales_rep':
-        ctx['my_sales_today'] = db.session.query(func.sum(Sale.total_amount)).filter(
+        # company_sales_total, not total_amount — see admin/manager branch
+        # above; a rep's own tip earnings are shown separately in the Tips
+        # module, not folded into their "sales" figures here.
+        ctx['my_sales_today'] = db.session.query(func.sum(Sale.company_sales_total)).filter(
             Sale.sales_rep_id == current_user.id, Sale.status == 'completed',
             func.date(Sale.sale_date) == today
         ).scalar() or 0
-        ctx['my_sales_month'] = db.session.query(func.sum(Sale.total_amount)).filter(
+        ctx['my_sales_month'] = db.session.query(func.sum(Sale.company_sales_total)).filter(
             Sale.sales_rep_id == current_user.id, Sale.status == 'completed',
             Sale.sale_date >= month_start
         ).scalar() or 0
@@ -98,7 +105,7 @@ def index():
         ctx['my_van_stock_value'] = round(sum(
             (s.quantity * (s.product.cost_price if s.product else 0)) for s in van_stock), 2)
         ctx['trend_labels'], ctx['trend_values'] = _daily_series(
-            Sale.sale_date, Sale.total_amount,
+            Sale.sale_date, Sale.company_sales_total,
             [Sale.sales_rep_id == current_user.id, Sale.status == 'completed'], end_date=today)
         ctx['recent_sales'] = Sale.query.filter_by(
             sales_rep_id=current_user.id, status='completed'
@@ -106,7 +113,8 @@ def index():
         ctx['my_cash_balance'] = rep_cash_balance(current_user.id)['balance']
 
     elif current_user.role == 'supervisor':
-        ctx['team_sales_today'] = db.session.query(func.sum(Sale.total_amount)).filter(
+        # company_sales_total, not total_amount — see admin/manager branch above.
+        ctx['team_sales_today'] = db.session.query(func.sum(Sale.company_sales_total)).filter(
             Sale.status == 'completed', func.date(Sale.sale_date) == today
         ).scalar() or 0
         ctx['team_invoices_today'] = Sale.query.filter(
@@ -122,7 +130,7 @@ def index():
             func.date(CustomerVisit.visit_date) == today
         ).count()
         ctx['trend_labels'], ctx['trend_values'] = _daily_series(
-            Sale.sale_date, Sale.total_amount, [Sale.status == 'completed'], end_date=today)
+            Sale.sale_date, Sale.company_sales_total, [Sale.status == 'completed'], end_date=today)
         ctx['recent_sales'] = Sale.query.filter_by(status='completed').order_by(
             Sale.sale_date.desc()).limit(8).all()
 
