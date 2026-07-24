@@ -59,7 +59,7 @@
     <!-- Dynamic role-based nav -->
     {% for section in current_user.sidebar_items() %}
     <div class="menu-section">
-      <span class="menu-label">{{ section.label }}</span>
+      <span class="menu-label"><i class="{{ section.icon }}"></i> {{ section.label }}</span>
       {% for item in section['items'] %}
       <a href="{{ url_for(item.url) }}"
          class="menu-item {% if (item.match_endpoints and request.endpoint in item.match_endpoints) or (not item.match_endpoints and (request.blueprint == item.get('bp','') or request.endpoint == item.url)) %}active{% endif %}">

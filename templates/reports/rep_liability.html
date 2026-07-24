@@ -26,7 +26,7 @@
 <div class="card mb-3">
   <div class="card-header d-flex align-items-center justify-content-between">
     <div class="d-flex align-items-center gap-2">
-      <div class="user-avatar" style="width:36px;height:36px;font-size:15px;background:var(--brand);color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center">{{ rep_data.rep.full_name[0] }}</div>
+      <div class="user-avatar" style="width:36px;height:36px;font-size:15px">{{ rep_data.rep.full_name[0] }}</div>
       <div><div class="fw-700">{{ rep_data.rep.full_name }}</div><div class="text-muted fs-12">{{ rep_data.rep.role_label }} • Vans: {{ rep_data.vans|join(', ') }}</div></div>
     </div>
     <div class="text-end"><div class="fw-800 text-danger fs-15">GHS {{ "%.2f"|format(rep_data.total_value) }}</div><div class="text-muted fs-12">{{ rep_data.total_qty|qty }} units</div></div>

@@ -34,12 +34,12 @@
 .cart-item-row td { padding: 8px 6px !important; vertical-align: middle; font-size: 13px; }
 .qty-input { width: 60px; text-align: center; }
 .price-input { width: 100px; text-align: right; }
-.price-input.price-valid { border-color: #28a745 !important; background: rgba(40,167,69,0.06); }
-.price-input.price-invalid { border-color: #dc3545 !important; background: rgba(220,53,69,0.06); }
+.price-input.price-valid { border-color: var(--success) !important; background: rgba(16,185,129,0.08); }
+.price-input.price-invalid { border-color: var(--danger) !important; background: rgba(239,68,68,0.08); }
 .price-status-icon { font-size: 12px; margin-left: 4px; }
-.price-status-icon.valid { color: #28a745; }
-.price-status-icon.invalid { color: #dc3545; }
-.price-warning-text { font-size: 11px; color: #dc3545; }
+.price-status-icon.valid { color: var(--success); }
+.price-status-icon.invalid { color: var(--danger); }
+.price-warning-text { font-size: 11px; color: var(--danger); }
 
 .total-section { background: var(--bg); border-radius: var(--radius-sm); padding: 16px; }
 .total-row { display: flex; justify-content: space-between; padding: 5px 0; font-size: 14px; }
@@ -447,7 +447,7 @@ function renderCart() {
       <td class="fw-600 text-end" id="lineTotal-${idx}">GHS ${lineTotal(item).toFixed(2)}</td>
       <td>
         <button class="btn btn-icon btn-sm btn-outline-danger" onclick="removeFromCart(${item.id})">
-          <i class="fas fa-times"></i>
+          <i class="fas fa-trash"></i>
         </button>
       </td>
     </tr>`).join('');

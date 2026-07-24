@@ -28,6 +28,13 @@
 
   --border:       #e2e8f0;
   --border-light: #f1f5f9;
+  /* Aliases — a few templates (routes/visits map legends, settings image
+     frames) reference these names directly instead of the ones above.
+     Kept as aliases rather than hunting down each call site, so both
+     names always move together if the underlying values ever change. */
+  --border-color:  var(--border);
+  --bg-secondary:  var(--border-light);
+  --text-secondary: var(--text-muted);
 
   --shadow-sm:    0 1px 3px rgba(0,0,0,.08);
   --shadow:       0 4px 16px rgba(0,0,0,.10);
@@ -155,6 +162,7 @@ a:hover { color: var(--brand-dark); }
   padding: 10px 16px 4px;
   letter-spacing: 1px;
 }
+.menu-label i { margin-right: 4px; font-size: 10px; }
 
 .menu-item {
   display: flex;
@@ -581,6 +589,15 @@ a:hover { color: var(--brand-dark); }
    BADGES
    ══════════════════════════════════════════════════════════════ */
 .badge { font-size: 11px; font-weight: 600; padding: 4px 8px; border-radius: 6px; }
+/* Converge on one green/red — model *_badge properties and hardcoded
+   template classes both just emit Bootstrap's bg-success/bg-danger, which
+   otherwise render Bootstrap's stock colors (#198754/#dc3545) instead of
+   this app's own --success/--danger accents used everywhere else (stat
+   cards, alerts). Scoped to .badge specifically — a raw .progress-bar
+   elsewhere intentionally keeps Bootstrap's own color system, since it's
+   a stock Bootstrap component rather than something this app themes. */
+.badge.bg-success { background-color: var(--success) !important; }
+.badge.bg-danger  { background-color: var(--danger)  !important; }
 
 /* ══════════════════════════════════════════════════════════════
    MODAL

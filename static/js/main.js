@@ -7,10 +7,15 @@
 // ── Theme ──────────────────────────────────────────────
 const ThemeManager = {
   init() {
-    // Fall back to the server-rendered data-theme (the account's saved
-    // preference) rather than always 'light', so a fresh device/session
-    // opens in the theme the user picked on their profile page.
-    const saved = localStorage.getItem('vs3-theme') || document.documentElement.getAttribute('data-theme') || 'light';
+    // The server-rendered data-theme (base.html, from the account's saved
+    // theme_preference) is authoritative — it's freshly computed from the
+    // DB on every request, so it must win over localStorage. Preferring
+    // localStorage first meant a preference changed on one device/browser
+    // silently failed to show up on another that still had an old cached
+    // value. localStorage is only a fallback for the (effectively
+    // impossible, since base.html always renders the attribute) case where
+    // data-theme is missing entirely.
+    const saved = document.documentElement.getAttribute('data-theme') || localStorage.getItem('vs3-theme') || 'light';
     this.apply(saved);
     document.getElementById('themeToggle')?.addEventListener('click', () => this.toggle());
   },

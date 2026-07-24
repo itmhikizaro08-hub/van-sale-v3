@@ -410,7 +410,7 @@ class User(UserMixin, db.Model):
                 sales_items.append({'label': 'Tips Report', 'icon': 'fas fa-coins',
                                      'url': 'tips.report', 'bp': 'tips'})
         if sales_items:
-            sections.append({'label': '💰 Sales', 'items': sales_items})
+            sections.append({'label': 'Sales', 'icon': 'fas fa-shopping-cart', 'items': sales_items})
 
         # ── CUSTOMERS ────────────────────────────────────────────────────
         crm_items = []
@@ -424,7 +424,7 @@ class User(UserMixin, db.Model):
             crm_items.append({'label': 'SMS Center', 'icon': 'fas fa-sms',
                                'url': 'sms.index', 'bp': 'sms'})
         if crm_items:
-            sections.append({'label': '👥 Customers', 'items': crm_items})
+            sections.append({'label': 'Customers', 'icon': 'fas fa-users', 'items': crm_items})
 
         # ── STOCK ────────────────────────────────────────────────────────
         stock_items = []
@@ -450,7 +450,7 @@ class User(UserMixin, db.Model):
                                  'url': 'vans.offload_index', 'bp': 'vans',
                                  'match_endpoints': ['vans.offload_index', 'vans.offload_submit', 'vans.offload_confirm']})
         if stock_items:
-            sections.append({'label': '📦 Stock', 'items': stock_items})
+            sections.append({'label': 'Stock', 'icon': 'fas fa-boxes', 'items': stock_items})
 
         # ── FLEET ────────────────────────────────────────────────────────
         fleet_items = []
@@ -465,7 +465,7 @@ class User(UserMixin, db.Model):
             fleet_items.append({'label': 'Routes', 'icon': 'fas fa-route',
                                  'url': 'routes.index', 'bp': 'routes'})
         if fleet_items:
-            sections.append({'label': '🚚 Fleet', 'items': fleet_items})
+            sections.append({'label': 'Fleet', 'icon': 'fas fa-truck', 'items': fleet_items})
 
         # ── MONEY ────────────────────────────────────────────────────────
         money_items = []
@@ -483,7 +483,7 @@ class User(UserMixin, db.Model):
             money_items.append({'label': 'Cash Declarations', 'icon': 'fas fa-cash-register',
                                  'url': 'cash_decl.index', 'bp': 'cash_decl'})
         if money_items:
-            sections.append({'label': '💵 Money', 'items': money_items})
+            sections.append({'label': 'Money', 'icon': 'fas fa-money-bill-wave', 'items': money_items})
 
         # ── REPORTS ──────────────────────────────────────────────────────
         report_items = []
@@ -494,11 +494,11 @@ class User(UserMixin, db.Model):
             report_items.append({'label': 'AI Insights', 'icon': 'fas fa-brain',
                  'url': 'insights.index', 'bp': 'insights'})
         if report_items:
-            sections.append({'label': '📊 Reports', 'items': report_items})
+            sections.append({'label': 'Reports', 'icon': 'fas fa-chart-bar', 'items': report_items})
 
         # ── ADMIN ────────────────────────────────────────────────────────
         if self.role == 'admin':
-            sections.append({'label': '⚙️ System', 'items': [
+            sections.append({'label': 'System', 'icon': 'fas fa-cog', 'items': [
                 {'label': 'Users', 'icon': 'fas fa-users-cog', 'url': 'auth.users', 'bp': 'auth'},
                 {'label': 'Audit Trail', 'icon': 'fas fa-shield-alt', 'url': 'audit.index', 'bp': 'audit'},
                 {'label': 'Settings', 'icon': 'fas fa-cog', 'url': 'settings.index', 'bp': 'settings'},
