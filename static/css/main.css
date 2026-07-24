@@ -312,10 +312,7 @@ a:hover { color: var(--brand-dark); }
 .dash-hero {
   position: relative;
   overflow: hidden;
-  background-image: linear-gradient(135deg, var(--brand), #7c3aed),
-    radial-gradient(circle, rgba(255,255,255,.12) 1px, transparent 1px);
-  background-size: 100% 100%, 22px 22px;
-  background-position: 0 0, 0 0;
+  background: linear-gradient(135deg, var(--brand) 0%, #4338ca 55%, #7c3aed 100%);
   border-radius: var(--radius-lg);
   padding: 28px 30px;
   margin-bottom: 24px;
@@ -329,25 +326,27 @@ a:hover { color: var(--brand-dark); }
 .dash-hero::before {
   content: '';
   position: absolute;
-  top: -60px; right: -60px;
-  width: 220px; height: 220px;
+  top: -90px; right: -60px;
+  width: 240px; height: 240px;
   border-radius: 50%;
-  background: rgba(255,255,255,.08);
+  background: rgba(255,255,255,.10);
+  filter: blur(36px);
 }
 .dash-hero::after {
   content: '';
   position: absolute;
-  bottom: -80px; right: 60px;
-  width: 160px; height: 160px;
+  bottom: -80px; right: 90px;
+  width: 170px; height: 170px;
   border-radius: 50%;
-  background: rgba(255,255,255,.06);
+  background: rgba(124,58,237,.35);
+  filter: blur(40px);
 }
 .dash-hero-left { display: flex; align-items: center; gap: 16px; position: relative; z-index: 1; min-width: 0; }
 .dash-hero-avatar {
   width: 54px; height: 54px;
   border-radius: 50%;
-  background: rgba(255,255,255,.16);
-  border: 2px solid rgba(255,255,255,.35);
+  background: linear-gradient(145deg, rgba(255,255,255,.28), rgba(255,255,255,.08));
+  border: 1px solid rgba(255,255,255,.3);
   display: flex; align-items: center; justify-content: center;
   font-weight: 800; font-size: 20px; color: #fff;
   flex-shrink: 0;
