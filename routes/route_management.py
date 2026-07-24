@@ -35,7 +35,14 @@ def index():
     total_customers = sum(r.customers.count() for r in routes)
 
     for r in routes:
-        r.total_sales = db.session.query(db.func.sum(Sale.total_amount)).join(
+        # company_sales_total, not total_amount — same convention as
+        # reports/profit_loss.py, reports/sales.py's Gross/Net Sales +
+        # By Rep/By Van, and the dashboards: a rep's tip markup on top of
+        # the official price belongs to the rep, not the company, so it
+        # must not inflate how much a route "sold". total_outstanding
+        # below stays total_amount-derived (via Customer.outstanding_balance)
+        # since it's real money customers still owe, not a revenue figure.
+        r.total_sales = db.session.query(db.func.sum(Sale.company_sales_total)).join(
             Customer, Sale.customer_id == Customer.id
         ).filter(
             Customer.assigned_route_id == r.id, Sale.status == 'completed',
