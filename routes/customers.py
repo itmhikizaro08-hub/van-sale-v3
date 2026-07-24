@@ -174,7 +174,7 @@ def quick_add():
             return redirect(url_for('customers.quick_add'))
 
         sales_rep_id = request.form.get('sales_rep_id') or None
-        if not sales_rep_id and current_user.role == 'sales_rep':
+        if not sales_rep_id and current_user.scope('customers') == 'own':
             sales_rep_id = current_user.id
 
         customer = Customer(
