@@ -86,6 +86,9 @@ def run_migrations(db):
         _add_column_if_missing(conn, engine, 'payments', 'cheque_bank', 'VARCHAR(120)')
         _add_column_if_missing(conn, engine, 'payments', 'cheque_date', 'DATETIME')
 
+        # ── Company timezone ─────────────────────────────────────────────────
+        _add_column_if_missing(conn, engine, 'settings', 'timezone', "VARCHAR(50) DEFAULT 'Africa/Accra'")
+
         conn.commit()
 
         # ── One-time historical data repairs — see services/data_repairs.py

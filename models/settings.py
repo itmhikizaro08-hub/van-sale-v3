@@ -20,6 +20,7 @@ class Settings(db.Model):
     invoice_prefix = db.Column(db.String(10), default='INV-')
     default_payment_terms = db.Column(db.String(100))
     sms_enabled = db.Column(db.Boolean, default=True)
+    timezone = db.Column(db.String(50), default='Africa/Accra')
 
     # SMS provider config — set through Settings so a non-technical admin
     # never has to edit environment files or restart the server. Falls back

@@ -23,11 +23,31 @@ FIELD_LABELS = {
     'company_address': 'Address', 'company_logo': 'Logo',
     'default_reorder_level': 'Default Reorder Level', 'invoice_prefix': 'Invoice Prefix',
     'default_payment_terms': 'Default Payment Terms', 'sms_enabled': 'SMS Notifications',
+    'timezone': 'Timezone',
     'sms_provider': 'SMS Provider', 'arkesel_api_key': 'Arkesel API Key',
     'arkesel_sender_name': 'Arkesel Sender Name', 'hubtel_client_id': 'Hubtel Client ID',
     'hubtel_client_secret': 'Hubtel Client Secret',
     'at_username': "Africa's Talking Username", 'at_api_key': "Africa's Talking API Key",
 }
+
+# Curated rather than the full IANA list — this is a single-country business
+# (BLUMAX 1 is Ghanaian), so a handful of relevant zones is more usable than
+# a 400-entry dropdown. Value must stay a valid IANA name for zoneinfo.
+TIMEZONE_CHOICES = [
+    ('Africa/Accra', 'Accra (GMT)'),
+    ('Africa/Abidjan', 'Abidjan (GMT)'),
+    ('Africa/Lagos', 'Lagos (WAT, GMT+1)'),
+    ('Africa/Johannesburg', 'Johannesburg (SAST, GMT+2)'),
+    ('Africa/Nairobi', 'Nairobi (EAT, GMT+3)'),
+    ('Africa/Cairo', 'Cairo (EET, GMT+2)'),
+    ('Europe/London', 'London (GMT/BST)'),
+    ('Europe/Paris', 'Paris (CET/CEST)'),
+    ('America/New_York', 'New York (ET)'),
+    ('UTC', 'UTC'),
+]
+TIMEZONE_VALUES = {tz for tz, _ in TIMEZONE_CHOICES}
+
+AUDIT_CATEGORIES = ['company', 'system', 'permissions']
 
 # Roles editable through the permissions tab — admin is intentionally excluded
 # so nobody can accidentally lock every admin out of Settings.
@@ -67,16 +87,39 @@ def index():
         selected_role = EDITABLE_ROLES[0]
 
     perms = {p.module: p for p in RolePermission.query.filter_by(role=selected_role).all()}
+    settings = Settings.get()
 
-    audit_logs = []
+    audit_page = None
+    audit_users = []
+    log_filters = {'user': request.args.get('log_user', ''), 'category': request.args.get('log_category', ''),
+                    'start': request.args.get('log_start', ''), 'end': request.args.get('log_end', '')}
     if current_user.is_admin:
-        audit_logs = SettingsAuditLog.query.order_by(SettingsAuditLog.created_at.desc()).limit(50).all()
+        from models.user import User
+        audit_users = User.query.order_by(User.full_name).all()
+
+        q = SettingsAuditLog.query
+        if log_filters['user'].isdigit():
+            q = q.filter(SettingsAuditLog.user_id == int(log_filters['user']))
+        if log_filters['category'] in AUDIT_CATEGORIES:
+            q = q.filter(SettingsAuditLog.category == log_filters['category'])
+        if log_filters['start']:
+            q = q.filter(SettingsAuditLog.created_at >= log_filters['start'])
+        if log_filters['end']:
+            q = q.filter(SettingsAuditLog.created_at <= log_filters['end'] + ' 23:59:59')
+        q = q.order_by(SettingsAuditLog.created_at.desc())
+
+        page = request.args.get('log_page', 1, type=int)
+        audit_page = db.paginate(q, page=page, per_page=20, error_out=False)
+
+    last_change = SettingsAuditLog.query.order_by(SettingsAuditLog.created_at.desc()).first()
 
     return render_template('settings/index.html',
-        settings=Settings.get(), tab=request.args.get('tab', 'company'),
+        settings=settings, tab=request.args.get('tab', 'company'),
         editable_roles=EDITABLE_ROLES, role_labels=ROLE_LABELS,
         selected_role=selected_role, modules=MODULES, perms=perms,
-        audit_logs=audit_logs)
+        audit_page=audit_page, audit_users=audit_users, log_filters=log_filters,
+        audit_categories=AUDIT_CATEGORIES, timezone_choices=TIMEZONE_CHOICES,
+        timezone_labels=dict(TIMEZONE_CHOICES), last_change=last_change)
 
 
 @settings_bp.route('/company', methods=['POST'])
@@ -128,11 +171,18 @@ def update_system():
     except ValueError:
         flash('Default reorder level must be a whole number.', 'danger')
         return redirect(url_for('settings.index', tab='system'))
+
+    timezone = request.form.get('timezone', s.timezone)
+    if timezone not in TIMEZONE_VALUES:
+        flash('Unrecognized timezone.', 'danger')
+        return redirect(url_for('settings.index', tab='system'))
+
     updates = {
         'default_reorder_level': reorder_level,
         'invoice_prefix': (request.form.get('invoice_prefix') or 'INV-').strip(),
         'default_payment_terms': request.form.get('default_payment_terms'),
         'sms_enabled': request.form.get('sms_enabled') == 'on',
+        'timezone': timezone,
     }
 
     changes = _diff_fields(s, updates)

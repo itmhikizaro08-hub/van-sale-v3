@@ -1,8 +1,62 @@
 {% extends 'base.html' %}
 {% block title %}Settings{% endblock %}
 {% block breadcrumb %}<li class="breadcrumb-item active">Settings</li>{% endblock %}
+{% block extra_css %}
+<style>
+.key-status { font-size: 11px; font-weight: 700; padding: 2px 9px; border-radius: 999px; margin-left: 8px; vertical-align: middle; }
+.key-status.set { background: rgba(16,185,129,.12); color: var(--success); }
+.key-status.unset { background: rgba(148,163,184,.16); color: var(--text-muted); }
+[data-theme="dark"] .key-status.set { background: rgba(16,185,129,.2); }
+.settings-subcard { border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 18px; margin-bottom: 18px; background: var(--bg); }
+</style>
+{% endblock %}
 {% block content %}
-<div class="page-header"><h1 class="page-title">Settings</h1></div>
+<div class="page-header">
+  <div>
+    <h1 class="page-title">Settings</h1>
+    <p class="page-subtitle">Company profile, system configuration, and access control.</p>
+  </div>
+</div>
+
+<div class="row g-3 mb-4">
+  <div class="col-6 col-lg-4">
+    <div class="stat-card {{ 'success' if settings.sms_enabled and ((settings.sms_provider == 'arkesel' and settings.arkesel_api_key) or (settings.sms_provider == 'hubtel' and settings.hubtel_client_secret) or (settings.sms_provider == 'africastalking' and settings.at_api_key)) else 'warning' }}">
+      <div class="stat-icon"><i class="fas fa-sms"></i></div>
+      <div>
+        <div class="stat-label">SMS</div>
+        <div class="stat-value fs-16">
+          {% if not settings.sms_enabled %}Disabled
+          {% elif (settings.sms_provider == 'arkesel' and settings.arkesel_api_key) or (settings.sms_provider == 'hubtel' and settings.hubtel_client_secret) or (settings.sms_provider == 'africastalking' and settings.at_api_key) %}Configured
+          {% else %}Key Missing{% endif %}
+        </div>
+        <div class="stat-trend">{{ {'arkesel':'Arkesel','hubtel':'Hubtel','africastalking':"Africa's Talking"}.get(settings.sms_provider, 'Arkesel') }}</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-lg-4">
+    <div class="stat-card info">
+      <div class="stat-icon"><i class="fas fa-clock"></i></div>
+      <div>
+        <div class="stat-label">Timezone</div>
+        <div class="stat-value fs-16">{{ timezone_labels.get(settings.timezone, settings.timezone or 'Africa/Accra') }}</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-12 col-lg-4">
+    <div class="stat-card purple">
+      <div class="stat-icon"><i class="fas fa-history"></i></div>
+      <div>
+        <div class="stat-label">Last Change</div>
+        {% if last_change %}
+        <div class="stat-value fs-16">{{ last_change.created_at.strftime('%d %b, %H:%M') if last_change.created_at else '—' }}</div>
+        <div class="stat-trend">{{ last_change.user.full_name if last_change.user else '—' }} · {{ last_change.category|title }}</div>
+        {% else %}
+        <div class="stat-value fs-16">No changes yet</div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
 
 <div class="card">
   <div class="card-header p-0">
@@ -38,7 +92,8 @@
 
       <!-- ── Company Profile ─────────────────────────────────────────── -->
       <div class="tab-pane fade {{ 'show active' if tab == 'company' else '' }}" id="companyTab">
-        <form method="POST" action="{{ url_for('settings.update_company') }}" enctype="multipart/form-data" class="row g-3">
+        <div class="section-title"><i class="fas fa-building"></i>Company Profile</div>
+        <form method="POST" action="{{ url_for('settings.update_company') }}" enctype="multipart/form-data" class="row g-3 settings-form">
           <div class="col-md-4 text-center">
             <div class="mb-2">
               {% if settings.company_logo %}
@@ -86,7 +141,8 @@
 
       <!-- ── System Settings ─────────────────────────────────────────── -->
       <div class="tab-pane fade {{ 'show active' if tab == 'system' else '' }}" id="systemTab">
-        <form method="POST" action="{{ url_for('settings.update_system') }}" class="row g-3">
+        <div class="section-title"><i class="fas fa-sliders-h"></i>General</div>
+        <form method="POST" action="{{ url_for('settings.update_system') }}" class="row g-3 settings-form">
           <div class="col-md-6">
             <label class="form-label">Default Reorder Level</label>
             <input type="number" name="default_reorder_level" class="form-control" min="0"
@@ -102,6 +158,14 @@
             <label class="form-label">Default Supplier Payment Terms</label>
             <input type="text" name="default_payment_terms" class="form-control" placeholder="e.g. Net 30"
                    value="{{ settings.default_payment_terms or '' }}" {{ '' if current_user.can_write('settings') else 'readonly' }}>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">Timezone</label>
+            <select name="timezone" class="form-select" {{ 'disabled' if not current_user.can_write('settings') else '' }}>
+              {% for tz, label in timezone_choices %}
+              <option value="{{ tz }}" {{ 'selected' if settings.timezone == tz or (not settings.timezone and tz == 'Africa/Accra') }}>{{ label }}</option>
+              {% endfor %}
+            </select>
           </div>
           <div class="col-md-6 d-flex align-items-end">
             <div class="form-check form-switch">
@@ -119,8 +183,8 @@
 
         <hr class="my-4">
 
-        <h6 class="mb-3"><i class="fas fa-sms me-2"></i>SMS Provider Setup</h6>
-        <form method="POST" action="{{ url_for('settings.update_sms') }}" class="row g-3">
+        <div class="section-title"><i class="fas fa-sms"></i>SMS Provider Setup</div>
+        <form method="POST" action="{{ url_for('settings.update_sms') }}" class="row g-3 settings-form">
           <div class="col-md-6">
             <label class="form-label">Provider</label>
             <select name="sms_provider" class="form-select" id="smsProviderSelect" {{ 'disabled' if not current_user.can_write('settings') else '' }}>
@@ -134,7 +198,9 @@
           <div class="col-12 arkesel-fields">
             <div class="row g-3">
               <div class="col-md-6">
-                <label class="form-label">Arkesel API Key</label>
+                <label class="form-label">Arkesel API Key
+                  <span class="key-status {{ 'set' if settings.arkesel_api_key else 'unset' }}">{{ 'Set' if settings.arkesel_api_key else 'Not set' }}</span>
+                </label>
                 <input type="password" name="arkesel_api_key" class="form-control" autocomplete="off"
                        placeholder="{{ 'Already set — leave blank to keep it' if settings.arkesel_api_key else 'Paste your API key from arkesel.com' }}"
                        {{ 'readonly' if not current_user.can_write('settings') else '' }}>
@@ -159,7 +225,9 @@
                        {{ 'readonly' if not current_user.can_write('settings') else '' }}>
               </div>
               <div class="col-md-6">
-                <label class="form-label">Hubtel Client Secret</label>
+                <label class="form-label">Hubtel Client Secret
+                  <span class="key-status {{ 'set' if settings.hubtel_client_secret else 'unset' }}">{{ 'Set' if settings.hubtel_client_secret else 'Not set' }}</span>
+                </label>
                 <input type="password" name="hubtel_client_secret" class="form-control" autocomplete="off"
                        placeholder="{{ 'Already set — leave blank to keep it' if settings.hubtel_client_secret else '' }}"
                        {{ 'readonly' if not current_user.can_write('settings') else '' }}>
@@ -177,7 +245,9 @@
                 <div class="form-text">Use <code>sandbox</code> for testing, or your app's real username once you go live.</div>
               </div>
               <div class="col-md-6">
-                <label class="form-label">API Key</label>
+                <label class="form-label">API Key
+                  <span class="key-status {{ 'set' if settings.at_api_key else 'unset' }}">{{ 'Set' if settings.at_api_key else 'Not set' }}</span>
+                </label>
                 <input type="password" name="at_api_key" class="form-control" autocomplete="off"
                        placeholder="{{ 'Already set — leave blank to keep it' if settings.at_api_key else 'Paste your API key' }}"
                        {{ 'readonly' if not current_user.can_write('settings') else '' }}>
@@ -205,6 +275,7 @@
       <!-- ── Role Permissions ────────────────────────────────────────── -->
       {% if current_user.is_admin %}
       <div class="tab-pane fade {{ 'show active' if tab == 'permissions' else '' }}" id="permissionsTab">
+        <div class="section-title"><i class="fas fa-user-shield"></i>Role Permissions</div>
         <div class="d-flex align-items-center gap-2 mb-3">
           <label class="form-label mb-0">Role</label>
           <select class="form-select form-select-sm" style="max-width:240px" id="roleSelect">
@@ -214,7 +285,7 @@
           </select>
           <span class="text-muted fs-12"><i class="fas fa-info-circle me-1"></i>Admin permissions are fixed and can't be edited here.</span>
         </div>
-        <form method="POST" action="{{ url_for('settings.update_permissions') }}">
+        <form method="POST" action="{{ url_for('settings.update_permissions') }}" id="permissionsForm">
           <input type="hidden" name="role" value="{{ selected_role }}">
           <div class="table-responsive">
             <table class="table table-hover mb-0">
@@ -246,12 +317,50 @@
       <!-- ── Change History ───────────────────────────────────────────── -->
       {% if current_user.is_admin %}
       <div class="tab-pane fade {{ 'show active' if tab == 'history' else '' }}" id="historyTab">
-        {% if audit_logs %}
+        <div class="section-title"><i class="fas fa-history"></i>Change History</div>
+
+        <form method="GET" action="{{ url_for('settings.index') }}" class="row g-2 mb-3 align-items-end">
+          <input type="hidden" name="tab" value="history">
+          <div class="col-6 col-md-3">
+            <label class="form-label fs-12">User</label>
+            <select name="log_user" class="form-select form-select-sm">
+              <option value="">All users</option>
+              {% for u in audit_users %}
+              <option value="{{ u.id }}" {{ 'selected' if log_filters.user == u.id|string }}>{{ u.full_name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-6 col-md-3">
+            <label class="form-label fs-12">Category</label>
+            <select name="log_category" class="form-select form-select-sm">
+              <option value="">All categories</option>
+              {% for c in audit_categories %}
+              <option value="{{ c }}" {{ 'selected' if log_filters.category == c }}>{{ c|title }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-6 col-md-3">
+            <label class="form-label fs-12">From</label>
+            <input type="date" name="log_start" class="form-control form-control-sm" value="{{ log_filters.start }}">
+          </div>
+          <div class="col-6 col-md-3">
+            <label class="form-label fs-12">To</label>
+            <input type="date" name="log_end" class="form-control form-control-sm" value="{{ log_filters.end }}">
+          </div>
+          <div class="col-12 d-flex gap-2">
+            <button type="submit" class="btn btn-sm btn-primary"><i class="fas fa-filter me-1"></i>Filter</button>
+            {% if log_filters.user or log_filters.category or log_filters.start or log_filters.end %}
+            <a href="{{ url_for('settings.index', tab='history') }}" class="btn btn-sm btn-outline-secondary">Clear</a>
+            {% endif %}
+          </div>
+        </form>
+
+        {% if audit_page and audit_page.items %}
         <div class="table-responsive">
           <table class="table table-hover mb-0">
             <thead><tr><th>Date</th><th>User</th><th>Category</th><th>Change</th></tr></thead>
             <tbody>
-              {% for log in audit_logs %}
+              {% for log in audit_page.items %}
               <tr>
                 <td class="text-muted fs-12 text-nowrap">{{ log.created_at.strftime('%d %b %Y %H:%M') if log.created_at else '' }}</td>
                 <td class="fw-600 text-nowrap">{{ log.user.full_name if log.user else '—' }}</td>
@@ -262,8 +371,23 @@
             </tbody>
           </table>
         </div>
+        {% if audit_page.pages > 1 %}
+        <nav class="d-flex justify-content-between align-items-center mt-3">
+          <span class="text-muted fs-12">Page {{ audit_page.page }} of {{ audit_page.pages }} ({{ audit_page.total }} total)</span>
+          <div class="btn-group btn-group-sm">
+            <a class="btn btn-outline-secondary {{ 'disabled' if not audit_page.has_prev }}"
+               href="{{ url_for('settings.index', tab='history', log_user=log_filters.user, log_category=log_filters.category, log_start=log_filters.start, log_end=log_filters.end, log_page=audit_page.prev_num) }}">
+              <i class="fas fa-chevron-left"></i>
+            </a>
+            <a class="btn btn-outline-secondary {{ 'disabled' if not audit_page.has_next }}"
+               href="{{ url_for('settings.index', tab='history', log_user=log_filters.user, log_category=log_filters.category, log_start=log_filters.start, log_end=log_filters.end, log_page=audit_page.next_num) }}">
+              <i class="fas fa-chevron-right"></i>
+            </a>
+          </div>
+        </nav>
+        {% endif %}
         {% else %}
-        <div class="empty-state py-5"><i class="fas fa-history" style="font-size:2.5rem;color:var(--text-muted)"></i><h6 class="mt-3">No changes yet</h6><p class="text-muted">Company, system, and permission changes will show up here.</p></div>
+        <div class="empty-state py-5"><i class="fas fa-history" style="font-size:2.5rem;color:var(--text-muted)"></i><h6 class="mt-3">No changes found</h6><p class="text-muted">{{ 'Try clearing your filters.' if log_filters.user or log_filters.category or log_filters.start or log_filters.end else 'Company, system, and permission changes will show up here.' }}</p></div>
         {% endif %}
       </div>
       {% endif %}
@@ -303,6 +427,30 @@ document.getElementById('sendTestSmsBtn')?.addEventListener('click', async () =>
     Toast.show(err.message || 'Test SMS failed.', 'danger');
   } finally {
     btn.disabled = false;
+  }
+});
+
+/* ── Confirm before saving permission changes — this takes effect
+   immediately for every user with that role. ─────────────────── */
+document.getElementById('permissionsForm')?.addEventListener('submit', function (e) {
+  const roleLabel = document.getElementById('roleSelect')?.selectedOptions[0]?.textContent || 'this role';
+  if (!confirmAction(`Save these permission changes for ${roleLabel}? This takes effect immediately for every user with that role.`)) {
+    e.preventDefault();
+  }
+});
+
+/* ── Warn on navigating away with unsaved edits in any settings form ── */
+const dirtyForms = new Set();
+document.querySelectorAll('.settings-form, #permissionsForm').forEach(form => {
+  const markDirty = () => dirtyForms.add(form);
+  form.addEventListener('input', markDirty);
+  form.addEventListener('change', markDirty);
+  form.addEventListener('submit', () => dirtyForms.delete(form));
+});
+window.addEventListener('beforeunload', function (e) {
+  if (dirtyForms.size > 0) {
+    e.preventDefault();
+    e.returnValue = '';
   }
 });
 </script>
