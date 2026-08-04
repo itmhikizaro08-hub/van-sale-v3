@@ -270,6 +270,20 @@ def test_sms():
     return {'error': f'Failed to send: {detail}'}, 400
 
 
+@settings_bp.route('/errors')
+@login_required
+def errors():
+    """Recent unhandled-exception log (see app.py's teardown_request hook) —
+    lets an admin see the real traceback behind a 500 without needing access
+    to the hosting platform's own logs."""
+    if not current_user.is_admin:
+        flash('Access denied.', 'danger')
+        return redirect(url_for('settings.index'))
+    from models.error_log import ErrorLog
+    logs = ErrorLog.query.order_by(ErrorLog.created_at.desc()).limit(30).all()
+    return render_template('settings/errors.html', logs=logs)
+
+
 @settings_bp.route('/permissions', methods=['POST'])
 @login_required
 def update_permissions():

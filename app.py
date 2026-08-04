@@ -109,6 +109,34 @@ def create_app():
         flash(f'File is too large. Maximum upload size is {max_mb}MB.', 'danger')
         return redirect(request.referrer or url_for('dashboard.index'))
 
+    # ── Persist unhandled exceptions so they're visible from inside the app ────
+    # There's no hosting-platform log access here, so a 500 would otherwise be
+    # a dead end with nothing to go on beyond "something broke". This doesn't
+    # change the response Flask sends back — it just also writes the real
+    # traceback to a table an admin can read at /settings/errors.
+    @app.teardown_request
+    def log_unhandled_exception(exc):
+        if exc is None:
+            return
+        from werkzeug.exceptions import HTTPException
+        if isinstance(exc, HTTPException):
+            return  # routine 403/404/etc. aren't bugs — don't clutter the log
+        import traceback
+        from flask import request
+        from flask_login import current_user
+        try:
+            db.session.rollback()
+            from models.error_log import ErrorLog
+            uid = current_user.id if current_user.is_authenticated else None
+            db.session.add(ErrorLog(
+                path=request.path, method=request.method, user_id=uid,
+                error_type=type(exc).__name__, error_message=str(exc)[:2000],
+                traceback_text=''.join(traceback.format_exception(type(exc), exc, exc.__traceback__))[:8000]
+            ))
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+
     # ── Template filters ────────────────────────────────────────────────────────
     @app.template_filter('qty')
     def format_qty(value):
@@ -151,6 +179,7 @@ def create_app():
         from models import returns  # noqa - registers ReturnOrder/ReturnOrderItem tables
         from models import notes  # noqa - registers CreditNote/DebitNote tables
         from models import supplier_return  # noqa - registers SupplierReturn tables
+        from models import error_log  # noqa - registers ErrorLog table
         # Run migrations first (handles existing DBs without breaking them)
         from services.migrate import run_migrations
         run_migrations(db)
