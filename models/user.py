@@ -229,15 +229,28 @@ class RolePermission(db.Model):
 def load_role_permissions():
     """Seed RolePermission from the hardcoded matrix on first run, then load DB
     rows into ROLE_PERMISSIONS in place so every User.perm() lookup reflects
-    admin edits immediately — no caching layer to invalidate."""
+    admin edits immediately — no caching layer to invalidate.
+
+    admin is deliberately skipped in both directions: nothing seeds a row for
+    it, and any row that overwrite() finds is ignored. admin permissions are
+    meant to be fixed (see settings.py's EDITABLE_ROLES, which excludes admin
+    from the UI for the same reason) — but the hardcoded matrix has changed
+    many times over this project's life, and a DB row seeded on some earlier
+    run would otherwise silently pin admin to whatever it said back then, with
+    no UI able to fix it since admin can't be edited. Keeping admin off the DB
+    entirely means it always tracks the current code."""
     if RolePermission.query.count() == 0:
         for role, modules in ROLE_PERMISSIONS.items():
+            if role == 'admin':
+                continue
             for module, (scope, write, approve) in modules.items():
                 db.session.add(RolePermission(role=role, module=module, scope=scope,
                                                can_write=write, can_approve=approve))
         db.session.commit()
 
     for row in RolePermission.query.all():
+        if row.role == 'admin':
+            continue
         ROLE_PERMISSIONS.setdefault(row.role, {})[row.module] = (row.scope, row.can_write, row.can_approve)
 
 

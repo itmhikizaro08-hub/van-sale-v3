@@ -16,7 +16,7 @@
   <div class="d-flex gap-2">
     <a href="{{ url_for('invoices.pdf', sale_id=sale.id) }}" class="btn btn-outline-danger btn-sm"><i class="fas fa-file-pdf me-1"></i>PDF</a>
     <button onclick="window.print()" class="btn btn-outline-secondary btn-sm no-print"><i class="fas fa-print me-1"></i>Print</button>
-    {% if sale.status == 'completed' and current_user.is_manager %}
+    {% if sale.status == 'completed' and current_user.can_approve_module('sales') %}
     <button class="btn btn-outline-danger btn-sm"
       data-action-url="{{ url_for('sales.cancel', sale_id=sale.id) }}"
       data-confirm="Cancel invoice {{ sale.invoice_number }}?"
