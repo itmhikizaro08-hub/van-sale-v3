@@ -203,22 +203,71 @@ def create():
 
     sale.recalculate()
 
+    # Payment-terms / cheque-detail capture only applies to a real completed
+    # sale — a draft is saved for later and shouldn't be blocked on details
+    # that aren't known yet.
+    is_draft = data.get('status') == 'draft'
+
     # Handle upfront payment
     upfront = float(data.get('amount_paid') or 0)
     if upfront > 0:
         from models.payment import Payment
         from services.sequence import next_payment_number
+
+        reference_number = (data.get('reference_number') or '').strip() or None
+        cheque_bank = None
+        cheque_date = None
+
+        if not is_draft and sale.payment_method in ('cheque', 'mobile_money', 'bank_transfer'):
+            method_labels = {
+                'cheque': 'cheque number',
+                'mobile_money': 'Mobile Money reference',
+                'bank_transfer': 'bank transfer reference'
+            }
+            if not reference_number:
+                db.session.rollback()
+                return jsonify({'error': f'Enter the {method_labels[sale.payment_method]}.'}), 400
+
+            if sale.payment_method == 'cheque':
+                cheque_bank = (data.get('cheque_bank') or '').strip() or None
+                if not cheque_bank:
+                    db.session.rollback()
+                    return jsonify({'error': 'Enter the cheque bank.'}), 400
+                cheque_date_raw = data.get('cheque_date')
+                if not cheque_date_raw:
+                    db.session.rollback()
+                    return jsonify({'error': 'Enter the cheque date.'}), 400
+                try:
+                    cheque_date = datetime.strptime(cheque_date_raw, '%Y-%m-%d')
+                except ValueError:
+                    db.session.rollback()
+                    return jsonify({'error': 'Invalid cheque date.'}), 400
+
         payment = Payment(
             payment_number=next_payment_number(),
             sale_id=sale.id,
             customer_id=customer.id,
             amount=min(upfront, sale.total_amount),
             payment_method=sale.payment_method,
+            reference_number=reference_number,
+            cheque_bank=cheque_bank,
+            cheque_date=cheque_date,
             received_by_id=current_user.id
         )
         db.session.add(payment)
         sale.amount_paid = payment.amount
         sale.recalculate()
+
+    if not is_draft and sale.balance_due > 0:
+        due_date_raw = data.get('due_date')
+        if not due_date_raw:
+            db.session.rollback()
+            return jsonify({'error': 'Enter a due date for the outstanding balance.'}), 400
+        try:
+            sale.due_date = datetime.strptime(due_date_raw, '%Y-%m-%d')
+        except ValueError:
+            db.session.rollback()
+            return jsonify({'error': 'Invalid due date.'}), 400
 
     # Update customer balance
     customer.outstanding_balance += sale.balance_due

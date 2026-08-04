@@ -217,6 +217,24 @@
           </div>
         </div>
 
+        <div id="paymentRefGroup" class="mb-3 d-none">
+          <label class="form-label fw-600" id="paymentRefLabel">Reference Number</label>
+          <input type="text" id="paymentRefNumber" class="form-control" placeholder="Enter reference">
+        </div>
+
+        <div id="chequeDetailsGroup" class="mb-3 d-none">
+          <label class="form-label fw-600">Cheque Bank</label>
+          <input type="text" id="chequeBank" class="form-control mb-2" placeholder="e.g. GCB Bank">
+          <label class="form-label fw-600">Cheque Date</label>
+          <input type="date" id="chequeDate" class="form-control">
+        </div>
+
+        <div id="dueDateGroup" class="mb-3 d-none">
+          <label class="form-label fw-600">Payment Due Date</label>
+          <input type="date" id="dueDate" class="form-control">
+          <div class="fs-12 text-muted mt-1">This sale will have a balance outstanding — set when it's due.</div>
+        </div>
+
         <div class="d-grid gap-2">
           <button class="btn btn-success btn-lg" id="completeSaleBtn" onclick="completeSale()">
             <i class="fas fa-check-circle me-2"></i>Complete Sale
@@ -309,6 +327,33 @@ function extractProductArray(json) {
 
 /* ── Cart state ───────────────────────────────────────────── */
 let cart = [];
+let currentTotal = 0;
+let currentBalance = 0;
+
+document.getElementById('paymentMethod').addEventListener('change', updatePaymentFieldsVisibility);
+
+const REF_LABELS = {
+  cheque: 'Cheque Number',
+  mobile_money: 'Mobile Money Reference',
+  bank_transfer: 'Bank Transfer Reference'
+};
+
+function updatePaymentFieldsVisibility() {
+  const method = document.getElementById('paymentMethod').value;
+  const refGroup = document.getElementById('paymentRefGroup');
+  const chequeGroup = document.getElementById('chequeDetailsGroup');
+  const dueDateGroup = document.getElementById('dueDateGroup');
+
+  if (method === 'cheque' || method === 'mobile_money' || method === 'bank_transfer') {
+    refGroup.classList.remove('d-none');
+    document.getElementById('paymentRefLabel').textContent = REF_LABELS[method];
+  } else {
+    refGroup.classList.add('d-none');
+  }
+
+  chequeGroup.classList.toggle('d-none', method !== 'cheque');
+  dueDateGroup.classList.toggle('d-none', currentBalance <= 0);
+}
 
 /* ── Customer info ────────────────────────────────────────── */
 document.getElementById('customerSelect').addEventListener('change', function() {
@@ -547,6 +592,9 @@ function recalculate() {
   document.getElementById('balanceDue').textContent       = formatGHS(balance);
 
   document.getElementById('amountPaid').max = total;
+  currentTotal = total;
+  currentBalance = balance;
+  updatePaymentFieldsVisibility();
   updateSubmitButtons();
 }
 
@@ -557,13 +605,40 @@ async function completeSale(status = 'completed') {
   if (!cart.length) { Toast.show('Cart is empty.', 'warning'); return; }
   if (!allPricesValid()) { Toast.show('Fix prices below the minimum before completing the sale.', 'danger'); return; }
 
+  const paymentMethod = document.getElementById('paymentMethod').value;
+  const amountPaid = parseFloat(document.getElementById('amountPaid').value) || 0;
+  const referenceNumber = document.getElementById('paymentRefNumber').value.trim();
+  const chequeBank = document.getElementById('chequeBank').value.trim();
+  const chequeDate = document.getElementById('chequeDate').value;
+  const dueDate = document.getElementById('dueDate').value;
+
+  // Drafts are saved for later — these details aren't required yet.
+  if (status !== 'draft' && amountPaid > 0) {
+    if (['cheque', 'mobile_money', 'bank_transfer'].includes(paymentMethod) && !referenceNumber) {
+      Toast.show(`Enter the ${REF_LABELS[paymentMethod]}.`, 'warning');
+      return;
+    }
+    if (paymentMethod === 'cheque') {
+      if (!chequeBank) { Toast.show('Enter the cheque bank.', 'warning'); return; }
+      if (!chequeDate) { Toast.show('Enter the cheque date.', 'warning'); return; }
+    }
+  }
+  if (status !== 'draft' && currentBalance > 0 && !dueDate) {
+    Toast.show('Enter a due date for the outstanding balance.', 'warning');
+    return;
+  }
+
   const payload = {
     customer_id: parseInt(customerId),
     van_id: parseInt(document.getElementById('vanSelect').value) || null,
-    payment_method: document.getElementById('paymentMethod').value,
+    payment_method: paymentMethod,
     discount_percent: parseFloat(document.getElementById('discountPct').value) || 0,
     tax_percent: parseFloat(document.getElementById('taxPct').value) || 0,
-    amount_paid: parseFloat(document.getElementById('amountPaid').value) || 0,
+    amount_paid: amountPaid,
+    reference_number: referenceNumber || null,
+    cheque_bank: chequeBank || null,
+    cheque_date: chequeDate || null,
+    due_date: dueDate || null,
     notes: document.getElementById('saleNotes').value,
     status,
     items: cart.map(i => ({
@@ -608,6 +683,11 @@ function newSale() {
   document.getElementById('discountPct').value = 0;
   document.getElementById('taxPct').value = 0;
   document.getElementById('amountPaid').value = '';
+  document.getElementById('paymentRefNumber').value = '';
+  document.getElementById('chequeBank').value = '';
+  document.getElementById('chequeDate').value = '';
+  document.getElementById('dueDate').value = '';
+  document.getElementById('paymentMethod').value = 'cash';
   document.getElementById('saleNotes').value = '';
   cart = [];
   renderCart();

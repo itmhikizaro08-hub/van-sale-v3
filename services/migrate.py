@@ -81,6 +81,11 @@ def run_migrations(db):
         _add_column_if_missing(conn, engine, 'routes', 'visit_frequency_days', 'INTEGER')
         _add_column_if_missing(conn, engine, 'routes', 'visit_window_days', 'INTEGER')
 
+        # ── Payment terms / cheque details ──────────────────────────────────
+        _add_column_if_missing(conn, engine, 'sales', 'due_date', 'DATETIME')
+        _add_column_if_missing(conn, engine, 'payments', 'cheque_bank', 'VARCHAR(120)')
+        _add_column_if_missing(conn, engine, 'payments', 'cheque_date', 'DATETIME')
+
         conn.commit()
 
         # ── One-time historical data repairs — see services/data_repairs.py

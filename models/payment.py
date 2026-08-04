@@ -12,7 +12,12 @@ class Payment(db.Model):
     amount = db.Column(db.Float, nullable=False)
     payment_method = db.Column(db.String(30), default='cash')
     # cash, mobile_money, bank_transfer, cheque
+    # reference_number doubles as: cheque number (cheque), transaction ID
+    # (mobile_money), transfer reference (bank_transfer) — labeled
+    # contextually in the UI rather than split into separate columns.
     reference_number = db.Column(db.String(100))
+    cheque_bank = db.Column(db.String(120))  # cheque payments only
+    cheque_date = db.Column(db.DateTime)     # the date written on the cheque itself
     reference_note   = db.Column(db.String(255))  # cross-check with physical books
     payment_date = db.Column(db.DateTime, default=datetime.utcnow)
     received_by_id = db.Column(db.Integer, db.ForeignKey('users.id'))
