@@ -13,11 +13,140 @@
       <td>{{ s.customer.name if s.customer else '—' }}</td>
       <td class="text-muted fs-12">{{ s.created_at.strftime('%d %b %Y') if s.created_at else '' }}</td>
       <td class="text-end fw-600">GHS {{ "%.2f"|format(s.total_amount) }}</td>
-      <td><a href="{{ url_for('invoices.view', sale_id=s.id) }}" class="btn btn-icon btn-sm btn-outline-primary"><i class="fas fa-eye"></i></a></td>
+      <td class="text-end">
+        {% if current_user.can_write('sales') %}
+        <button class="btn btn-icon btn-sm btn-outline-success" title="Complete Sale"
+          data-bs-toggle="modal" data-bs-target="#completeDraftModal"
+          data-sale-id="{{ s.id }}" data-total="{{ '%.2f'|format(s.total_amount) }}"
+          data-payment-method="{{ s.payment_method }}" data-invoice="{{ s.invoice_number }}">
+          <i class="fas fa-check-circle"></i>
+        </button>
+        {% endif %}
+        <a href="{{ url_for('invoices.view', sale_id=s.id) }}" class="btn btn-icon btn-sm btn-outline-primary" title="View"><i class="fas fa-eye"></i></a>
+        {% if current_user.can_write('sales') %}
+        <button class="btn btn-icon btn-sm btn-outline-danger" title="Delete Draft"
+          data-action-url="{{ url_for('sales.cancel', sale_id=s.id) }}"
+          data-confirm="Delete draft {{ s.invoice_number }}? This cannot be undone."
+          data-success-msg="Draft deleted.">
+          <i class="fas fa-trash"></i>
+        </button>
+        {% endif %}
+      </td>
     </tr>
     {% endfor %}
   </tbody>
 </table>
 </div></div></div>
+
+<div class="modal fade" id="completeDraftModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="fas fa-check-circle me-2 text-success"></i>Complete Sale <span id="completeDraftInvoice" class="text-muted fs-13"></span></h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <p class="text-muted fs-13">This deducts stock, logs the sale, and marks the invoice as completed.</p>
+        <div class="mb-3">
+          <label class="form-label fw-600">Amount Paid Now (GHS)</label>
+          <input type="number" id="completeAmountPaid" class="form-control" min="0" step="0.01" placeholder="0.00" oninput="updateCompleteDraftFields()">
+          <div class="fs-12 text-muted mt-1">Total due: GHS <span id="completeDraftTotal"></span>. Leave blank to collect later.</div>
+        </div>
+        <div class="mb-3 d-none" id="completeRefGroup">
+          <label class="form-label fw-600" id="completeRefLabel">Reference Number</label>
+          <input type="text" id="completeRefNumber" class="form-control">
+        </div>
+        <div class="mb-3 d-none" id="completeChequeGroup">
+          <label class="form-label fw-600">Cheque Bank</label>
+          <input type="text" id="completeChequeBank" class="form-control mb-2">
+          <label class="form-label fw-600">Cheque Date</label>
+          <input type="date" id="completeChequeDate" class="form-control">
+        </div>
+        <div class="mb-2 d-none" id="completeDueDateGroup">
+          <label class="form-label fw-600">Payment Due Date</label>
+          <input type="date" id="completeDueDate" class="form-control">
+          <div class="fs-12 text-muted mt-1">This sale will have a balance outstanding — set when it's due.</div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button class="btn btn-success" id="confirmCompleteDraftBtn"><i class="fas fa-check-circle me-1"></i>Complete Sale</button>
+      </div>
+    </div>
+  </div>
+</div>
 {% endblock %}
-{% block extra_js %}<script>$(document).ready(() => initDataTable('#draftsTable', {order:[[2,'desc']]}));</script>{% endblock %}
+{% block extra_js %}
+<script>
+$(document).ready(() => initDataTable('#draftsTable', {order:[[2,'desc']]}));
+
+const COMPLETE_DRAFT_REF_LABELS = {
+  cheque: 'Cheque Number',
+  mobile_money: 'Mobile Money Reference',
+  bank_transfer: 'Bank Transfer Reference'
+};
+let completeDraftSaleId = null;
+let completeDraftTotal = 0;
+
+document.getElementById('completeDraftModal').addEventListener('show.bs.modal', e => {
+  const btn = e.relatedTarget;
+  completeDraftSaleId = btn.dataset.saleId;
+  completeDraftTotal = parseFloat(btn.dataset.total) || 0;
+  const method = btn.dataset.paymentMethod;
+
+  document.getElementById('completeDraftInvoice').textContent = '— ' + btn.dataset.invoice;
+  document.getElementById('completeDraftTotal').textContent = completeDraftTotal.toFixed(2);
+  document.getElementById('completeAmountPaid').value = '';
+  document.getElementById('completeAmountPaid').max = completeDraftTotal;
+  document.getElementById('completeRefNumber').value = '';
+  document.getElementById('completeChequeBank').value = '';
+  document.getElementById('completeChequeDate').value = '';
+  document.getElementById('completeDueDate').value = '';
+
+  const refGroup = document.getElementById('completeRefGroup');
+  if (['cheque', 'mobile_money', 'bank_transfer'].includes(method)) {
+    refGroup.classList.remove('d-none');
+    document.getElementById('completeRefLabel').textContent = COMPLETE_DRAFT_REF_LABELS[method];
+  } else {
+    refGroup.classList.add('d-none');
+  }
+  document.getElementById('completeChequeGroup').classList.toggle('d-none', method !== 'cheque');
+  document.getElementById('completeDueDateGroup').classList.remove('d-none');
+});
+
+function updateCompleteDraftFields() {
+  const paid = parseFloat(document.getElementById('completeAmountPaid').value) || 0;
+  document.getElementById('completeDueDateGroup').classList.toggle('d-none', paid >= completeDraftTotal);
+}
+
+document.getElementById('confirmCompleteDraftBtn').addEventListener('click', async () => {
+  if (!completeDraftSaleId) return;
+  const payload = {
+    amount_paid: parseFloat(document.getElementById('completeAmountPaid').value) || 0,
+    reference_number: document.getElementById('completeRefNumber').value.trim() || null,
+    cheque_bank: document.getElementById('completeChequeBank').value.trim() || null,
+    cheque_date: document.getElementById('completeChequeDate').value || null,
+    due_date: document.getElementById('completeDueDate').value || null
+  };
+  const btn = document.getElementById('confirmCompleteDraftBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Processing...';
+  try {
+    const res = await apiCall(`/sales/${completeDraftSaleId}/complete`, 'POST', payload);
+    if (res.success) {
+      Toast.show('Sale completed.', 'success');
+      if (res.credit_warning) Toast.show('⚠️ ' + res.credit_warning, 'warning', 6000);
+      setTimeout(() => location.reload(), 800);
+    } else {
+      Toast.show(res.error || 'Failed to complete sale.', 'danger');
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fas fa-check-circle me-1"></i>Complete Sale';
+    }
+  } catch (e) {
+    Toast.show(e.message || 'Network error.', 'danger');
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-check-circle me-1"></i>Complete Sale';
+  }
+});
+</script>
+{% endblock %}

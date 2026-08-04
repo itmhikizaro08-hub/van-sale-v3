@@ -16,6 +16,18 @@
   <div class="d-flex gap-2">
     <a href="{{ url_for('invoices.pdf', sale_id=sale.id) }}" class="btn btn-outline-danger btn-sm"><i class="fas fa-file-pdf me-1"></i>PDF</a>
     <button onclick="window.print()" class="btn btn-outline-secondary btn-sm no-print"><i class="fas fa-print me-1"></i>Print</button>
+    {% set can_manage_draft = sale.status == 'draft' and current_user.can_write('sales') and not (current_user.scope('sales') == 'own' and sale.sales_rep_id != current_user.id) %}
+    {% if can_manage_draft %}
+    <button class="btn btn-success btn-sm no-print" data-bs-toggle="modal" data-bs-target="#completeDraftModal">
+      <i class="fas fa-check-circle me-1"></i>Complete Sale
+    </button>
+    <button class="btn btn-outline-danger btn-sm no-print"
+      data-action-url="{{ url_for('sales.cancel', sale_id=sale.id) }}"
+      data-confirm="Delete draft {{ sale.invoice_number }}? This cannot be undone."
+      data-success-msg="Draft deleted.">
+      <i class="fas fa-trash me-1"></i>Delete Draft
+    </button>
+    {% endif %}
     {% if sale.status == 'completed' and current_user.can_approve_module('sales') %}
     <button class="btn btn-outline-danger btn-sm"
       data-action-url="{{ url_for('sales.cancel', sale_id=sale.id) }}"
@@ -119,7 +131,7 @@
         {% if sale.notes %}<div><div class="text-muted fs-12">Notes</div><div class="fs-13">{{ sale.notes }}</div></div>{% endif %}
       </div>
     </div>
-    {% if sale.balance_due > 0 and current_user.can_write('payments') %}
+    {% if sale.status == 'completed' and sale.balance_due > 0 and current_user.can_write('payments') %}
     <div class="mt-3">
       <a href="{{ url_for('payments.add') }}?sale_id={{ sale.id }}&customer_id={{ sale.customer_id }}" class="btn btn-success w-100">
         <i class="fas fa-money-bill me-1"></i>Record Payment
@@ -147,4 +159,98 @@
     {% endif %}
   </div>
 </div>
+
+{% if can_manage_draft %}
+<div class="modal fade" id="completeDraftModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="fas fa-check-circle me-2 text-success"></i>Complete Sale</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <p class="text-muted fs-13">This deducts stock, logs the sale, and marks invoice {{ sale.invoice_number }} as completed.</p>
+        <div class="mb-3">
+          <label class="form-label fw-600">Amount Paid Now (GHS)</label>
+          <input type="number" id="completeAmountPaid" class="form-control" min="0" max="{{ sale.total_amount }}" step="0.01" placeholder="0.00" oninput="updateCompleteDraftFields()">
+          <div class="fs-12 text-muted mt-1">Total due: GHS {{ "%.2f"|format(sale.total_amount) }}. Leave blank to collect later.</div>
+        </div>
+        {% if sale.payment_method in ('cheque', 'mobile_money', 'bank_transfer') %}
+        <div class="mb-3">
+          <label class="form-label fw-600">{{ {'cheque': 'Cheque Number', 'mobile_money': 'Mobile Money Reference', 'bank_transfer': 'Bank Transfer Reference'}[sale.payment_method] }}</label>
+          <input type="text" id="completeRefNumber" class="form-control">
+        </div>
+        {% endif %}
+        {% if sale.payment_method == 'cheque' %}
+        <div class="mb-3">
+          <label class="form-label fw-600">Cheque Bank</label>
+          <input type="text" id="completeChequeBank" class="form-control mb-2">
+          <label class="form-label fw-600">Cheque Date</label>
+          <input type="date" id="completeChequeDate" class="form-control">
+        </div>
+        {% endif %}
+        <div class="mb-2 d-none" id="completeDueDateGroup">
+          <label class="form-label fw-600">Payment Due Date</label>
+          <input type="date" id="completeDueDate" class="form-control">
+          <div class="fs-12 text-muted mt-1">This sale will have a balance outstanding — set when it's due.</div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button class="btn btn-success" id="confirmCompleteDraftBtn" data-total="{{ sale.total_amount }}" onclick="completeDraft({{ sale.id }})">
+          <i class="fas fa-check-circle me-1"></i>Complete Sale
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+{% if can_manage_draft %}
+<script>
+function updateCompleteDraftFields() {
+  const btn = document.getElementById('confirmCompleteDraftBtn');
+  const total = parseFloat(btn.dataset.total || 0);
+  const paid = parseFloat(document.getElementById('completeAmountPaid').value) || 0;
+  document.getElementById('completeDueDateGroup').classList.toggle('d-none', paid >= total);
+}
+
+async function completeDraft(saleId) {
+  const refInput = document.getElementById('completeRefNumber');
+  const bankInput = document.getElementById('completeChequeBank');
+  const dateInput = document.getElementById('completeChequeDate');
+  const dueInput = document.getElementById('completeDueDate');
+
+  const payload = {
+    amount_paid: parseFloat(document.getElementById('completeAmountPaid').value) || 0,
+    reference_number: refInput ? refInput.value.trim() : null,
+    cheque_bank: bankInput ? bankInput.value.trim() : null,
+    cheque_date: dateInput ? dateInput.value : null,
+    due_date: dueInput ? dueInput.value : null
+  };
+
+  const btn = document.getElementById('confirmCompleteDraftBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Processing...';
+  try {
+    const res = await apiCall(`/sales/${saleId}/complete`, 'POST', payload);
+    if (res.success) {
+      Toast.show('Sale completed.', 'success');
+      if (res.credit_warning) Toast.show('⚠️ ' + res.credit_warning, 'warning', 6000);
+      setTimeout(() => location.reload(), 800);
+    } else {
+      Toast.show(res.error || 'Failed to complete sale.', 'danger');
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fas fa-check-circle me-1"></i>Complete Sale';
+    }
+  } catch (e) {
+    Toast.show(e.message || 'Network error.', 'danger');
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-check-circle me-1"></i>Complete Sale';
+  }
+}
+</script>
+{% endif %}
 {% endblock %}
