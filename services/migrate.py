@@ -46,14 +46,14 @@ def run_migrations(db):
         # ── Approval workflow on supplier payments ──────────────────────────
         _add_column_if_missing(conn, engine, 'supplier_payments', 'status', "VARCHAR(20) DEFAULT 'approved'")
         _add_column_if_missing(conn, engine, 'supplier_payments', 'approved_by_id', 'INTEGER')
-        _add_column_if_missing(conn, engine, 'supplier_payments', 'approved_at', 'DATETIME')
+        _add_column_if_missing(conn, engine, 'supplier_payments', 'approved_at', 'TIMESTAMP')
 
         # ── Theme preference on users ────────────────────────────────────────
         _add_column_if_missing(conn, engine, 'users', 'theme_preference', "VARCHAR(10) DEFAULT 'light'")
 
         # ── Void tracking on payments ────────────────────────────────────────
         _add_column_if_missing(conn, engine, 'payments', 'voided_by_id', 'INTEGER')
-        _add_column_if_missing(conn, engine, 'payments', 'voided_at', 'DATETIME')
+        _add_column_if_missing(conn, engine, 'payments', 'voided_at', 'TIMESTAMP')
 
         # ── SMS provider config on settings (configurable via the UI) ──────
         _add_column_if_missing(conn, engine, 'settings', 'sms_provider', "VARCHAR(20) DEFAULT 'arkesel'")
@@ -82,9 +82,9 @@ def run_migrations(db):
         _add_column_if_missing(conn, engine, 'routes', 'visit_window_days', 'INTEGER')
 
         # ── Payment terms / cheque details ──────────────────────────────────
-        _add_column_if_missing(conn, engine, 'sales', 'due_date', 'DATETIME')
+        _add_column_if_missing(conn, engine, 'sales', 'due_date', 'TIMESTAMP')
         _add_column_if_missing(conn, engine, 'payments', 'cheque_bank', 'VARCHAR(120)')
-        _add_column_if_missing(conn, engine, 'payments', 'cheque_date', 'DATETIME')
+        _add_column_if_missing(conn, engine, 'payments', 'cheque_date', 'TIMESTAMP')
 
         # ── Company timezone ─────────────────────────────────────────────────
         _add_column_if_missing(conn, engine, 'settings', 'timezone', "VARCHAR(50) DEFAULT 'Africa/Accra'")
@@ -134,9 +134,20 @@ def _add_column_if_missing(conn, engine, table, column, col_type):
         existing = [c['name'] for c in inspector.get_columns(table)]
         if column not in existing:
             conn.execute(text(f'ALTER TABLE {table} ADD COLUMN {column} {col_type}'))
+            # Commit immediately rather than waiting for run_migrations()'s
+            # final commit — otherwise a later call's rollback (see except
+            # below) would undo this success too, since they'd still be
+            # sharing one uncommitted transaction.
+            conn.commit()
             log.info(f"Migration: added {table}.{column}")
     except Exception as e:
-        log.debug(f"Column {table}.{column}: {e}")
+        # On Postgres a failed statement poisons the rest of this
+        # transaction — every _add_column_if_missing call after this one
+        # would silently fail too ("current transaction is aborted") unless
+        # rolled back here, turning one bad column into a cascade that wipes
+        # out unrelated migrations for the rest of this boot.
+        conn.rollback()
+        log.error(f"Migration FAILED for {table}.{column} ({col_type}): {e}")
 
 
 def _widen_quantity_columns_to_float(conn, engine):
@@ -167,9 +178,11 @@ def _widen_quantity_columns_to_float(conn, engine):
             conn.execute(text(
                 f'ALTER TABLE {table} ALTER COLUMN {column} TYPE DOUBLE PRECISION'
             ))
+        conn.commit()  # see _add_column_if_missing's comment on why this matters on Postgres
         log.info("Migration: widened quantity columns to FLOAT for piece-selling.")
     except Exception as e:
-        log.debug(f"widen quantity columns: {e}")
+        conn.rollback()  # see _add_column_if_missing's comment on why this matters on Postgres
+        log.error(f"widen quantity columns FAILED: {e}")
 
 
 def _fix_van_stocks_constraint(conn, engine):
@@ -208,7 +221,7 @@ def _fix_van_stocks_constraint(conn, engine):
                 sales_rep_id INTEGER REFERENCES users(id),
                 product_id   INTEGER NOT NULL REFERENCES products(id),
                 quantity     FLOAT DEFAULT 0,
-                updated_at   DATETIME,
+                updated_at   TIMESTAMP,
                 UNIQUE (van_id, sales_rep_id, product_id)
             )
         '''))
@@ -218,7 +231,9 @@ def _fix_van_stocks_constraint(conn, engine):
             FROM van_stocks_old
         '''))
         conn.execute(text('DROP TABLE van_stocks_old'))
+        conn.commit()  # see _add_column_if_missing's comment on why this matters on Postgres
         log.info("Migration: rebuilt van_stocks table with sales_rep_id column")
 
     except Exception as e:
-        log.debug(f"van_stocks constraint fix: {e}")
+        conn.rollback()  # see _add_column_if_missing's comment on why this matters on Postgres
+        log.error(f"van_stocks constraint fix FAILED: {e}")
