@@ -97,6 +97,13 @@ def add():
             flash('Select which invoice this payment applies to.', 'danger')
             return redirect(url_for('payments.add', customer_id=customer.id))
 
+        # A draft sale hasn't deducted stock or logged pricing/inventory
+        # records yet, and a cancelled one has been reversed — a payment
+        # only makes sense against a completed sale.
+        if sale.status != 'completed':
+            flash(f'{sale.invoice_number} is not a completed sale — payments cannot be recorded against it.', 'danger')
+            return redirect(url_for('payments.add', customer_id=customer.id))
+
         if amount <= 0:
             flash('Enter a valid payment amount.', 'danger')
             return redirect(url_for('payments.add', customer_id=customer.id, sale_id=sale.id))
