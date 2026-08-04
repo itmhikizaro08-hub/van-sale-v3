@@ -74,6 +74,10 @@ def create():
     if not data.get('items'):
         return jsonify({'error': 'No items in sale'}), 400
 
+    status = data.get('status', 'completed')
+    if status not in ('completed', 'draft'):
+        return jsonify({'error': 'Invalid status'}), 400
+
     # discount_percent (both sale-level and per-item) came straight from the
     # client with no server-side check against the rep's role-based cap —
     # anyone could grant themselves any discount via a direct API call,
@@ -97,7 +101,7 @@ def create():
         tax_percent=float(data.get('tax_percent') or 0),
         payment_method=data.get('payment_method', 'cash'),
         notes=data.get('notes'),
-        status='completed'
+        status=status
     )
     db.session.add(sale)
     db.session.flush()
@@ -120,19 +124,22 @@ def create():
         # Sales reps sell out of their own van custody, not the warehouse —
         # loading a van already moved this stock out of Product.stock_quantity,
         # so a rep's sale must draw down VanStock, not the warehouse figure again.
+        # None of this applies to a draft — nothing leaves custody yet, so
+        # there's nothing to check or reserve until it's completed.
         van_stock_row = None
-        if current_user.scope('van_stock') == 'own':
-            van_stock_row = VanStock.query.filter_by(
-                sales_rep_id=current_user.id, product_id=product.id
-            ).first()
-            available = van_stock_row.quantity if van_stock_row else 0
-            if available < qty_needed:
+        if status == 'completed':
+            if current_user.scope('van_stock') == 'own':
+                van_stock_row = VanStock.query.filter_by(
+                    sales_rep_id=current_user.id, product_id=product.id
+                ).first()
+                available = van_stock_row.quantity if van_stock_row else 0
+                if available < qty_needed:
+                    db.session.rollback()
+                    return jsonify({'error': f'Insufficient van stock for {product.product_name} '
+                                              f'(you have {available}, need {qty_needed}).'}), 400
+            elif product.stock_quantity < qty_needed:
                 db.session.rollback()
-                return jsonify({'error': f'Insufficient van stock for {product.product_name} '
-                                          f'(you have {available}, need {qty_needed}).'}), 400
-        elif product.stock_quantity < qty_needed:
-            db.session.rollback()
-            return jsonify({'error': f'Insufficient stock for {product.product_name}'}), 400
+                return jsonify({'error': f'Insufficient stock for {product.product_name}'}), 400
 
         try:
             unit_price = round(float(item_data['unit_price']), 2)
@@ -163,20 +170,236 @@ def create():
         item.calculate_total()
         db.session.add(item)
 
+        # A draft hasn't actually happened yet — no stock leaves custody, no
+        # inventory movement, no pricing audit trail. All of that is deferred
+        # until the draft is completed (see complete()).
+        if status == 'completed':
+            db.session.add(PricingAuditLog(
+                user_id=current_user.id,
+                sale_id=sale.id,
+                invoice_number=sale.invoice_number,
+                product_id=product.id,
+                company_selling_price=official_price,
+                selling_price_entered=unit_price,
+                tip_calculated=tip_amount,
+                quantity=item.quantity,
+                total_amount=item.line_total,
+                action='sale'
+            ))
+
+            # Deduct stock — from van custody for reps, from the warehouse otherwise
+            if van_stock_row:
+                qty_before = van_stock_row.quantity
+                van_stock_row.quantity -= qty_needed
+                qty_after = van_stock_row.quantity
+                movement_van_id = van_stock_row.van_id
+            else:
+                qty_before = product.stock_quantity
+                product.stock_quantity -= qty_needed
+                qty_after = product.stock_quantity
+                movement_van_id = data.get('van_id')
+
+            movement = InventoryMovement(
+                product_id=product.id,
+                movement_type='sale',
+                quantity=-qty_needed,
+                quantity_before=qty_before,
+                quantity_after=qty_after,
+                van_id=movement_van_id,
+                reference_id=sale.id,
+                reference_type='sale',
+                created_by_id=current_user.id
+            )
+            db.session.add(movement)
+
+    sale.recalculate()
+
+    # Everything below — payments, customer balance, auto-visit, credit
+    # warning, invoice SMS — only applies to a real completed sale. A draft
+    # hasn't collected money, hasn't been visited, and hasn't earned an
+    # invoice yet, so none of it fires until the draft is completed.
+    credit_warning = None
+    if status == 'completed':
+        upfront = float(data.get('amount_paid') or 0)
+        if upfront > 0:
+            from models.payment import Payment
+            from services.sequence import next_payment_number
+
+            reference_number = (data.get('reference_number') or '').strip() or None
+            cheque_bank = None
+            cheque_date = None
+
+            if sale.payment_method in ('cheque', 'mobile_money', 'bank_transfer'):
+                method_labels = {
+                    'cheque': 'cheque number',
+                    'mobile_money': 'Mobile Money reference',
+                    'bank_transfer': 'bank transfer reference'
+                }
+                if not reference_number:
+                    db.session.rollback()
+                    return jsonify({'error': f'Enter the {method_labels[sale.payment_method]}.'}), 400
+
+                if sale.payment_method == 'cheque':
+                    cheque_bank = (data.get('cheque_bank') or '').strip() or None
+                    if not cheque_bank:
+                        db.session.rollback()
+                        return jsonify({'error': 'Enter the cheque bank.'}), 400
+                    cheque_date_raw = data.get('cheque_date')
+                    if not cheque_date_raw:
+                        db.session.rollback()
+                        return jsonify({'error': 'Enter the cheque date.'}), 400
+                    try:
+                        cheque_date = datetime.strptime(cheque_date_raw, '%Y-%m-%d')
+                    except ValueError:
+                        db.session.rollback()
+                        return jsonify({'error': 'Invalid cheque date.'}), 400
+
+            payment = Payment(
+                payment_number=next_payment_number(),
+                sale_id=sale.id,
+                customer_id=customer.id,
+                amount=min(upfront, sale.total_amount),
+                payment_method=sale.payment_method,
+                reference_number=reference_number,
+                cheque_bank=cheque_bank,
+                cheque_date=cheque_date,
+                received_by_id=current_user.id
+            )
+            db.session.add(payment)
+            sale.amount_paid = payment.amount
+            sale.recalculate()
+
+        if sale.balance_due > 0:
+            due_date_raw = data.get('due_date')
+            if not due_date_raw:
+                db.session.rollback()
+                return jsonify({'error': 'Enter a due date for the outstanding balance.'}), 400
+            try:
+                sale.due_date = datetime.strptime(due_date_raw, '%Y-%m-%d')
+            except ValueError:
+                db.session.rollback()
+                return jsonify({'error': 'Invalid due date.'}), 400
+
+        # Update customer balance
+        customer.outstanding_balance += sale.balance_due
+        customer.last_purchase_date = datetime.utcnow()
+
+        # A completed field sale implies the rep visited this customer today —
+        # auto-record it so "Today's Route" reflects reality without a separate tap.
+        if current_user.role == 'sales_rep':
+            from services.visits import record_auto_visit
+            record_auto_visit(customer.id, current_user.id, 'sale_made', force_outcome=True)
+
+        if customer.credit_limit > 0 and customer.outstanding_balance > customer.credit_limit:
+            credit_warning = (
+                f'{customer.name} is now over their credit limit '
+                f'(GHS {customer.outstanding_balance:.2f} owed vs GHS {customer.credit_limit:.2f} limit).'
+            )
+
+    db.session.commit()
+
+    if status == 'completed':
+        try:
+            send_invoice_sms(customer, sale)
+        except Exception:
+            pass
+
+    return jsonify({
+        'success': True, 'invoice_number': sale.invoice_number, 'sale_id': sale.id,
+        'credit_warning': credit_warning
+    })
+
+
+@sales_bp.route('/<int:sale_id>')
+@login_required
+def view(sale_id):
+    if not current_user.can_access('sales'):
+        flash('Access denied.', 'danger')
+        return redirect(url_for('dashboard.index'))
+
+    sale = Sale.query.get_or_404(sale_id)
+
+    if current_user.scope('sales') == 'own' and sale.sales_rep_id != current_user.id:
+        flash('Access denied.', 'danger')
+        return redirect(url_for('sales.index'))
+
+    return render_template('sales/view.html', sale=sale)
+
+
+@sales_bp.route('/<int:sale_id>/complete', methods=['POST'])
+@login_required
+def complete(sale_id):
+    if not current_user.can_write('sales'):
+        return jsonify({'error': 'Permission denied'}), 403
+
+    sale = Sale.query.get_or_404(sale_id)
+
+    if current_user.scope('sales') == 'own' and sale.sales_rep_id != current_user.id:
+        return jsonify({'error': 'Permission denied'}), 403
+
+    if sale.status != 'draft':
+        return jsonify({'error': 'Only a draft sale can be completed.'}), 400
+
+    if not sale.items:
+        return jsonify({'error': 'This draft has no items.'}), 400
+
+    data = request.get_json(silent=True) or {}
+    customer = sale.customer
+    if not customer:
+        return jsonify({'error': 'Customer not found'}), 400
+
+    # Stock may have moved and prices may have changed in the time between
+    # saving this draft and completing it — re-check both against the
+    # draft's already-saved SaleItem rows rather than creating new ones.
+    # A rep's own custody (VanStock) is keyed off the sale's rep, not
+    # whoever is clicking Complete — an admin completing a rep's draft still
+    # draws down that rep's van, exactly like cancel() reverses into it.
+    rep_scope = sale.sales_rep.scope('van_stock') if sale.sales_rep else 'all'
+
+    for item in sale.items:
+        product = item.product
+        qty_needed = item.quantity
+
+        van_stock_row = None
+        if rep_scope == 'own':
+            van_stock_row = VanStock.query.filter_by(
+                sales_rep_id=sale.sales_rep_id, product_id=product.id
+            ).first()
+            available = van_stock_row.quantity if van_stock_row else 0
+            if available < qty_needed:
+                db.session.rollback()
+                return jsonify({'error': f'Insufficient van stock for {product.product_name} '
+                                          f'(rep has {available}, need {qty_needed}).'}), 400
+        elif product.stock_quantity < qty_needed:
+            db.session.rollback()
+            return jsonify({'error': f'Insufficient stock for {product.product_name}'}), 400
+
+        # The company selling price is a floor that can only move up between
+        # the draft being saved and completed — if it now sits above the
+        # price the draft locked in, completing at that stale price would
+        # let it through under today's floor. Reject; the draft is untouched.
+        if item.unit_price < product.selling_price:
+            db.session.rollback()
+            return jsonify({
+                'error': f'The company selling price for {product.product_name} has increased to '
+                         f'GHS {product.selling_price:.2f} since this draft was saved (draft price '
+                         f'GHS {item.unit_price:.2f}). Delete this draft and re-create the sale at '
+                         f'the current price.'
+            }), 400
+
         db.session.add(PricingAuditLog(
             user_id=current_user.id,
             sale_id=sale.id,
             invoice_number=sale.invoice_number,
             product_id=product.id,
-            company_selling_price=official_price,
-            selling_price_entered=unit_price,
-            tip_calculated=tip_amount,
+            company_selling_price=item.official_price,
+            selling_price_entered=item.unit_price,
+            tip_calculated=item.tip_amount,
             quantity=item.quantity,
             total_amount=item.line_total,
             action='sale'
         ))
 
-        # Deduct stock — from van custody for reps, from the warehouse otherwise
         if van_stock_row:
             qty_before = van_stock_row.quantity
             van_stock_row.quantity -= qty_needed
@@ -186,9 +409,9 @@ def create():
             qty_before = product.stock_quantity
             product.stock_quantity -= qty_needed
             qty_after = product.stock_quantity
-            movement_van_id = data.get('van_id')
+            movement_van_id = sale.van_id
 
-        movement = InventoryMovement(
+        db.session.add(InventoryMovement(
             product_id=product.id,
             movement_type='sale',
             quantity=-qty_needed,
@@ -198,17 +421,11 @@ def create():
             reference_id=sale.id,
             reference_type='sale',
             created_by_id=current_user.id
-        )
-        db.session.add(movement)
+        ))
 
-    sale.recalculate()
-
-    # Payment-terms / cheque-detail capture only applies to a real completed
-    # sale — a draft is saved for later and shouldn't be blocked on details
-    # that aren't known yet.
-    is_draft = data.get('status') == 'draft'
-
-    # Handle upfront payment
+    # Handle an optional upfront payment collected at completion time — a
+    # draft's amount_paid is always 0 (see create()), so this is the first
+    # chance to record money against it.
     upfront = float(data.get('amount_paid') or 0)
     if upfront > 0:
         from models.payment import Payment
@@ -218,7 +435,7 @@ def create():
         cheque_bank = None
         cheque_date = None
 
-        if not is_draft and sale.payment_method in ('cheque', 'mobile_money', 'bank_transfer'):
+        if sale.payment_method in ('cheque', 'mobile_money', 'bank_transfer'):
             method_labels = {
                 'cheque': 'cheque number',
                 'mobile_money': 'Mobile Money reference',
@@ -258,7 +475,7 @@ def create():
         sale.amount_paid = payment.amount
         sale.recalculate()
 
-    if not is_draft and sale.balance_due > 0:
+    if sale.balance_due > 0:
         due_date_raw = data.get('due_date')
         if not due_date_raw:
             db.session.rollback()
@@ -269,15 +486,14 @@ def create():
             db.session.rollback()
             return jsonify({'error': 'Invalid due date.'}), 400
 
-    # Update customer balance
     customer.outstanding_balance += sale.balance_due
     customer.last_purchase_date = datetime.utcnow()
 
-    # A completed field sale implies the rep visited this customer today —
-    # auto-record it so "Today's Route" reflects reality without a separate tap.
     if current_user.role == 'sales_rep':
         from services.visits import record_auto_visit
         record_auto_visit(customer.id, current_user.id, 'sale_made', force_outcome=True)
+
+    sale.status = 'completed'
 
     credit_warning = None
     if customer.credit_limit > 0 and customer.outstanding_balance > customer.credit_limit:
@@ -288,7 +504,6 @@ def create():
 
     db.session.commit()
 
-    # Send SMS
     try:
         send_invoice_sms(customer, sale)
     except Exception:
@@ -300,28 +515,24 @@ def create():
     })
 
 
-@sales_bp.route('/<int:sale_id>')
-@login_required
-def view(sale_id):
-    if not current_user.can_access('sales'):
-        flash('Access denied.', 'danger')
-        return redirect(url_for('dashboard.index'))
-
-    sale = Sale.query.get_or_404(sale_id)
-
-    if current_user.scope('sales') == 'own' and sale.sales_rep_id != current_user.id:
-        flash('Access denied.', 'danger')
-        return redirect(url_for('sales.index'))
-
-    return render_template('sales/view.html', sale=sale)
-
-
 @sales_bp.route('/<int:sale_id>/cancel', methods=['POST'])
 @login_required
 def cancel(sale_id):
+    sale = Sale.query.get_or_404(sale_id)
+
+    if sale.status == 'draft':
+        if not current_user.can_write('sales'):
+            return jsonify({'error': 'Permission denied'}), 403
+        if current_user.scope('sales') == 'own' and sale.sales_rep_id != current_user.id:
+            return jsonify({'error': 'Permission denied'}), 403
+        # A draft never touched stock, customer balance, or payments (see
+        # create()) — discarding it is just a status flip, no reversal needed.
+        sale.status = 'cancelled'
+        db.session.commit()
+        return jsonify({'success': True})
+
     if not current_user.can_approve_module('sales'):
         return jsonify({'error': 'Permission denied'}), 403
-    sale = Sale.query.get_or_404(sale_id)
     if sale.status == 'completed':
         # Reverse stock into whichever pool it actually came out of. A rep's
         # sale draws down VanStock, not the warehouse (see create()) — always
