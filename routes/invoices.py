@@ -58,15 +58,28 @@ def view(sale_id):
         'phone': s.company_phone,
         'email': s.company_email,
     }
-    # Credit notes are applied at the customer's account-wide balance, not
-    # against this specific Sale's own total_amount/balance_due — so without
-    # this, viewing an invoice that had part of it returned gives no clue a
-    # credit was ever issued against it.
+    # Credit notes reduce the customer's account-wide balance, not this
+    # Sale's own stored balance_due/payment_status (those track real
+    # cash movement via amount_paid) — but the invoice still needs to show
+    # its true net position, or it looks like money is still owed on a sale
+    # that's already been fully settled by a return, "Record Payment" button
+    # included.
     from models.notes import CreditNote
     credit_notes = CreditNote.query.filter_by(sale_id=sale_id, status='applied').all()
     credit_total = round(sum(cn.amount for cn in credit_notes), 2)
+    net_balance_due = round(max(0, sale.balance_due - credit_total), 2)
+    if net_balance_due <= 0:
+        net_payment_status = 'paid'
+    elif sale.amount_paid > 0 or credit_total > 0:
+        net_payment_status = 'partial'
+    else:
+        net_payment_status = 'unpaid'
+    net_payment_badge = {'unpaid': 'bg-danger', 'partial': 'bg-warning text-dark',
+                          'paid': 'bg-success'}.get(net_payment_status, 'bg-secondary')
     return render_template('invoices/view.html', sale=sale, company=company,
-        credit_notes=credit_notes, credit_total=credit_total)
+        credit_notes=credit_notes, credit_total=credit_total,
+        net_balance_due=net_balance_due, net_payment_status=net_payment_status,
+        net_payment_badge=net_payment_badge)
 
 
 @invoices_bp.route('/<int:sale_id>/pdf')
