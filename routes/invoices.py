@@ -20,6 +20,16 @@ def _net_balances(sales):
     credit_by_sale = {}
     if sale_ids:
         for cn in CreditNote.query.filter(CreditNote.sale_id.in_(sale_ids), CreditNote.status == 'applied').all():
+            # A cash-refunded return already paid the customer real money
+            # back out of the till (routes/returns.py's _record_cash_refund)
+            # — its CreditNote exists for the paper trail, not to ALSO
+            # reduce what's still owed on the invoice. Only count
+            # credit-type refunds (or a manually-issued note with no
+            # return_order at all — routes/notes.py) toward the reduction,
+            # or a cash refund on a partially-paid invoice would understate
+            # the real remaining balance.
+            if cn.return_order and cn.return_order.refund_method == 'cash':
+                continue
             credit_by_sale[cn.sale_id] = credit_by_sale.get(cn.sale_id, 0) + cn.amount
 
     badges = {'unpaid': 'bg-danger', 'partial': 'bg-warning text-dark', 'paid': 'bg-success'}
