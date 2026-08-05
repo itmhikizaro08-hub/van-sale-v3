@@ -16,6 +16,36 @@ from datetime import datetime, timedelta
 dashboard_bp = Blueprint('dashboard', __name__)
 
 
+def _net_company_sales(query):
+    """Sum of company_sales_total for the sales matched by `query`, minus
+    the tip-excluded value of anything approved-returned from them. A
+    returned item was never really "sold" for company-revenue purposes, so
+    it must not keep inflating sales figures after the customer brings it
+    back — same principle as the tip exclusion these figures already apply.
+    Matches returns to their original sale line by product_id (same
+    approach as Sale.return_status), since ReturnOrderItem.sale_item_id
+    isn't reliably wired through from the return-creation form."""
+    from models.returns import ReturnOrder
+    sales = query.all()
+    sale_ids = [s.id for s in sales]
+    returned_by_sale = {}
+    if sale_ids:
+        for order in ReturnOrder.query.filter(ReturnOrder.sale_id.in_(sale_ids)).all():
+            by_product = returned_by_sale.setdefault(order.sale_id, {})
+            for item in order.items:
+                if item.line_status == 'approved':
+                    by_product[item.product_id] = by_product.get(item.product_id, 0) + item.quantity
+    total = 0.0
+    for s in sales:
+        by_product = returned_by_sale.get(s.id)
+        returned_value = 0.0
+        if by_product:
+            official_by_product = {i.product_id: (i.official_price or 0) for i in s.items}
+            returned_value = sum(official_by_product.get(pid, 0) * qty for pid, qty in by_product.items())
+        total += max(0, (s.company_sales_total or 0) - returned_value)
+    return round(total, 2)
+
+
 def _daily_series(date_col, amount_col, filters, days=7, end_date=None):
     """Last `days` days of a daily SUM(amount_col) ending on `end_date`
     (defaults to real today), oldest first, as (labels, values) — feeds the
@@ -59,15 +89,13 @@ def index():
         # rep's tip markup on top of the official price belongs to the rep,
         # not the company, so it must never inflate the company's sales
         # figures (same convention as reports/profit_loss.py's gross_revenue).
-        ctx['total_sales_today'] = db.session.query(func.sum(Sale.company_sales_total)).filter(
-            Sale.status == 'completed', func.date(Sale.sale_date) == today
-        ).scalar() or 0
-        ctx['total_sales_yesterday'] = db.session.query(func.sum(Sale.company_sales_total)).filter(
-            Sale.status == 'completed', func.date(Sale.sale_date) == yesterday
-        ).scalar() or 0
-        ctx['total_sales_month'] = db.session.query(func.sum(Sale.company_sales_total)).filter(
-            Sale.status == 'completed', Sale.sale_date >= month_start
-        ).scalar() or 0
+        # Net of approved returns too — see _net_company_sales().
+        ctx['total_sales_today'] = _net_company_sales(Sale.query.filter(
+            Sale.status == 'completed', func.date(Sale.sale_date) == today))
+        ctx['total_sales_yesterday'] = _net_company_sales(Sale.query.filter(
+            Sale.status == 'completed', func.date(Sale.sale_date) == yesterday))
+        ctx['total_sales_month'] = _net_company_sales(Sale.query.filter(
+            Sale.status == 'completed', Sale.sale_date >= month_start))
         ctx['total_outstanding'] = db.session.query(func.sum(Customer.outstanding_balance)).scalar() or 0
         ctx['active_customers'] = Customer.query.filter_by(status='active').count()
         ctx['low_stock_count'] = Product.query.filter(
@@ -83,15 +111,14 @@ def index():
     elif current_user.role == 'sales_rep':
         # company_sales_total, not total_amount — see admin/manager branch
         # above; a rep's own tip earnings are shown separately in the Tips
-        # module, not folded into their "sales" figures here.
-        ctx['my_sales_today'] = db.session.query(func.sum(Sale.company_sales_total)).filter(
+        # module, not folded into their "sales" figures here. Net of
+        # approved returns too — see _net_company_sales().
+        ctx['my_sales_today'] = _net_company_sales(Sale.query.filter(
             Sale.sales_rep_id == current_user.id, Sale.status == 'completed',
-            func.date(Sale.sale_date) == today
-        ).scalar() or 0
-        ctx['my_sales_month'] = db.session.query(func.sum(Sale.company_sales_total)).filter(
+            func.date(Sale.sale_date) == today))
+        ctx['my_sales_month'] = _net_company_sales(Sale.query.filter(
             Sale.sales_rep_id == current_user.id, Sale.status == 'completed',
-            Sale.sale_date >= month_start
-        ).scalar() or 0
+            Sale.sale_date >= month_start))
         ctx['my_collections_today'] = db.session.query(func.sum(Payment.amount)).filter(
             Payment.received_by_id == current_user.id, func.date(Payment.payment_date) == today,
             Payment.status != 'void'
@@ -113,10 +140,10 @@ def index():
         ctx['my_cash_balance'] = rep_cash_balance(current_user.id)['balance']
 
     elif current_user.role == 'supervisor':
-        # company_sales_total, not total_amount — see admin/manager branch above.
-        ctx['team_sales_today'] = db.session.query(func.sum(Sale.company_sales_total)).filter(
-            Sale.status == 'completed', func.date(Sale.sale_date) == today
-        ).scalar() or 0
+        # company_sales_total, not total_amount — see admin/manager branch
+        # above. Net of approved returns too — see _net_company_sales().
+        ctx['team_sales_today'] = _net_company_sales(Sale.query.filter(
+            Sale.status == 'completed', func.date(Sale.sale_date) == today))
         ctx['team_invoices_today'] = Sale.query.filter(
             Sale.status == 'completed', func.date(Sale.sale_date) == today
         ).count()
