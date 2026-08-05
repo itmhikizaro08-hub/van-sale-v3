@@ -8,6 +8,38 @@ from services.pdf_service import generate_invoice_pdf
 invoices_bp = Blueprint('invoices', __name__)
 
 
+def _net_balances(sales):
+    """Map sale.id -> net balance/status info, accounting for applied credit
+    notes — those reduce the customer's account-wide outstanding_balance, not
+    a Sale's own stored balance_due/payment_status (see routes/invoices.py's
+    view(), which this mirrors), so anywhere that displays a sale's payment
+    state needs this instead of the raw column to avoid showing "Unpaid" on
+    an invoice a return has already fully settled."""
+    from models.notes import CreditNote
+    sale_ids = [s.id for s in sales]
+    credit_by_sale = {}
+    if sale_ids:
+        for cn in CreditNote.query.filter(CreditNote.sale_id.in_(sale_ids), CreditNote.status == 'applied').all():
+            credit_by_sale[cn.sale_id] = credit_by_sale.get(cn.sale_id, 0) + cn.amount
+
+    badges = {'unpaid': 'bg-danger', 'partial': 'bg-warning text-dark', 'paid': 'bg-success'}
+    result = {}
+    for s in sales:
+        credit_total = round(credit_by_sale.get(s.id, 0), 2)
+        net_balance_due = round(max(0, s.balance_due - credit_total), 2)
+        if net_balance_due <= 0:
+            status = 'paid'
+        elif s.amount_paid > 0 or credit_total > 0:
+            status = 'partial'
+        else:
+            status = 'unpaid'
+        result[s.id] = {
+            'net_balance_due': net_balance_due, 'credit_total': credit_total,
+            'net_payment_status': status, 'net_payment_badge': badges.get(status, 'bg-secondary'),
+        }
+    return result
+
+
 @invoices_bp.route('/')
 @login_required
 def index():
@@ -30,15 +62,17 @@ def index():
     # reports/profit_loss.py, reports/sales.py's Gross/Net Sales, and the
     # dashboards: a rep's tip markup on top of the official price belongs
     # to the rep, not the company, so this aggregate must exclude it.
-    # total_outstanding stays total_amount-derived (via balance_due) since
-    # it's real money still owed on the invoice, not a revenue figure; the
-    # per-invoice "Total" column below is unaffected either, for the same
-    # reason (it's each invoice's real total, not a company-revenue KPI).
+    # total_outstanding stays balance_due-derived (real money owed, not a
+    # revenue figure) but net of applied credit notes via _net_balances —
+    # see that function's docstring. The per-invoice "Total" column below
+    # is unaffected either way (it's each invoice's real total, not a
+    # company-revenue KPI).
     total_sales_amount = round(sum(s.company_sales_total or 0 for s in sales), 2)
-    total_outstanding = round(sum(s.balance_due for s in sales), 2)
+    net = _net_balances(sales)
+    total_outstanding = round(sum(net[s.id]['net_balance_due'] for s in sales), 2)
 
     return render_template('invoices/index.html', sales=sales, start=start, end=end,
-        total_sales_amount=total_sales_amount, total_outstanding=total_outstanding)
+        total_sales_amount=total_sales_amount, total_outstanding=total_outstanding, net=net)
 
 
 @invoices_bp.route('/<int:sale_id>')
@@ -63,23 +97,14 @@ def view(sale_id):
     # cash movement via amount_paid) — but the invoice still needs to show
     # its true net position, or it looks like money is still owed on a sale
     # that's already been fully settled by a return, "Record Payment" button
-    # included.
+    # included. See _net_balances() above.
     from models.notes import CreditNote
     credit_notes = CreditNote.query.filter_by(sale_id=sale_id, status='applied').all()
-    credit_total = round(sum(cn.amount for cn in credit_notes), 2)
-    net_balance_due = round(max(0, sale.balance_due - credit_total), 2)
-    if net_balance_due <= 0:
-        net_payment_status = 'paid'
-    elif sale.amount_paid > 0 or credit_total > 0:
-        net_payment_status = 'partial'
-    else:
-        net_payment_status = 'unpaid'
-    net_payment_badge = {'unpaid': 'bg-danger', 'partial': 'bg-warning text-dark',
-                          'paid': 'bg-success'}.get(net_payment_status, 'bg-secondary')
+    net = _net_balances([sale])[sale.id]
     return render_template('invoices/view.html', sale=sale, company=company,
-        credit_notes=credit_notes, credit_total=credit_total,
-        net_balance_due=net_balance_due, net_payment_status=net_payment_status,
-        net_payment_badge=net_payment_badge)
+        credit_notes=credit_notes, credit_total=net['credit_total'],
+        net_balance_due=net['net_balance_due'], net_payment_status=net['net_payment_status'],
+        net_payment_badge=net['net_payment_badge'])
 
 
 @invoices_bp.route('/<int:sale_id>/pdf')

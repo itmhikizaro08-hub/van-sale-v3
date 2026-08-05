@@ -1,0 +1,70 @@
+{% extends 'base.html' %}
+{% block title %}Debtors{% endblock %}
+{% block breadcrumb %}<li class="breadcrumb-item"><a href="{{ url_for('reports.index') }}">Reports</a></li><li class="breadcrumb-item active">Debtors</li>{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div><h1 class="page-title">Debtors</h1><p class="page-subtitle">Every unpaid invoice, with its due date — who to chase and when.</p></div>
+  <button onclick="window.print()" class="btn btn-outline-secondary btn-sm no-print"><i class="fas fa-print me-1"></i>Print</button>
+</div>
+
+<div class="row g-3 mb-4">
+  <div class="col-6 col-md-4">
+    <div class="stat-card danger"><div class="stat-icon"><i class="fas fa-hand-holding-dollar"></i></div>
+      <div><div class="stat-label">Total Owed</div><div class="stat-value" style="font-size:20px">GHS {{ "%.2f"|format(total_owed) }}</div><div class="stat-trend">{{ rows|length }} invoice{{ 's' if rows|length != 1 }}</div></div>
+    </div>
+  </div>
+  <div class="col-6 col-md-4">
+    <div class="stat-card warning"><div class="stat-icon"><i class="fas fa-clock"></i></div>
+      <div><div class="stat-label">Overdue</div><div class="stat-value" style="font-size:20px">GHS {{ "%.2f"|format(overdue_total) }}</div><div class="stat-trend">{{ overdue_count }} invoice{{ 's' if overdue_count != 1 }} past due date</div></div>
+    </div>
+  </div>
+  <div class="col-12 col-md-4">
+    <div class="stat-card" style="--card-accent:#64748b;--card-accent-bg:#f1f5f9"><div class="stat-icon" style="background:#f1f5f9;color:#64748b"><i class="fas fa-calendar-xmark"></i></div>
+      <div><div class="stat-label">No Due Date Set</div><div class="stat-value" style="font-size:20px">{{ no_due_date_count }}</div><div class="stat-trend">can't tell if these are overdue</div></div>
+    </div>
+  </div>
+</div>
+
+<div class="card"><div class="card-body p-0"><div class="table-responsive">
+<table class="table table-hover dt-table mb-0" id="debtorsTable">
+  <thead>
+    <tr><th>Invoice #</th><th>Customer</th><th>Phone</th><th>Rep</th><th class="text-end">Total</th><th class="text-end">Owed</th><th>Due Date</th><th>Status</th><th></th></tr>
+  </thead>
+  <tbody>
+    {% for row in rows %}
+    {% set s = row.sale %}
+    <tr>
+      <td><a href="{{ url_for('invoices.view', sale_id=s.id) }}" class="fw-600">{{ s.invoice_number }}</a></td>
+      <td>{{ s.customer.name if s.customer else '—' }}</td>
+      <td class="fs-12">{{ s.customer.phone if s.customer and s.customer.phone else '—' }}</td>
+      <td class="fs-12 text-muted">{{ s.sales_rep.full_name if s.sales_rep else '—' }}</td>
+      <td class="text-end fw-600">GHS {{ "%.2f"|format(s.total_amount) }}</td>
+      <td class="text-end fw-700 text-danger">GHS {{ "%.2f"|format(row.net_balance_due) }}</td>
+      <td class="fs-12">{{ s.due_date.strftime('%d %b %Y') if s.due_date else '—' }}</td>
+      <td>
+        {% if row.overdue_days is none %}
+        <span class="badge bg-secondary">No due date</span>
+        {% elif row.is_overdue %}
+        <span class="badge bg-danger">{{ row.overdue_days }}d overdue</span>
+        {% elif row.overdue_days == 0 %}
+        <span class="badge bg-warning text-dark">Due today</span>
+        {% else %}
+        <span class="badge bg-info text-dark">Due in {{ -row.overdue_days }}d</span>
+        {% endif %}
+      </td>
+      <td class="no-print">
+        {% if current_user.can_write('payments') %}
+        <a href="{{ url_for('payments.add') }}?sale_id={{ s.id }}&customer_id={{ s.customer_id }}" class="btn btn-sm btn-success"><i class="fas fa-money-bill me-1"></i>Pay</a>
+        {% endif %}
+      </td>
+    </tr>
+    {% else %}
+    <tr><td colspan="9" class="text-center text-muted py-4">No outstanding invoices — everyone's paid up.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div></div></div>
+{% endblock %}
+{% block extra_js %}
+<script>$(document).ready(() => initDataTable('#debtorsTable', {order:[[6,'asc']]}));</script>
+{% endblock %}

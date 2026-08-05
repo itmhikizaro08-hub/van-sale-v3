@@ -406,6 +406,59 @@ def debt_ageing_excel():
     return response
 
 
+# ── Debtors (per-invoice, with due dates) ──────────────────────────────────────
+@reports_bp.route('/debtors')
+@login_required
+def debtors():
+    """Per-invoice debt list — Debt Ageing above groups by customer with age
+    buckets; this is the invoice-level view a collector actually works from:
+    which invoice, how much, and when it's due (or overdue by how many days).
+    Net of applied credit notes, same convention as invoices.py's view()."""
+    if not current_user.can_access('customers'):
+        flash('Access denied.', 'danger')
+        return redirect(url_for('dashboard.index'))
+
+    from models.notes import CreditNote
+    q = Sale.query.filter(Sale.status == 'completed', Sale.balance_due > 0)
+    if current_user.scope('customers') == 'own':
+        q = q.filter_by(sales_rep_id=current_user.id)
+    sales = q.all()
+
+    sale_ids = [s.id for s in sales]
+    credit_by_sale = {}
+    if sale_ids:
+        for cn in CreditNote.query.filter(CreditNote.sale_id.in_(sale_ids), CreditNote.status == 'applied').all():
+            credit_by_sale[cn.sale_id] = credit_by_sale.get(cn.sale_id, 0) + cn.amount
+
+    today = date.today()
+    rows = []
+    for s in sales:
+        credit_total = round(credit_by_sale.get(s.id, 0), 2)
+        net_balance_due = round(max(0, s.balance_due - credit_total), 2)
+        if net_balance_due <= 0:
+            continue  # fully covered by a credit note — not actually a debtor
+        overdue_days = (today - s.due_date.date()).days if s.due_date else None
+        rows.append({
+            'sale': s, 'net_balance_due': net_balance_due,
+            'overdue_days': overdue_days,
+            'is_overdue': overdue_days is not None and overdue_days > 0,
+        })
+
+    # Most urgent first: has a due date (soonest/most overdue first), then
+    # no-due-date rows last where they can't get lost among real deadlines.
+    from datetime import datetime as _dt
+    rows.sort(key=lambda r: (r['sale'].due_date is None, r['sale'].due_date or _dt.max))
+
+    total_owed = round(sum(r['net_balance_due'] for r in rows), 2)
+    overdue_total = round(sum(r['net_balance_due'] for r in rows if r['is_overdue']), 2)
+    overdue_count = sum(1 for r in rows if r['is_overdue'])
+    no_due_date_count = sum(1 for r in rows if r['sale'].due_date is None)
+
+    return render_template('reports/debtors.html', rows=rows, total_owed=total_owed,
+        overdue_total=overdue_total, overdue_count=overdue_count,
+        no_due_date_count=no_due_date_count)
+
+
 # ── Rep Stock Liability ───────────────────────────────────────────────────────
 @reports_bp.route('/rep-liability')
 @login_required
