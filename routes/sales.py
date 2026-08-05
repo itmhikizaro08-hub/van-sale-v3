@@ -35,13 +35,23 @@ def index():
     # but must not inflate the money totals — only completed sales are real.
     completed = [s for s in sales if s.status == 'completed']
     total_sales_amount = round(sum(s.total_amount for s in completed), 2)
-    total_outstanding = round(sum(s.balance_due for s in completed), 2)
+
+    # Net of applied credit notes — a fully-returned invoice must not keep
+    # counting toward "Outstanding" or showing as Unpaid. See
+    # routes/invoices.py's _net_balances() for the full reasoning. Computed
+    # over every row (not just completed) so the template can look up any
+    # sale's entry without a KeyError; the aggregate below still only sums
+    # completed ones.
+    from routes.invoices import _net_balances
+    net = _net_balances(sales)
+    total_outstanding = round(sum(net[s.id]['net_balance_due'] for s in completed), 2)
+
     draft_count = sum(1 for s in sales if s.status == 'draft')
     cancelled_count = sum(1 for s in sales if s.status == 'cancelled')
 
     return render_template('sales/index.html', sales=sales, start=start, end=end,
         total_sales_amount=total_sales_amount, total_outstanding=total_outstanding,
-        draft_count=draft_count, cancelled_count=cancelled_count)
+        draft_count=draft_count, cancelled_count=cancelled_count, net=net)
 
 
 @sales_bp.route('/new', methods=['GET', 'POST'])

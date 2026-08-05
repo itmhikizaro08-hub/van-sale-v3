@@ -52,7 +52,7 @@
       <td class="fs-12">{{ s.sales_rep.full_name if s.sales_rep else '—' }}</td>
       <td class="fs-12">{{ s.van.van_number if s.van else 'WH' }}</td>
       <td class="text-end fw-600">GHS {{ "%.2f"|format(s.total_amount) }}</td>
-      <td><span class="badge {{ s.payment_badge }}">{{ s.payment_status|title }}</span></td>
+      <td><span class="badge {{ net[s.id].net_payment_badge }}">{{ net[s.id].net_payment_status|title }}</span></td>
       <td>
         <span class="badge {{ s.status_badge }}">{{ s.status|title }}</span>
         {% if return_status == 'full' %}<span class="badge bg-danger">Returned</span>
