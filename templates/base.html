@@ -90,6 +90,11 @@
     </div>
 
     <div class="topbar-right">
+      <!-- Refresh the current page — data here (stock, balances, orders) can
+           change from another device at any time, and there's no live sync. -->
+      <button class="topbar-btn" id="refreshPageBtn" title="Refresh page">
+        <i class="fas fa-rotate-right"></i>
+      </button>
       <!-- Install as app (hidden until the browser signals it's installable) -->
       <button class="btn btn-primary btn-sm d-none" id="installAppBtn" title="Install this app on your device">
         <i class="fas fa-download me-1"></i>Install App
@@ -202,6 +207,11 @@ installBtn?.addEventListener('click', async () => {
   installBtn.classList.add('d-none');
 });
 window.addEventListener('appinstalled', () => installBtn?.classList.add('d-none'));
+
+document.getElementById('refreshPageBtn')?.addEventListener('click', function () {
+  this.querySelector('i').classList.add('fa-spin');
+  location.reload();
+});
 </script>
 </body>
 </html>
