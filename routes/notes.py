@@ -1,6 +1,7 @@
 from flask import Blueprint, render_template, redirect, url_for, flash, request, jsonify
 from flask_login import login_required, current_user
 from datetime import datetime, timedelta
+from sqlalchemy.orm import joinedload
 from app import db
 from services.sequence import next_debit_note_number
 
@@ -26,7 +27,7 @@ def index():
     end   = request.args.get('end',   datetime.utcnow().strftime('%Y-%m-%d'))
 
     CreditNote, DebitNote = _models()
-    credit_notes = CreditNote.query.filter(
+    credit_notes = CreditNote.query.options(joinedload(CreditNote.return_order)).filter(
         CreditNote.created_at >= start, CreditNote.created_at <= end + ' 23:59:59'
     ).order_by(CreditNote.created_at.desc()).limit(200).all() if CreditNote else []
     debit_notes = DebitNote.query.filter(

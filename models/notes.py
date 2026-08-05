@@ -32,6 +32,21 @@ class CreditNote(db.Model):
         return {'issued': 'bg-info text-dark', 'applied': 'bg-success',
                 'void': 'bg-secondary'}.get(self.status, 'bg-secondary')
 
+    @property
+    def refund_type_label(self):
+        """Whether this note reduced the customer's account balance (credit,
+        or no return at all — i.e. issued directly) vs. was just the paper
+        trail for money already handed back as cash (see routes/returns.py's
+        _record_cash_refund and routes/notes.py's void_note(), which both
+        already draw this same distinction)."""
+        if self.return_order and self.return_order.refund_method == 'cash':
+            return 'Cash Refund'
+        return 'Account Credit'
+
+    @property
+    def refund_type_badge(self):
+        return 'bg-warning text-dark' if self.refund_type_label == 'Cash Refund' else 'bg-success'
+
 
 class DebitNote(db.Model):
     __tablename__ = 'debit_notes'

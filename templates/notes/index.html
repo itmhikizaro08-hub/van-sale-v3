@@ -32,7 +32,7 @@
   <div class="card-header"><i class="fas fa-receipt text-success me-2"></i>Credit Notes</div>
   <div class="card-body p-0"><div class="table-responsive">
   <table class="table table-hover dt-table mb-0" id="cnTable">
-    <thead><tr><th>Note #</th><th>Customer</th><th>Date</th><th class="text-end">Amount</th><th>Ref Note</th><th>Status</th><th></th></tr></thead>
+    <thead><tr><th>Note #</th><th>Customer</th><th>Date</th><th class="text-end">Amount</th><th>Reason</th><th>Type</th><th>Ref Note</th><th>Status</th><th></th></tr></thead>
     <tbody>
       {% for cn in credit_notes %}
       <tr>
@@ -40,6 +40,8 @@
         <td>{{ cn.customer.name if cn.customer else '—' }}</td>
         <td class="text-muted fs-12">{{ cn.created_at.strftime('%d %b %Y') if cn.created_at else '' }}</td>
         <td class="text-end fw-700 text-success">GHS {{ "%.2f"|format(cn.amount) }}</td>
+        <td class="fs-12 text-muted">{{ cn.reason or '—' }}</td>
+        <td><span class="badge {{ cn.refund_type_badge }}">{{ cn.refund_type_label }}</span></td>
         <td>{% if cn.reference_note %}<span class="ref-note-badge"><i class="fas fa-book me-1"></i>{{ cn.reference_note[:20] }}</span>{% else %}<span class="text-muted fs-12">—</span>{% endif %}</td>
         <td><span class="badge {{ cn.status_badge }}">{{ cn.status|title }}</span></td>
         <td>
