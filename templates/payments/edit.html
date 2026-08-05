@@ -17,7 +17,7 @@
     <div class="mb-3">
       <label class="form-label">Invoice</label>
       <input type="text" class="form-control" value="{{ sale.invoice_number if sale else '—' }}" readonly>
-      {% if sale %}<div class="form-text">Current balance due (excluding this payment): GHS {{ "%.2f"|format(sale.balance_due + payment.amount) }}</div>{% endif %}
+      {% if sale %}<div class="form-text">Current balance due (excluding this payment): GHS {{ "%.2f"|format(net_balance_before) }}</div>{% endif %}
     </div>
     <div class="mb-3">
       <label class="form-label">Amount (GHS) <span class="text-danger">*</span></label>

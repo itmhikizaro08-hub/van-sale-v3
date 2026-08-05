@@ -101,7 +101,18 @@ def add():
             flash('Enter a valid payment amount.', 'danger')
             return redirect(url_for('payments.add', customer_id=customer.id, sale_id=sale.id))
 
-        amount = round(min(amount, sale.balance_due), 2)
+        # Cap at the NET balance (raw balance_due minus applied credit
+        # notes — see routes/invoices.py's _net_balances()), not the raw
+        # column. sale.balance_due alone doesn't know about a return, so
+        # capping at it would let a cashier collect real cash for an
+        # invoice a credit note has already partly or fully settled.
+        from routes.invoices import _net_balances
+        net_balance_due = _net_balances([sale])[sale.id]['net_balance_due']
+        if net_balance_due <= 0:
+            flash(f'{sale.invoice_number} has no balance left to collect — '
+                  f'it\'s already fully covered by a credit note.', 'warning')
+            return redirect(url_for('payments.add', customer_id=customer.id, sale_id=sale.id))
+        amount = round(min(amount, net_balance_due), 2)
 
         # Guard against an accidental double-save — a double-click on the
         # submit button, or the browser resubmitting the form via the back
@@ -204,8 +215,15 @@ def edit(payment_id):
         payment.customer.outstanding_balance += old_amount
 
         # balance_due now reflects "as if this payment never happened" —
-        # clamp the new amount against that.
-        new_amount = round(min(requested_amount, sale.balance_due), 2) if sale else round(requested_amount, 2)
+        # clamp the new amount against the NET balance (minus applied
+        # credit notes — see routes/invoices.py's _net_balances()), not
+        # the raw column, for the same reason as add() above.
+        if sale:
+            from routes.invoices import _net_balances
+            net_balance_due = _net_balances([sale])[sale.id]['net_balance_due']
+            new_amount = round(min(requested_amount, net_balance_due), 2)
+        else:
+            new_amount = round(requested_amount, 2)
         if new_amount <= 0:
             db.session.rollback()
             flash('Enter a valid payment amount.', 'danger')
@@ -226,7 +244,17 @@ def edit(payment_id):
         flash(f'Payment {payment.payment_number} updated: GHS {old_amount:.2f} → GHS {new_amount:.2f}.', 'success')
         return redirect(url_for('payments.index'))
 
-    return render_template('payments/edit.html', payment=payment, sale=sale)
+    # "As if this payment never happened" balance, net of applied credit
+    # notes — see add()'s comment above. Shown on the form so the hint
+    # doesn't overstate what's actually still owed.
+    net_balance_before = None
+    if sale:
+        from routes.invoices import _net_balances
+        credit_total = _net_balances([sale])[sale.id]['credit_total']
+        net_balance_before = round(max(0, (sale.balance_due + payment.amount) - credit_total), 2)
+
+    return render_template('payments/edit.html', payment=payment, sale=sale,
+        net_balance_before=net_balance_before)
 
 
 @payments_bp.route('/<int:payment_id>/void', methods=['POST'])
@@ -306,4 +334,21 @@ def customer_sales(customer_id):
         Sale.status == 'completed',
         Sale.payment_status.in_(['unpaid', 'partial'])
     ).all()
-    return jsonify([s.to_dict() for s in sales])
+
+    # Net of applied credit notes — without this, an invoice a return has
+    # already fully settled (raw payment_status still 'unpaid') would show
+    # up here with its full original balance, letting a cashier collect
+    # real cash for something the customer already got credited back.
+    from routes.invoices import _net_balances
+    net = _net_balances(sales)
+
+    result = []
+    for s in sales:
+        n = net[s.id]
+        if n['net_balance_due'] <= 0:
+            continue  # fully covered by a credit note — nothing left to collect
+        d = s.to_dict()
+        d['balance_due'] = n['net_balance_due']
+        d['payment_status'] = n['net_payment_status']
+        result.append(d)
+    return jsonify(result)
