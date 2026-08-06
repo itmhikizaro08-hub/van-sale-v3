@@ -27,6 +27,16 @@ def create_app():
         db_url = db_url.replace('postgres://', 'postgresql://', 1)
     app.config['SQLALCHEMY_DATABASE_URI'] = db_url
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+    if db_url.startswith('postgresql://'):
+        # Render's managed Postgres (and any intermediary) silently drops idle
+        # connections. Without pre_ping, a pooled-but-dead connection gets handed
+        # to a request and fails with an SSL error (closed unexpectedly / EOF /
+        # bad record mac) instead of transparently reconnecting. pool_recycle
+        # proactively retires connections before they get old enough to hit that.
+        app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
+            'pool_pre_ping': True,
+            'pool_recycle': 280,
+        }
     app.config['UPLOAD_FOLDER'] = os.getenv('UPLOAD_FOLDER', 'uploads')
     app.config['MAX_CONTENT_LENGTH'] = int(os.getenv('MAX_CONTENT_LENGTH', 16 * 1024 * 1024))
 
