@@ -87,3 +87,13 @@ def next_supplier_return_number():
     except Exception:
         n = 1
     return f'SR-{n:05d}'
+
+
+def next_scheduled_order_number():
+    try:
+        from models.scheduled_order import ScheduledOrder
+        last = ScheduledOrder.query.order_by(ScheduledOrder.id.desc()).first()
+        n = (last.id + 1) if last else 1
+    except Exception:
+        n = 1
+    return f'SCH-{n:05d}'

@@ -1,0 +1,86 @@
+{% extends 'base.html' %}
+{% block title %}Scheduled Orders{% endblock %}
+{% block breadcrumb %}<li class="breadcrumb-item active">Scheduled Orders</li>{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title">Scheduled Orders</h1>
+    <p class="page-subtitle">Customer orders placed in advance for a future delivery date.</p>
+  </div>
+  {% if current_user.can_write('scheduled_orders') %}
+  <a href="{{ url_for('scheduled_orders.new') }}" class="btn btn-primary btn-sm">
+    <i class="fas fa-plus me-1"></i>Schedule an Order
+  </a>
+  {% endif %}
+</div>
+
+<div class="row g-3 mb-3">
+  <div class="col-6 col-md-3">
+    <div class="stat-card warning"><div class="stat-icon"><i class="fas fa-clock"></i></div>
+      <div><div class="stat-label">Pending</div><div class="stat-value">{{ pending_count }}</div></div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="stat-card info"><div class="stat-icon"><i class="fas fa-calendar-day"></i></div>
+      <div><div class="stat-label">Due Today</div><div class="stat-value">{{ due_today_count }}</div></div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="stat-card {{ 'danger' if overdue_count > 0 else 'success' }}"><div class="stat-icon"><i class="fas fa-exclamation-triangle"></i></div>
+      <div><div class="stat-label">Overdue</div><div class="stat-value">{{ overdue_count }}</div></div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="stat-card success"><div class="stat-icon"><i class="fas fa-check-circle"></i></div>
+      <div><div class="stat-label">Fulfilled</div><div class="stat-value">{{ fulfilled_count }}</div></div>
+    </div>
+  </div>
+</div>
+
+<div class="card mb-3"><div class="card-body py-2">
+  <form method="GET" class="row g-2 align-items-end">
+    <div class="col-md-4">
+      <label class="form-label">Status</label>
+      <select name="status" class="form-select" onchange="this.form.submit()">
+        <option value="" {{ 'selected' if not status }}>All</option>
+        <option value="pending" {{ 'selected' if status == 'pending' }}>Pending</option>
+        <option value="fulfilled" {{ 'selected' if status == 'fulfilled' }}>Fulfilled</option>
+        <option value="cancelled" {{ 'selected' if status == 'cancelled' }}>Cancelled</option>
+      </select>
+    </div>
+  </form>
+</div></div>
+
+<div class="card"><div class="card-body p-0"><div class="table-responsive">
+<table class="table table-hover mb-0" id="ordersTable">
+  <thead><tr><th>Order #</th><th>Customer</th><th>Due Date</th><th>Items</th><th>Rep</th><th>Status</th><th></th></tr></thead>
+  <tbody>
+    {% for o in orders %}
+    <tr class="{{ 'table-danger' if o.is_overdue else '' }}">
+      <td class="fw-600">{{ o.order_number }}</td>
+      <td>{{ o.customer.name if o.customer else '—' }}</td>
+      <td class="text-nowrap">
+        {{ o.due_date.strftime('%d %b %Y') }}
+        {% if o.is_overdue %}<span class="badge bg-danger ms-1">Overdue</span>
+        {% elif o.status == 'pending' and o.due_date == today %}<span class="badge bg-info text-dark ms-1">Today</span>{% endif %}
+      </td>
+      <td class="fs-13">{{ o.items|length }} product{{ 's' if o.items|length != 1 }}</td>
+      <td>{{ o.rep.full_name if o.rep else '—' }}</td>
+      <td>
+        <span class="badge {{ o.status_badge }}">{{ o.status|title }}</span>
+        {% if o.sms_sent_at %}<i class="fas fa-sms text-muted ms-1" title="SMS sent {{ o.sms_sent_at.strftime('%d %b %H:%M') }}"></i>{% endif %}
+      </td>
+      <td class="text-end"><a href="{{ url_for('scheduled_orders.view', order_id=o.id) }}" class="btn btn-icon btn-sm btn-outline-primary" title="View"><i class="fas fa-eye"></i></a></td>
+    </tr>
+    {% else %}
+    <tr><td colspan="7" class="text-muted text-center py-4">No scheduled orders{{ ' with this status' if status }}.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div></div></div>
+{% endblock %}
+{% block extra_js %}
+<script>
+$(document).ready(() => initDataTable('#ordersTable', {order:[[2,'asc']]}));
+</script>
+{% endblock %}

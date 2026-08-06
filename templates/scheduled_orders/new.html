@@ -1,0 +1,122 @@
+{% extends 'base.html' %}
+{% block title %}Schedule an Order{% endblock %}
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{{ url_for('scheduled_orders.index') }}">Scheduled Orders</a></li>
+<li class="breadcrumb-item active">New</li>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title">Schedule an Order</h1>
+    <p class="page-subtitle">Record what a customer wants and when — the assigned rep gets an SMS reminder on the due date.</p>
+  </div>
+  <a href="{{ url_for('scheduled_orders.index') }}" class="btn btn-outline-secondary btn-sm"><i class="fas fa-arrow-left me-1"></i>Back</a>
+</div>
+
+<form method="POST" id="orderForm">
+  <div class="row g-3">
+    <div class="col-md-8">
+      <div class="card">
+        <div class="card-header"><i class="fas fa-user me-2"></i>Order Details</div>
+        <div class="card-body">
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label">Customer <span class="text-danger">*</span></label>
+              <select name="customer_id" class="form-select" required>
+                <option value="">— Select Customer —</option>
+                {% for c in customers %}
+                <option value="{{ c.id }}">{{ c.name }} ({{ c.customer_code }})</option>
+                {% endfor %}
+              </select>
+              {% if not customers %}<div class="form-text text-danger">No customers available to schedule for.</div>{% endif %}
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Due Date <span class="text-danger">*</span></label>
+              <input type="date" name="due_date" class="form-control" min="{{ today }}" required>
+            </div>
+            <div class="col-12">
+              <label class="form-label">Notes</label>
+              <textarea name="notes" class="form-control" rows="2" placeholder="Anything the rep should know…"></textarea>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card mt-3">
+        <div class="card-header d-flex align-items-center justify-content-between">
+          <span><i class="fas fa-boxes me-2"></i>Products Wanted</span>
+          <button type="button" class="btn btn-sm btn-outline-primary" onclick="addRow()">
+            <i class="fas fa-plus me-1"></i>Add Product
+          </button>
+        </div>
+        <div class="table-responsive">
+          <table class="table mb-0" id="productsTable">
+            <thead><tr><th>Product</th><th class="text-center" style="width:120px">Quantity</th><th style="width:36px"></th></tr></thead>
+            <tbody id="productRows"></tbody>
+          </table>
+        </div>
+        <div class="card-footer">
+          <button type="button" class="btn btn-outline-secondary btn-sm" onclick="addRow()">
+            <i class="fas fa-plus me-1"></i>Add Another Product
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-md-4">
+      <div class="card">
+        <div class="card-header"><i class="fas fa-info-circle text-warning me-2"></i>How this works</div>
+        <div class="card-body">
+          <ul class="mb-0 ps-3" style="font-size:12.5px;color:var(--text-muted);line-height:1.8">
+            <li>This is <b>not</b> a real sale yet — no stock or pricing is touched now.</li>
+            <li>The assigned rep gets an <b>SMS reminder</b> on the due date.</li>
+            <li>The rep creates the actual sale when they deliver.</li>
+          </ul>
+        </div>
+      </div>
+      <div class="d-grid gap-2 mt-3">
+        <button type="submit" class="btn btn-primary btn-lg"><i class="fas fa-calendar-check me-2"></i>Schedule Order</button>
+        <a href="{{ url_for('scheduled_orders.index') }}" class="btn btn-outline-secondary">Cancel</a>
+      </div>
+    </div>
+  </div>
+</form>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const ALL_PRODUCTS = [
+  {% for p in products %}
+  { id: {{ p.id }}, name: "{{ p.product_name|replace('"',"'") }}", code: "{{ p.product_code }}" },
+  {% endfor %}
+];
+
+let rowCount = 0;
+
+function addRow() {
+  rowCount++;
+  const lid = rowCount;
+  const opts = ALL_PRODUCTS.map(p => `<option value="${p.id}">${p.name} (${p.code})</option>`).join('');
+  const tr = document.createElement('tr');
+  tr.dataset.lid = lid;
+  tr.innerHTML = `
+    <td>
+      <select name="product_id[]" class="form-select form-select-sm" required>
+        <option value="">— Select —</option>${opts}
+      </select>
+    </td>
+    <td class="text-center">
+      <input type="number" name="quantity[]" class="form-control form-control-sm text-center" min="0.01" step="0.01" placeholder="0" required>
+    </td>
+    <td>
+      <button type="button" class="btn btn-icon btn-sm btn-outline-danger" onclick="this.closest('tr').remove()">
+        <i class="fas fa-trash"></i>
+      </button>
+    </td>`;
+  document.getElementById('productRows').appendChild(tr);
+}
+
+addRow();
+</script>
+{% endblock %}

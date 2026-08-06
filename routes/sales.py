@@ -64,7 +64,9 @@ def new_sale():
     customers = Customer.query.filter_by(status='active').order_by(Customer.name).all()
     products = Product.query.filter_by(status='active').filter(Product.stock_quantity > 0).order_by(Product.product_name).all()
     vans = Van.query.filter_by(status='active').all()
-    return render_template('sales/new.html', customers=customers, products=products, vans=vans)
+    prefill_customer_id = request.args.get('customer_id', type=int)
+    return render_template('sales/new.html', customers=customers, products=products, vans=vans,
+        prefill_customer_id=prefill_customer_id)
 
 
 @sales_bp.route('/create', methods=['POST'])

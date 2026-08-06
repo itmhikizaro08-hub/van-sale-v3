@@ -13,6 +13,7 @@ def check_all_notifications():
     count += _check_outstanding()
     count += _check_license_expiry()
     count += _check_missed_visits()
+    count += check_due_scheduled_orders()
     return count
 
 
@@ -108,6 +109,52 @@ def _check_missed_visits():
             f'Missed Visit: {name}',
             f"A visit to {name} planned for {v.visit_date.strftime('%d %b %Y')} was never checked in.",
             'missed_visit', 'fa-calendar-times', '/visits/'
+        ):
+            count += 1
+    return count
+
+
+def check_due_scheduled_orders():
+    """SMS the assigned rep for every pending scheduled order whose due date
+    has arrived (or passed, if nobody used the app on the exact day). Guarded
+    by sms_sent_at so each order only ever triggers one SMS, no matter how
+    many times this runs. Also drops an in-app notification either way, so a
+    failed send (bad phone number, SMS provider down) is still visible to a
+    human rather than silently vanishing."""
+    from models.scheduled_order import ScheduledOrder
+    from services.sms_service import send_sms
+
+    orders = ScheduledOrder.query.filter(
+        ScheduledOrder.status == 'pending',
+        ScheduledOrder.due_date <= date.today(),
+        ScheduledOrder.sms_sent_at.is_(None)
+    ).all()
+    count = 0
+    for o in orders:
+        item_summary = ', '.join(
+            f'{i.quantity:g} x {i.product.product_name}' for i in o.items if i.product
+        ) or 'see order for details'
+        message = (f"Reminder: supply due today for {o.customer.name} "
+                   f"(order {o.order_number}): {item_summary}.")
+
+        sent = False
+        if o.rep and o.rep.phone:
+            sent = send_sms(o.rep.phone, message, sms_type='scheduled_order_reminder',
+                             recipient_name=o.rep.full_name)
+        o.sms_sent_at = datetime.utcnow()
+        db.session.commit()
+
+        rep_desc = o.rep.full_name if o.rep else 'no rep assigned'
+        if sent:
+            status_text = f'SMS sent to {rep_desc}.'
+        elif o.rep and o.rep.phone:
+            status_text = f'SMS FAILED to send to {rep_desc} — check SMS Center for the error.'
+        else:
+            status_text = f'No SMS sent — {rep_desc} (no phone number on file).'
+        if _add_notification(
+            f'Order Due: {o.customer.name} ({o.order_number})',
+            f'Scheduled order {o.order_number} for {o.customer.name} is due. {status_text}',
+            'info', 'fa-calendar-check', f'/scheduled-orders/{o.id}'
         ):
             count += 1
     return count

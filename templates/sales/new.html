@@ -367,6 +367,12 @@ document.getElementById('customerSelect').addEventListener('change', function() 
   }
 });
 
+{% if prefill_customer_id %}
+// Arrived here from a Scheduled Order's "Create Sale for This Customer" link.
+document.getElementById('customerSelect').value = '{{ prefill_customer_id }}';
+document.getElementById('customerSelect').dispatchEvent(new Event('change'));
+{% endif %}
+
 /* ── Product search ───────────────────────────────────────── */
 const searchInput = document.getElementById('productSearch');
 const resultsBox  = document.getElementById('productSearchResults');

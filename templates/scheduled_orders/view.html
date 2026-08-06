@@ -1,0 +1,95 @@
+{% extends 'base.html' %}
+{% block title %}Order {{ order.order_number }}{% endblock %}
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{{ url_for('scheduled_orders.index') }}">Scheduled Orders</a></li>
+<li class="breadcrumb-item active">{{ order.order_number }}</li>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title">{{ order.order_number }}
+      <span class="badge {{ order.status_badge }} fs-13 ms-2">{{ order.status|title }}</span>
+      {% if order.is_overdue %}<span class="badge bg-danger fs-13 ms-1">Overdue</span>{% endif %}
+    </h1>
+    <p class="page-subtitle">For {{ order.customer.name if order.customer else '—' }} · Due {{ order.due_date.strftime('%d %b %Y') }}</p>
+  </div>
+  <a href="{{ url_for('scheduled_orders.index') }}" class="btn btn-outline-secondary btn-sm"><i class="fas fa-arrow-left me-1"></i>Back</a>
+</div>
+
+<div class="row g-3">
+  <div class="col-md-8">
+    <div class="card">
+      <div class="card-header"><i class="fas fa-boxes me-2"></i>Products Wanted</div>
+      <div class="table-responsive">
+        <table class="table mb-0">
+          <thead><tr><th>Product</th><th class="text-center">Quantity</th><th class="text-end">Reference Price</th></tr></thead>
+          <tbody>
+            {% for i in order.items %}
+            <tr>
+              <td>{{ i.product.product_name if i.product else 'Deleted product' }}</td>
+              <td class="text-center">{{ i.quantity|qty }}</td>
+              <td class="text-end text-muted">{{ 'GHS %.2f'|format(i.ref_price) if i.ref_price else '—' }}</td>
+            </tr>
+            {% else %}
+            <tr><td colspan="3" class="text-muted text-center py-3">No items on this order.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    {% if order.notes %}
+    <div class="card mt-3">
+      <div class="card-header"><i class="fas fa-sticky-note me-2"></i>Notes</div>
+      <div class="card-body">{{ order.notes }}</div>
+    </div>
+    {% endif %}
+  </div>
+
+  <div class="col-md-4">
+    <div class="card">
+      <div class="card-header"><i class="fas fa-info-circle me-2"></i>Order Info</div>
+      <div class="card-body">
+        <div class="d-flex justify-content-between mb-2"><span class="text-muted">Customer</span>
+          <span class="fw-600">{{ order.customer.name if order.customer else '—' }}</span></div>
+        <div class="d-flex justify-content-between mb-2"><span class="text-muted">Due Date</span>
+          <span class="fw-600">{{ order.due_date.strftime('%d %b %Y') }}</span></div>
+        <div class="d-flex justify-content-between mb-2"><span class="text-muted">Assigned Rep</span>
+          <span class="fw-600">{{ order.rep.full_name if order.rep else 'Unassigned' }}</span></div>
+        <div class="d-flex justify-content-between mb-2"><span class="text-muted">SMS Reminder</span>
+          <span class="fw-600">
+            {% if order.sms_sent_at %}<i class="fas fa-check text-success me-1"></i>Sent {{ order.sms_sent_at.strftime('%d %b %H:%M') }}
+            {% else %}Not due yet{% endif %}
+          </span></div>
+        <div class="d-flex justify-content-between mb-2"><span class="text-muted">Scheduled By</span>
+          <span class="fw-600">{{ order.created_by.full_name if order.created_by else '—' }}</span></div>
+        <div class="d-flex justify-content-between"><span class="text-muted">Scheduled On</span>
+          <span class="fw-600">{{ order.created_at.strftime('%d %b %Y') if order.created_at else '—' }}</span></div>
+      </div>
+    </div>
+
+    {% if order.status == 'pending' %}
+    <div class="d-grid gap-2 mt-3">
+      {% if current_user.can_write('scheduled_orders') and order.customer %}
+      <a href="{{ url_for('sales.new_sale', customer_id=order.customer.id) }}" class="btn btn-primary">
+        <i class="fas fa-shopping-cart me-2"></i>Create Sale for This Customer
+      </a>
+      {% endif %}
+      {% if current_user.can_write('scheduled_orders') %}
+      <button class="btn btn-outline-success" data-action-url="{{ url_for('scheduled_orders.fulfill', order_id=order.id) }}"
+              data-method="POST" data-confirm="Mark this order as fulfilled?" data-success-msg="Marked fulfilled.">
+        <i class="fas fa-check-double me-2"></i>Mark Fulfilled
+      </button>
+      {% endif %}
+      {% if current_user.can_write('scheduled_orders') or current_user.can_approve_module('scheduled_orders') %}
+      <button class="btn btn-outline-danger" data-action-url="{{ url_for('scheduled_orders.cancel', order_id=order.id) }}"
+              data-method="POST" data-confirm="Cancel this scheduled order?" data-success-msg="Order cancelled.">
+        <i class="fas fa-times me-2"></i>Cancel Order
+      </button>
+      {% endif %}
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

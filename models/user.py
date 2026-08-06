@@ -38,6 +38,7 @@ ROLE_PERMISSIONS = {
         'drivers':       ('all',  True,  False),
         'sms':           ('all',  True,  True),
         'insights':      ('all',  False, False),
+        'scheduled_orders': ('all', True, True),
     },
     'manager': {
         'dashboard':     ('all',  False, True),
@@ -70,6 +71,7 @@ ROLE_PERMISSIONS = {
         'drivers':       ('all',  True,  False),
         'sms':           ('all',  True,  False),
         'insights':      ('all',  False, False),
+        'scheduled_orders': ('all', True, True),
     },
     'supervisor': {
         'dashboard':     ('team', False, False),
@@ -102,6 +104,7 @@ ROLE_PERMISSIONS = {
         'drivers':       ('all',  False, False),
         'sms':           ('none', False, False),
         'insights':      ('none', False, False),
+        'scheduled_orders': ('team', False, False),
     },
     'sales_rep': {
         'dashboard':     ('own',  False, False),
@@ -134,6 +137,7 @@ ROLE_PERMISSIONS = {
         'drivers':       ('none', False, False),
         'sms':           ('none', False, False),
         'insights':      ('none', False, False),
+        'scheduled_orders': ('own', True, False),
     },
     'warehouse_manager': {
         'dashboard':     ('all',  False, False),
@@ -166,6 +170,7 @@ ROLE_PERMISSIONS = {
         'drivers':       ('all',  False, False),
         'sms':           ('none', False, False),
         'insights':      ('none', False, False),
+        'scheduled_orders': ('none', False, False),
     },
     'cashier': {
         'dashboard':     ('all',  False, False),
@@ -198,6 +203,7 @@ ROLE_PERMISSIONS = {
         'drivers':       ('none', False, False),
         'sms':           ('none', False, False),
         'insights':      ('none', False, False),
+        'scheduled_orders': ('none', False, False),
     },
 }
 
@@ -412,6 +418,10 @@ class User(UserMixin, db.Model):
             sales_items.append({'label': 'Returns', 'icon': 'fas fa-undo-alt',
                                  'url': 'returns.index', 'bp': 'returns',
                                  'match_endpoints': ['returns.index', 'returns.new', 'returns.view']})
+        if self.can_access('scheduled_orders'):
+            sales_items.append({'label': 'Scheduled Orders', 'icon': 'fas fa-calendar-check',
+                                 'url': 'scheduled_orders.index', 'bp': 'scheduled_orders',
+                                 'match_endpoints': ['scheduled_orders.index', 'scheduled_orders.new', 'scheduled_orders.view']})
         if self.can_access('notes') and self.role in ('admin', 'manager'):
             sales_items.append({'label': 'Credit/Debit Notes', 'icon': 'fas fa-receipt',
                                  'url': 'notes.index', 'bp': 'notes'})

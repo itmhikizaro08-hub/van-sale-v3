@@ -67,6 +67,17 @@ def _daily_series(date_col, amount_col, filters, days=7, end_date=None):
 @dashboard_bp.route('/')
 @login_required
 def index():
+    # Scheduled-order SMS reminders are due-date-sensitive (a rep needs to
+    # know TODAY, not whenever someone next opens the Notifications page) —
+    # the dashboard is the one page everyone hits every time they log in, so
+    # check here too. Isolated in its own try/except so a bad row (or an SMS
+    # provider outage) can never take the dashboard down with it.
+    from services.notification_service import check_due_scheduled_orders
+    try:
+        check_due_scheduled_orders()
+    except Exception:
+        db.session.rollback()
+
     real_today = datetime.utcnow().date()
     date_param = request.args.get('date')
     today = real_today
