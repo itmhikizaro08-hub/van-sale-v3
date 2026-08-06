@@ -315,6 +315,55 @@ def backup_zip():
     return response
 
 
+@settings_bp.route('/backup/restore', methods=['POST'])
+@login_required
+def backup_restore():
+    if not current_user.is_admin:
+        flash('Admin access required.', 'danger')
+        return redirect(url_for('settings.index'))
+
+    mode = request.form.get('mode')
+    confirm_text = (request.form.get('confirm_text') or '').strip().upper()
+    file = request.files.get('backup_file')
+
+    if mode not in ('wipe', 'merge'):
+        flash('Choose a restore mode.', 'danger')
+        return redirect(url_for('settings.index', tab='data'))
+    if not file or not file.filename:
+        flash('Choose a backup file to restore.', 'danger')
+        return redirect(url_for('settings.index', tab='data'))
+    if mode == 'wipe' and confirm_text != 'WIPE AND REPLACE':
+        flash('Type "WIPE AND REPLACE" exactly to confirm this destructive action.', 'danger')
+        return redirect(url_for('settings.index', tab='data'))
+
+    from services.restore import read_upload, restore_wipe, restore_merge
+
+    try:
+        dataframes = read_upload(file)
+    except Exception as e:
+        flash(f'Could not read backup file: {e}', 'danger')
+        return redirect(url_for('settings.index', tab='data'))
+
+    if not dataframes:
+        flash('No recognizable tables found in that file.', 'danger')
+        return redirect(url_for('settings.index', tab='data'))
+
+    try:
+        if mode == 'wipe':
+            summary = restore_wipe(dataframes)
+            total = sum(summary['inserted'].values())
+            flash(f'Restore complete (Wipe & Replace). {total} rows restored across {len(summary["inserted"])} tables.', 'success')
+        else:
+            summary = restore_merge(dataframes)
+            total_new = sum(summary['inserted'].values())
+            total_skipped = sum(summary['skipped_existing'].values())
+            flash(f'Restore complete (Merge). {total_new} new rows added, {total_skipped} existing rows left untouched.', 'success')
+    except Exception as e:
+        flash(f'Restore failed and was rolled back: {e}', 'danger')
+
+    return redirect(url_for('settings.index', tab='data'))
+
+
 @settings_bp.route('/permissions', methods=['POST'])
 @login_required
 def update_permissions():

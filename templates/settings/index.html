@@ -425,9 +425,40 @@
 
         <div class="section-title mt-4"><i class="fas fa-upload"></i>Restore Data</div>
         <div class="settings-subcard">
-          <p class="text-muted fs-13 mb-0">
-            <i class="fas fa-tools me-1"></i>Restore from backup is coming soon.
+          <p class="text-muted fs-13 mb-3">
+            Restore from a backup file produced by Backup Data above (.xlsx or .zip). Only tables
+            included in a backup are ever touched — logins, permissions, and system settings are
+            never affected by a restore.
           </p>
+          <form method="POST" action="{{ url_for('settings.backup_restore') }}" enctype="multipart/form-data" id="restoreForm">
+            <div class="mb-3">
+              <label class="form-label">Backup File</label>
+              <input type="file" name="backup_file" class="form-control" accept=".xlsx,.zip" required>
+            </div>
+            <div class="mb-3">
+              <label class="form-label d-block">Restore Mode</label>
+              <div class="form-check">
+                <input class="form-check-input" type="radio" name="mode" id="restoreMerge" value="merge" checked>
+                <label class="form-check-label" for="restoreMerge">
+                  <strong>Merge / Add-only</strong> — adds rows that don't already exist. Never deletes or overwrites anything.
+                </label>
+              </div>
+              <div class="form-check mt-1">
+                <input class="form-check-input" type="radio" name="mode" id="restoreWipe" value="wipe">
+                <label class="form-check-label" for="restoreWipe">
+                  <strong class="text-danger">Wipe &amp; Replace</strong> — deletes ALL current data in every restorable table, then restores from the file. Cannot be undone.
+                </label>
+              </div>
+            </div>
+            <div class="mb-3 d-none" id="wipeConfirmWrap">
+              <label class="form-label text-danger">Type <code>WIPE AND REPLACE</code> to confirm</label>
+              <input type="text" name="confirm_text" class="form-control" id="wipeConfirmInput" autocomplete="off">
+            </div>
+            <button type="submit" class="btn btn-danger" id="restoreSubmitBtn"
+                    onclick="return confirm('This will modify live business data. Are you sure you want to proceed?');">
+              <i class="fas fa-upload me-1"></i>Restore
+            </button>
+          </form>
         </div>
       </div>
       {% endif %}
@@ -441,6 +472,28 @@
 document.getElementById('roleSelect')?.addEventListener('change', function () {
   window.location.href = '{{ url_for("settings.index") }}?tab=permissions&role=' + this.value;
 });
+
+(function () {
+  const wipeRadio = document.getElementById('restoreWipe');
+  const mergeRadio = document.getElementById('restoreMerge');
+  const wrap = document.getElementById('wipeConfirmWrap');
+  const input = document.getElementById('wipeConfirmInput');
+  const btn = document.getElementById('restoreSubmitBtn');
+  if (!wipeRadio) return;
+  function sync() {
+    if (wipeRadio.checked) {
+      wrap.classList.remove('d-none');
+      btn.disabled = input.value.trim().toUpperCase() !== 'WIPE AND REPLACE';
+    } else {
+      wrap.classList.add('d-none');
+      btn.disabled = false;
+    }
+  }
+  wipeRadio.addEventListener('change', sync);
+  mergeRadio.addEventListener('change', sync);
+  input.addEventListener('input', sync);
+  sync();
+})();
 
 function toggleSmsProviderFields() {
   const provider = document.getElementById('smsProviderSelect')?.value;
