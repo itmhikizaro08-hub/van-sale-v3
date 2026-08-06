@@ -1,6 +1,7 @@
 """Settings blueprint — company profile, system settings, role permissions."""
 import os
-from flask import Blueprint, render_template, redirect, url_for, flash, request, current_app
+from datetime import datetime
+from flask import Blueprint, render_template, redirect, url_for, flash, request, current_app, make_response
 from flask_login import login_required, current_user
 from app import db
 from models.settings import Settings, SettingsAuditLog
@@ -282,6 +283,36 @@ def errors():
     from models.error_log import ErrorLog
     logs = ErrorLog.query.order_by(ErrorLog.created_at.desc()).limit(30).all()
     return render_template('settings/errors.html', logs=logs)
+
+
+@settings_bp.route('/backup/excel')
+@login_required
+def backup_excel():
+    if not current_user.is_admin:
+        flash('Admin access required.', 'danger')
+        return redirect(url_for('settings.index'))
+    from services.backup import export_backup_excel
+    buf = export_backup_excel()
+    filename = f'backup_{datetime.utcnow().strftime("%Y%m%d_%H%M%S")}.xlsx'
+    response = make_response(buf.read())
+    response.headers['Content-Type'] = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    response.headers['Content-Disposition'] = f'attachment; filename={filename}'
+    return response
+
+
+@settings_bp.route('/backup/zip')
+@login_required
+def backup_zip():
+    if not current_user.is_admin:
+        flash('Admin access required.', 'danger')
+        return redirect(url_for('settings.index'))
+    from services.backup import export_backup_zip
+    buf = export_backup_zip()
+    filename = f'backup_{datetime.utcnow().strftime("%Y%m%d_%H%M%S")}.zip'
+    response = make_response(buf.read())
+    response.headers['Content-Type'] = 'application/zip'
+    response.headers['Content-Disposition'] = f'attachment; filename={filename}'
+    return response
 
 
 @settings_bp.route('/permissions', methods=['POST'])

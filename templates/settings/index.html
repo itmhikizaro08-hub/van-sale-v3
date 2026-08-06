@@ -88,6 +88,13 @@
         </a>
       </li>
       {% endif %}
+      {% if current_user.is_admin %}
+      <li class="nav-item">
+        <a class="nav-link {{ 'active' if tab == 'data' else '' }}" data-bs-toggle="tab" href="#dataTab">
+          <i class="fas fa-database me-1"></i>Backup &amp; Restore
+        </a>
+      </li>
+      {% endif %}
     </ul>
   </div>
   <div class="card-body">
@@ -392,6 +399,36 @@
         {% else %}
         <div class="empty-state py-5"><i class="fas fa-history" style="font-size:2.5rem;color:var(--text-muted)"></i><h6 class="mt-3">No changes found</h6><p class="text-muted">{{ 'Try clearing your filters.' if log_filters.user or log_filters.category or log_filters.start or log_filters.end else 'Company, system, and permission changes will show up here.' }}</p></div>
         {% endif %}
+      </div>
+      {% endif %}
+
+      <!-- ── Backup & Restore ─────────────────────────────────────────── -->
+      {% if current_user.is_admin %}
+      <div class="tab-pane fade {{ 'show active' if tab == 'data' else '' }}" id="dataTab">
+        <div class="section-title"><i class="fas fa-database"></i>Backup Data</div>
+        <div class="settings-subcard">
+          <p class="text-muted fs-13 mb-3">
+            Download a full copy of your business data — customers, products, sales, invoices, payments,
+            returns, credit/debit notes, inventory, and more. Login credentials, API keys, and internal
+            system logs are never included.
+          </p>
+          <div class="d-flex flex-wrap gap-2">
+            <a href="{{ url_for('settings.backup_excel') }}" class="btn btn-primary">
+              <i class="fas fa-file-excel me-1"></i>Download Excel Backup
+            </a>
+            <a href="{{ url_for('settings.backup_zip') }}" class="btn btn-outline-primary">
+              <i class="fas fa-file-zipper me-1"></i>Download ZIP Backup (CSV)
+            </a>
+          </div>
+          <div class="form-text mt-2">Excel: one sheet per table. ZIP: one CSV file per table.</div>
+        </div>
+
+        <div class="section-title mt-4"><i class="fas fa-upload"></i>Restore Data</div>
+        <div class="settings-subcard">
+          <p class="text-muted fs-13 mb-0">
+            <i class="fas fa-tools me-1"></i>Restore from backup is coming soon.
+          </p>
+        </div>
       </div>
       {% endif %}
 
