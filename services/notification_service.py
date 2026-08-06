@@ -17,17 +17,27 @@ def check_all_notifications():
 
 
 def _add_notification(title, message, ntype, icon='fa-bell', link=None):
-    # Avoid duplicates for same title created today
+    """Create a new alert, or refresh an existing unresolved one's message.
+
+    Dedup is by title, but the underlying value (stock count, balance,
+    expiry status) keeps changing while an alert sits unresolved — without
+    refreshing the message, staff would keep seeing whatever number was true
+    the first time the alert fired, no matter how stale it's since become.
+    Always commits (even when just updating) so any other pending change a
+    caller made this call (e.g. flipping a visit's status) is flushed too.
+    """
     existing = Notification.query.filter(
         Notification.title == title,
         Notification.is_read == False
     ).first()
-    if not existing:
-        db.session.add(Notification(title=title, message=message,
-                                    notification_type=ntype, icon=icon, link=link))
+    if existing:
+        existing.message = message
         db.session.commit()
-        return True
-    return False
+        return False
+    db.session.add(Notification(title=title, message=message,
+                                notification_type=ntype, icon=icon, link=link))
+    db.session.commit()
+    return True
 
 
 def _check_low_stock():
