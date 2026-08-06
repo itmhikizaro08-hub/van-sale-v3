@@ -65,8 +65,24 @@ def new_sale():
     products = Product.query.filter_by(status='active').filter(Product.stock_quantity > 0).order_by(Product.product_name).all()
     vans = Van.query.filter_by(status='active').all()
     prefill_customer_id = request.args.get('customer_id', type=int)
+
+    prefill_items = []
+    from_order_id = request.args.get('from_order', type=int)
+    if from_order_id:
+        from models.scheduled_order import ScheduledOrder
+        order = ScheduledOrder.query.get(from_order_id)
+        if order and not (current_user.scope('scheduled_orders') == 'own' and order.rep_id != current_user.id):
+            prefill_items = [{
+                'id': i.product.id, 'name': i.product.product_name,
+                'price': i.ref_price or i.product.selling_price,
+                'stock': i.product.stock_quantity,
+                'company_price': i.product.selling_price,
+                'pieces_per_unit': i.product.pieces_per_unit or 1,
+                'qty': i.quantity,
+            } for i in order.items if i.product]
+
     return render_template('sales/new.html', customers=customers, products=products, vans=vans,
-        prefill_customer_id=prefill_customer_id)
+        prefill_customer_id=prefill_customer_id, prefill_items=prefill_items)
 
 
 @sales_bp.route('/create', methods=['POST'])

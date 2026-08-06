@@ -37,6 +37,10 @@ class ScheduledOrder(db.Model):
     def is_overdue(self):
         return self.status == 'pending' and self.due_date < date.today()
 
+    @property
+    def total_value(self):
+        return round(sum((i.ref_price or 0) * i.quantity for i in self.items), 2)
+
 
 class ScheduledOrderItem(db.Model):
     __tablename__ = 'scheduled_order_items'

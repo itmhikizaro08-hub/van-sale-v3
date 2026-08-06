@@ -23,18 +23,22 @@
       <div class="card-header"><i class="fas fa-boxes me-2"></i>Products Wanted</div>
       <div class="table-responsive">
         <table class="table mb-0">
-          <thead><tr><th>Product</th><th class="text-center">Quantity</th><th class="text-end">Reference Price</th></tr></thead>
+          <thead><tr><th>Product</th><th class="text-center">Quantity</th><th class="text-end">Price</th><th class="text-end">Line Total</th></tr></thead>
           <tbody>
             {% for i in order.items %}
             <tr>
               <td>{{ i.product.product_name if i.product else 'Deleted product' }}</td>
               <td class="text-center">{{ i.quantity|qty }}</td>
               <td class="text-end text-muted">{{ 'GHS %.2f'|format(i.ref_price) if i.ref_price else '—' }}</td>
+              <td class="text-end fw-600">{{ 'GHS %.2f'|format(i.ref_price * i.quantity) if i.ref_price else '—' }}</td>
             </tr>
             {% else %}
-            <tr><td colspan="3" class="text-muted text-center py-3">No items on this order.</td></tr>
+            <tr><td colspan="4" class="text-muted text-center py-3">No items on this order.</td></tr>
             {% endfor %}
           </tbody>
+          {% if order.items %}
+          <tfoot><tr class="fw-700"><td colspan="3" class="text-end">Order Total</td><td class="text-end">GHS {{ '%.2f'|format(order.total_value) }}</td></tr></tfoot>
+          {% endif %}
         </table>
       </div>
     </div>
@@ -72,7 +76,7 @@
     {% if order.status == 'pending' %}
     <div class="d-grid gap-2 mt-3">
       {% if current_user.can_write('scheduled_orders') and order.customer %}
-      <a href="{{ url_for('sales.new_sale', customer_id=order.customer.id) }}" class="btn btn-primary">
+      <a href="{{ url_for('sales.new_sale', customer_id=order.customer.id, from_order=order.id) }}" class="btn btn-primary">
         <i class="fas fa-shopping-cart me-2"></i>Create Sale for This Customer
       </a>
       {% endif %}

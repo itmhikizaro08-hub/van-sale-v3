@@ -52,14 +52,15 @@
         </div>
         <div class="table-responsive">
           <table class="table mb-0" id="productsTable">
-            <thead><tr><th>Product</th><th class="text-center" style="width:120px">Quantity</th><th style="width:36px"></th></tr></thead>
+            <thead><tr><th>Product</th><th class="text-center" style="width:110px">Quantity</th><th class="text-center" style="width:130px">Price (GHS)</th><th class="text-end" style="width:100px">Line Total</th><th style="width:36px"></th></tr></thead>
             <tbody id="productRows"></tbody>
           </table>
         </div>
-        <div class="card-footer">
+        <div class="card-footer d-flex align-items-center justify-content-between">
           <button type="button" class="btn btn-outline-secondary btn-sm" onclick="addRow()">
             <i class="fas fa-plus me-1"></i>Add Another Product
           </button>
+          <span class="fw-700">Order Total: <span id="orderTotal">GHS 0.00</span></span>
         </div>
       </div>
     </div>
@@ -69,7 +70,8 @@
         <div class="card-header"><i class="fas fa-info-circle text-warning me-2"></i>How this works</div>
         <div class="card-body">
           <ul class="mb-0 ps-3" style="font-size:12.5px;color:var(--text-muted);line-height:1.8">
-            <li>This is <b>not</b> a real sale yet — no stock or pricing is touched now.</li>
+            <li>This is <b>not</b> a real sale yet — no stock is touched now.</li>
+            <li>Price is a <b>quoted reference</b> — the real sale can still adjust it at delivery.</li>
             <li>The assigned rep gets an <b>SMS reminder</b> on the due date.</li>
             <li>The rep creates the actual sale when they deliver.</li>
           </ul>
@@ -88,7 +90,7 @@
 <script>
 const ALL_PRODUCTS = [
   {% for p in products %}
-  { id: {{ p.id }}, name: "{{ p.product_name|replace('"',"'") }}", code: "{{ p.product_code }}" },
+  { id: {{ p.id }}, name: "{{ p.product_name|replace('"',"'") }}", code: "{{ p.product_code }}", price: {{ p.selling_price or 0 }} },
   {% endfor %}
 ];
 
@@ -97,24 +99,54 @@ let rowCount = 0;
 function addRow() {
   rowCount++;
   const lid = rowCount;
-  const opts = ALL_PRODUCTS.map(p => `<option value="${p.id}">${p.name} (${p.code})</option>`).join('');
+  const opts = ALL_PRODUCTS.map(p => `<option value="${p.id}" data-price="${p.price}">${p.name} (${p.code})</option>`).join('');
   const tr = document.createElement('tr');
   tr.dataset.lid = lid;
   tr.innerHTML = `
     <td>
-      <select name="product_id[]" class="form-select form-select-sm" required>
+      <select name="product_id[]" class="form-select form-select-sm prod-sel" required onchange="onProductChange(${lid})">
         <option value="">— Select —</option>${opts}
       </select>
     </td>
     <td class="text-center">
-      <input type="number" name="quantity[]" class="form-control form-control-sm text-center" min="0.01" step="0.01" placeholder="0" required>
+      <input type="number" name="quantity[]" class="form-control form-control-sm text-center qty-input" min="0.01" step="0.01" placeholder="0" required oninput="recalcRow(${lid})">
     </td>
+    <td class="text-center">
+      <input type="number" name="price[]" class="form-control form-control-sm text-center price-input" min="0" step="0.01" placeholder="0.00" required oninput="recalcRow(${lid})">
+    </td>
+    <td class="text-end fw-600" id="lineTotal-${lid}">GHS 0.00</td>
     <td>
-      <button type="button" class="btn btn-icon btn-sm btn-outline-danger" onclick="this.closest('tr').remove()">
+      <button type="button" class="btn btn-icon btn-sm btn-outline-danger" onclick="this.closest('tr').remove(); recalcTotal()">
         <i class="fas fa-trash"></i>
       </button>
     </td>`;
   document.getElementById('productRows').appendChild(tr);
+}
+
+function onProductChange(lid) {
+  const row = document.querySelector(`[data-lid="${lid}"]`);
+  const sel = row.querySelector('.prod-sel');
+  const price = parseFloat(sel.selectedOptions[0]?.dataset?.price || 0);
+  row.querySelector('.price-input').value = price.toFixed(2);
+  recalcRow(lid);
+}
+
+function recalcRow(lid) {
+  const row = document.querySelector(`[data-lid="${lid}"]`);
+  const qty = parseFloat(row.querySelector('.qty-input').value || 0);
+  const price = parseFloat(row.querySelector('.price-input').value || 0);
+  document.getElementById(`lineTotal-${lid}`).textContent = `GHS ${(qty * price).toFixed(2)}`;
+  recalcTotal();
+}
+
+function recalcTotal() {
+  let total = 0;
+  document.querySelectorAll('#productRows tr').forEach(row => {
+    const qty = parseFloat(row.querySelector('.qty-input')?.value || 0);
+    const price = parseFloat(row.querySelector('.price-input')?.value || 0);
+    total += qty * price;
+  });
+  document.getElementById('orderTotal').textContent = `GHS ${total.toFixed(2)}`;
 }
 
 addRow();

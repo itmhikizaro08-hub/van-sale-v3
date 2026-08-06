@@ -53,6 +53,7 @@ def new():
         notes = request.form.get('notes', '').strip()
         product_ids = request.form.getlist('product_id[]')
         quantities = request.form.getlist('quantity[]')
+        prices = request.form.getlist('price[]')
 
         customer = Customer.query.get(customer_id) if customer_id else None
         if not customer:
@@ -72,7 +73,7 @@ def new():
             return redirect(url_for('scheduled_orders.new'))
 
         items = []
-        for pid, qty_str in zip(product_ids, quantities):
+        for pid, qty_str, price_str in zip(product_ids, quantities, prices):
             if not pid or not qty_str:
                 continue
             try:
@@ -86,7 +87,15 @@ def new():
             product = Product.query.get(pid)
             if not product:
                 continue
-            items.append((product, qty))
+            try:
+                price = float(price_str) if price_str else product.selling_price
+            except ValueError:
+                flash('Prices must be numbers.', 'danger')
+                return redirect(url_for('scheduled_orders.new'))
+            if price < 0:
+                flash('Prices cannot be negative.', 'danger')
+                return redirect(url_for('scheduled_orders.new'))
+            items.append((product, qty, price))
 
         if not items:
             flash('Add at least one product.', 'danger')
@@ -104,10 +113,10 @@ def new():
         db.session.add(order)
         db.session.flush()
 
-        for product, qty in items:
+        for product, qty, price in items:
             db.session.add(ScheduledOrderItem(
                 scheduled_order_id=order.id, product_id=product.id,
-                quantity=qty, ref_price=product.selling_price
+                quantity=qty, ref_price=price
             ))
         db.session.commit()
 
