@@ -428,7 +428,8 @@
           <p class="text-muted fs-13 mb-3">
             Restore from a backup file produced by Backup Data above (.xlsx or .zip). Only tables
             included in a backup are ever touched — logins, permissions, and system settings are
-            never affected by a restore.
+            never affected by a restore. A safety backup of your current data downloads
+            automatically the moment you click Restore, before anything is changed.
           </p>
           <form method="POST" action="{{ url_for('settings.backup_restore') }}" enctype="multipart/form-data" id="restoreForm">
             <div class="mb-3">
@@ -458,6 +459,9 @@
                     onclick="return confirm('This will modify live business data. Are you sure you want to proceed?');">
               <i class="fas fa-upload me-1"></i>Restore
             </button>
+            <span class="fs-12 text-muted ms-2 d-none" id="restoreSafetyStatus">
+              <i class="fas fa-circle-notch fa-spin me-1"></i>Downloading safety backup…
+            </span>
           </form>
         </div>
       </div>
@@ -493,6 +497,29 @@ document.getElementById('roleSelect')?.addEventListener('change', function () {
   mergeRadio.addEventListener('change', sync);
   input.addEventListener('input', sync);
   sync();
+})();
+
+(function () {
+  const form = document.getElementById('restoreForm');
+  if (!form) return;
+  const status = document.getElementById('restoreSafetyStatus');
+  const btn = document.getElementById('restoreSubmitBtn');
+  form.addEventListener('submit', function (e) {
+    if (form.dataset.safetyDone === '1') return; // safety backup already fired, let this submit through
+    e.preventDefault();
+    status.classList.remove('d-none');
+    btn.disabled = true;
+    const iframe = document.createElement('iframe');
+    iframe.style.display = 'none';
+    iframe.src = '{{ url_for("settings.backup_zip") }}';
+    document.body.appendChild(iframe);
+    setTimeout(function () {
+      form.dataset.safetyDone = '1';
+      btn.disabled = false;
+      status.classList.add('d-none');
+      form.submit();
+    }, 1200);
+  });
 })();
 
 function toggleSmsProviderFields() {
