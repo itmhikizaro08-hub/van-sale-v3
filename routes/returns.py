@@ -36,6 +36,27 @@ def _credit_returned_stock(order, item):
             log_stock_movement(p, item.quantity, 'customer_return', 'return_order', order.id, order.reference_note)
 
 
+def _cash_refundable_available(sale):
+    """How much cash can still legitimately be refunded on this sale: what
+    was actually paid, minus cash already refunded on it via earlier
+    returns. A 'cash refund' beyond this is nonsensical — there's no money
+    to hand back for goods that were never paid for — and previously wasn't
+    blocked, which both understated the customer's true balance (a
+    cash-refund credit note is excluded from net-balance math, since it's
+    meant to represent money already settled) and falsely drained the
+    approving rep's cash-on-hand for cash they never collected."""
+    if not sale:
+        return 0.0
+    already_refunded = db.session.query(db.func.sum(CreditNote.amount)).join(
+        ReturnOrder, CreditNote.return_order_id == ReturnOrder.id
+    ).filter(
+        CreditNote.sale_id == sale.id,
+        CreditNote.status == 'applied',
+        ReturnOrder.refund_method == 'cash'
+    ).scalar() or 0
+    return max(0, round(sale.amount_paid - already_refunded, 2))
+
+
 def _record_cash_refund(order, item):
     """A cash-refunded return line pays real money out of the till — track
     it the same way every other cash movement is tracked, so it correctly
@@ -130,6 +151,13 @@ def approve(order_id):
     if not current_user.can_approve_module('returns'):
         return jsonify({'error': 'Permission denied'}), 403
     order = ReturnOrder.query.get_or_404(order_id)
+    if order.refund_method == 'cash' and order.sale_id:
+        pending_total = round(sum(i.line_total for i in order.items if i.line_status == 'pending'), 2)
+        available = _cash_refundable_available(order.sale)
+        if pending_total > available:
+            return jsonify({'error': f'Cannot cash-refund GHS {pending_total:.2f} — only GHS {available:.2f} was '
+                                      f'actually paid on this sale. Switch to "Account Credit" instead, or reduce '
+                                      f'the return amount.'}), 400
     if not _bulk_resolve(order, 'approved'):
         return jsonify({'error': 'No pending lines to approve'}), 400
     db.session.commit()
@@ -290,6 +318,13 @@ def approve_line(order_id, item_id):
     item  = ReturnOrderItem.query.filter_by(id=item_id, return_order_id=order.id).first_or_404()
     if item.line_status != 'pending':
         return jsonify({'error': 'Already processed'}), 400
+
+    if order.refund_method == 'cash' and order.sale_id:
+        line_amount = round(item.line_total, 2)
+        available = _cash_refundable_available(order.sale)
+        if line_amount > available:
+            return jsonify({'error': f'Cannot cash-refund GHS {line_amount:.2f} — only GHS {available:.2f} was '
+                                      f'actually paid on this sale. Switch to "Account Credit" instead.'}), 400
 
     item.line_status = 'approved'
     # Route stock
