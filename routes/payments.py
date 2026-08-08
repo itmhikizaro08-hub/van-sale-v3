@@ -229,6 +229,24 @@ def edit(payment_id):
             flash('Enter a valid payment amount.', 'danger')
             return redirect(url_for('payments.edit', payment_id=payment.id))
 
+        # A return can have already cash-refunded real money out of what this
+        # payment covered (see routes/returns.py's _cash_refundable_available).
+        # Dropping the payment low enough to undercut that would leave the
+        # books showing less was ever paid than was already handed back in
+        # cash — an impossible state. sale.amount_paid at this point is
+        # already net of the reversal above, so + new_amount previews the
+        # final value before it's actually applied.
+        if sale:
+            from routes.returns import _cash_already_refunded
+            already_refunded = _cash_already_refunded(sale)
+            prospective_paid = round(sale.amount_paid + new_amount, 2)
+            if prospective_paid < already_refunded:
+                db.session.rollback()
+                flash(f'Cannot reduce this payment to GHS {new_amount:.2f} — GHS {already_refunded:.2f} has '
+                      f'already been cash-refunded against this sale via a return. Void the related return\'s '
+                      f'cash refund first, or keep this payment high enough to cover it.', 'danger')
+                return redirect(url_for('payments.edit', payment_id=payment.id))
+
         payment.amount = new_amount
         payment.payment_method = request.form.get('payment_method', payment.payment_method)
         payment.reference_number = request.form.get('reference_number')
@@ -274,7 +292,20 @@ def void(payment_id):
     # Same reverse used by edit() — a void is just "reverse and never reapply".
     sale = Sale.query.get(payment.sale_id) if payment.sale_id else None
     if sale:
-        sale.amount_paid -= payment.amount
+        # A return can have already cash-refunded real money out of what this
+        # payment covered (see routes/returns.py's _cash_refundable_available).
+        # Voiding this payment anyway would leave the books showing less was
+        # ever paid than was already handed back in cash — an impossible
+        # state — so block it until the related cash refund is undone first.
+        from routes.returns import _cash_already_refunded
+        already_refunded = _cash_already_refunded(sale)
+        prospective_paid = round(sale.amount_paid - payment.amount, 2)
+        if prospective_paid < already_refunded:
+            return jsonify({'error': f'Cannot void this payment — GHS {already_refunded:.2f} has already been '
+                                      f'cash-refunded against this sale via a return, more than the GHS '
+                                      f'{prospective_paid:.2f} that would remain paid. Void the related '
+                                      f'return\'s cash refund first.'}), 400
+        sale.amount_paid = prospective_paid
         sale.recalculate()
     payment.customer.outstanding_balance += payment.amount
 

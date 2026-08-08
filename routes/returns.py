@@ -36,6 +36,25 @@ def _credit_returned_stock(order, item):
             log_stock_movement(p, item.quantity, 'customer_return', 'return_order', order.id, order.reference_note)
 
 
+def _cash_already_refunded(sale):
+    """Total cash already refunded against this sale via earlier returns
+    (sum of applied cash-refund credit notes tied to it). Used both to cap
+    a new cash refund at what's actually available, and — from
+    routes/payments.py — to stop a payment void/edit from retroactively
+    dropping amount_paid below cash that's already been physically handed
+    back out of it."""
+    if not sale:
+        return 0.0
+    already_refunded = db.session.query(db.func.sum(CreditNote.amount)).join(
+        ReturnOrder, CreditNote.return_order_id == ReturnOrder.id
+    ).filter(
+        CreditNote.sale_id == sale.id,
+        CreditNote.status == 'applied',
+        ReturnOrder.refund_method == 'cash'
+    ).scalar() or 0
+    return round(already_refunded, 2)
+
+
 def _cash_refundable_available(sale):
     """How much cash can still legitimately be refunded on this sale: what
     was actually paid, minus cash already refunded on it via earlier
@@ -47,14 +66,7 @@ def _cash_refundable_available(sale):
     approving rep's cash-on-hand for cash they never collected."""
     if not sale:
         return 0.0
-    already_refunded = db.session.query(db.func.sum(CreditNote.amount)).join(
-        ReturnOrder, CreditNote.return_order_id == ReturnOrder.id
-    ).filter(
-        CreditNote.sale_id == sale.id,
-        CreditNote.status == 'applied',
-        ReturnOrder.refund_method == 'cash'
-    ).scalar() or 0
-    return max(0, round(sale.amount_paid - already_refunded, 2))
+    return max(0, round(sale.amount_paid - _cash_already_refunded(sale), 2))
 
 
 def _record_cash_refund(order, item):
