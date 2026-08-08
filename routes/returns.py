@@ -37,22 +37,31 @@ def _credit_returned_stock(order, item):
 
 
 def _cash_already_refunded(sale):
-    """Total cash already refunded against this sale via earlier returns
-    (sum of applied cash-refund credit notes tied to it). Used both to cap
-    a new cash refund at what's actually available, and — from
-    routes/payments.py — to stop a payment void/edit from retroactively
+    """Total cash already refunded against this sale via earlier returns.
+    Used both to cap a new cash refund at what's actually available, and —
+    from routes/payments.py — to stop a payment void/edit from retroactively
     dropping amount_paid below cash that's already been physically handed
-    back out of it."""
+    back out of it.
+
+    Computed from the negative Payment rows _record_cash_refund() creates
+    (the actual money-movement ledger), NOT from the CreditNote it also
+    creates alongside them. The CreditNote is only ever a paper-trail/reason
+    record; voiding it via routes/notes.py's void_note() doesn't reverse the
+    real cash movement (there's no way to safely do that automatically —
+    reversing the Payment is the correct action, via routes/payments.py's
+    void(), and only that should free this back up). Keying off the
+    CreditNote here would let voiding just the note re-open room for a
+    second cash refund on the same sale while the first one's money was
+    never actually returned to the till — the exact loophole this avoids."""
     if not sale:
         return 0.0
-    already_refunded = db.session.query(db.func.sum(CreditNote.amount)).join(
-        ReturnOrder, CreditNote.return_order_id == ReturnOrder.id
-    ).filter(
-        CreditNote.sale_id == sale.id,
-        CreditNote.status == 'applied',
-        ReturnOrder.refund_method == 'cash'
+    from models.payment import Payment
+    refunded = db.session.query(db.func.sum(Payment.amount)).filter(
+        Payment.sale_id == sale.id,
+        Payment.amount < 0,
+        Payment.status != 'void'
     ).scalar() or 0
-    return round(already_refunded, 2)
+    return round(-refunded, 2)
 
 
 def _cash_refundable_available(sale):

@@ -191,6 +191,16 @@ def edit(payment_id):
         flash('This payment has been voided and can no longer be edited.', 'warning')
         return redirect(url_for('payments.index'))
 
+    # A negative amount means this Payment IS a cash refund (routes/returns.py's
+    # _record_cash_refund), which never touched sale.amount_paid or the
+    # customer's balance when created — the reverse-then-reapply math below
+    # assumes a normal positive collection and would corrupt both if applied
+    # to a refund. Void it and let the return flow create a fresh, correct
+    # refund instead of trying to edit this one's amount.
+    if payment.amount < 0:
+        flash('This is a cash-refund payment, not a collection — void it instead of editing it.', 'warning')
+        return redirect(url_for('payments.index'))
+
     sale = Sale.query.get(payment.sale_id) if payment.sale_id else None
 
     if request.method == 'POST':
@@ -289,25 +299,37 @@ def void(payment_id):
     if payment.status == 'void':
         return jsonify({'error': 'Already voided'}), 400
 
-    # Same reverse used by edit() — a void is just "reverse and never reapply".
+    # A negative amount means this Payment IS a cash refund (routes/returns.py's
+    # _record_cash_refund) — those deliberately never touch sale.amount_paid or
+    # customer.outstanding_balance when created (the refund is tracked purely
+    # for rep cash-on-hand reconciliation), so voiding one must not touch them
+    # either. Applying the normal reverse math here would actually SUBTRACT a
+    # negative number and inflate amount_paid, plus wrongly shrink the
+    # customer's balance for money that was never added to it in the first
+    # place. Voiding a refund payment is exactly how routes/returns.py's
+    # _cash_already_refunded() expects a refund to be undone — no separate
+    # guard needed, since freeing up refund room can never itself create an
+    # inconsistency the way reducing a real collection can.
     sale = Sale.query.get(payment.sale_id) if payment.sale_id else None
-    if sale:
-        # A return can have already cash-refunded real money out of what this
-        # payment covered (see routes/returns.py's _cash_refundable_available).
-        # Voiding this payment anyway would leave the books showing less was
-        # ever paid than was already handed back in cash — an impossible
-        # state — so block it until the related cash refund is undone first.
-        from routes.returns import _cash_already_refunded
-        already_refunded = _cash_already_refunded(sale)
-        prospective_paid = round(sale.amount_paid - payment.amount, 2)
-        if prospective_paid < already_refunded:
-            return jsonify({'error': f'Cannot void this payment — GHS {already_refunded:.2f} has already been '
-                                      f'cash-refunded against this sale via a return, more than the GHS '
-                                      f'{prospective_paid:.2f} that would remain paid. Void the related '
-                                      f'return\'s cash refund first.'}), 400
-        sale.amount_paid = prospective_paid
-        sale.recalculate()
-    payment.customer.outstanding_balance += payment.amount
+    if payment.amount >= 0:
+        if sale:
+            # A return can have already cash-refunded real money out of what
+            # this payment covered (see routes/returns.py's
+            # _cash_refundable_available). Voiding this payment anyway would
+            # leave the books showing less was ever paid than was already
+            # handed back in cash — an impossible state — so block it until
+            # the related cash refund is undone first.
+            from routes.returns import _cash_already_refunded
+            already_refunded = _cash_already_refunded(sale)
+            prospective_paid = round(sale.amount_paid - payment.amount, 2)
+            if prospective_paid < already_refunded:
+                return jsonify({'error': f'Cannot void this payment — GHS {already_refunded:.2f} has already been '
+                                          f'cash-refunded against this sale via a return, more than the GHS '
+                                          f'{prospective_paid:.2f} that would remain paid. Void the related '
+                                          f'return\'s cash refund first.'}), 400
+            sale.amount_paid = prospective_paid
+            sale.recalculate()
+        payment.customer.outstanding_balance += payment.amount
 
     payment.status = 'void'
     payment.voided_by_id = current_user.id

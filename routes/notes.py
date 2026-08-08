@@ -53,23 +53,30 @@ def new_debit():
 
     if request.method == 'POST':
         customer_id = request.form.get('customer_id')
-        amount = float(request.form.get('amount') or 0)
-        if not customer_id or amount <= 0:
-            flash('Customer and a positive amount are required.', 'danger')
+        customer = Customer.query.get(customer_id) if customer_id else None
+        if not customer:
+            flash('Select a valid customer.', 'danger')
+            return redirect(url_for('notes.new_debit'))
+
+        try:
+            amount = float(request.form.get('amount') or 0)
+        except ValueError:
+            flash('Enter a valid amount.', 'danger')
+            return redirect(url_for('notes.new_debit'))
+        if amount <= 0:
+            flash('Enter a positive amount.', 'danger')
             return redirect(url_for('notes.new_debit'))
 
         note = DebitNote(
             note_number=next_debit_note_number(),
-            customer_id=customer_id,
+            customer_id=customer.id,
             amount=amount,
             reason=request.form.get('reason'),
             reference_note=request.form.get('reference_note'),
             created_by_id=current_user.id
         )
         db.session.add(note)
-        customer = Customer.query.get(customer_id)
-        if customer:
-            customer.outstanding_balance += amount
+        customer.outstanding_balance += amount
         db.session.commit()
         flash(f'Debit note {note.note_number} created.', 'success')
         return redirect(url_for('notes.index'))
