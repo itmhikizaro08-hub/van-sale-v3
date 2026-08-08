@@ -373,22 +373,6 @@ document.getElementById('customerSelect').value = '{{ prefill_customer_id }}';
 document.getElementById('customerSelect').dispatchEvent(new Event('change'));
 {% endif %}
 
-{% if prefill_items %}
-// Pull in the order's full item list (products, quantities, quoted prices)
-// instead of making the rep re-enter everything from the order's detail page.
-// addToCart() always starts a new line at qty 1, so override qty/price after.
-const PREFILL_ITEMS = {{ prefill_items | tojson }};
-PREFILL_ITEMS.forEach(function (item) {
-  addToCart(item.id, item.name, item.price, item.stock, item.company_price, item.pieces_per_unit);
-  const cartItem = cart.find(i => i.id === item.id);
-  if (cartItem) {
-    cartItem.qty = item.qty;
-    cartItem.price = item.price;
-  }
-});
-renderCart();
-{% endif %}
-
 /* ── Product search ───────────────────────────────────────── */
 const searchInput = document.getElementById('productSearch');
 const resultsBox  = document.getElementById('productSearchResults');
@@ -717,5 +701,25 @@ function newSale() {
 
 // Init
 renderCart();
+
+{% if prefill_items %}
+// Arrived here from a Scheduled Order's "Create Sale for This Customer" link —
+// pull in the order's full item list (products, quantities, quoted prices)
+// instead of making the rep re-enter everything from the order's detail page.
+// Placed after addToCart/renderCart AND after searchInput/resultsBox are
+// declared above (addToCart references those consts internally) — calling
+// this any earlier in the script hits their temporal dead zone and throws.
+// addToCart() always starts a new line at qty 1, so override qty/price after.
+const PREFILL_ITEMS = {{ prefill_items | tojson }};
+PREFILL_ITEMS.forEach(function (item) {
+  addToCart(item.id, item.name, item.price, item.stock, item.company_price, item.pieces_per_unit);
+  const cartItem = cart.find(i => i.id === item.id);
+  if (cartItem) {
+    cartItem.qty = item.qty;
+    cartItem.price = item.price;
+  }
+});
+renderCart();
+{% endif %}
 </script>
 {% endblock %}
