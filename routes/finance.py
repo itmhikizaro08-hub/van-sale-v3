@@ -46,11 +46,12 @@ def index():
     total_credits = round(sum(cn.amount for cn in credit_notes), 2)
     net_revenue = round(gross_revenue - total_credits, 2)
 
-    cogs = 0.0
-    for s in sales:
-        for item in s.items:
-            cogs += item.quantity * (item.product.cost_price if item.product else 0)
-    cogs = round(cogs, 2)
+    # COGS must drop for approved-returned goods the same way revenue already
+    # does via the credit note above — otherwise a fully-returned sale nets
+    # ~0 revenue but still eats its full original cost as a "loss". See
+    # services/returns_calc.py for why.
+    from services.returns_calc import net_cogs_by_sale
+    cogs = round(sum(net_cogs_by_sale(sales).values()), 2)
 
     # ── Expenses ──────────────────────────────────────────────────────────
     expenses = Expense.query.filter(
