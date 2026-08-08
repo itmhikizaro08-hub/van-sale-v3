@@ -1,0 +1,157 @@
+{% extends 'base.html' %}
+{% block title %}Finance Overview{% endblock %}
+{% block breadcrumb %}<li class="breadcrumb-item active">Finance Overview</li>{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title">Finance Overview</h1>
+    <p class="page-subtitle">{{ start }} to {{ end }} — a consolidated view across sales, expenses, cash, and outstanding balances.</p>
+  </div>
+  <div class="d-flex gap-2">
+    <a href="{{ url_for('reports.profit_loss') }}?start={{ start }}&end={{ end }}" class="btn btn-outline-primary btn-sm"><i class="fas fa-file-invoice-dollar me-1"></i>Full P&amp;L</a>
+    <button onclick="window.print()" class="btn btn-outline-secondary btn-sm"><i class="fas fa-print me-1"></i>Print</button>
+  </div>
+</div>
+
+<div class="card mb-3"><div class="card-body">
+  <form method="GET" class="row g-2 align-items-end">
+    <div class="col-md-4"><label class="form-label">From</label><input type="date" name="start" class="form-control" value="{{ start }}"></div>
+    <div class="col-md-4"><label class="form-label">To</label><input type="date" name="end" class="form-control" value="{{ end }}"></div>
+    <div class="col-md-4"><button type="submit" class="btn btn-primary w-100"><i class="fas fa-filter me-1"></i>Filter</button></div>
+  </form>
+</div></div>
+
+<div class="row g-3 mb-3">
+  <div class="col-6 col-md-3">
+    <div class="stat-card success"><div class="stat-icon"><i class="fas fa-arrow-trend-up"></i></div>
+      <div><div class="stat-label">Net Revenue</div><div class="stat-value fs-16">GHS {{ "{:,.2f}".format(net_revenue) }}</div></div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="stat-card danger"><div class="stat-icon"><i class="fas fa-arrow-trend-down"></i></div>
+      <div><div class="stat-label">Expenses</div><div class="stat-value fs-16">GHS {{ "{:,.2f}".format(total_expenses) }}</div></div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="stat-card {{ 'success' if net_profit >= 0 else 'danger' }}"><div class="stat-icon"><i class="fas fa-coins"></i></div>
+      <div><div class="stat-label">Net Profit</div><div class="stat-value fs-16">GHS {{ "{:,.2f}".format(net_profit) }}</div></div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="stat-card info"><div class="stat-icon"><i class="fas fa-hand-holding-dollar"></i></div>
+      <div><div class="stat-label">Collected</div><div class="stat-value fs-16">GHS {{ "{:,.2f}".format(total_collected) }}</div></div>
+    </div>
+  </div>
+</div>
+
+<div class="row g-3 mb-3">
+  <div class="col-6 col-md-3">
+    <div class="stat-card {{ 'danger' if total_receivables > 0 else 'success' }}"><div class="stat-icon"><i class="fas fa-file-invoice"></i></div>
+      <div><div class="stat-label">Receivables (Customers Owe)</div><div class="stat-value fs-16">GHS {{ "{:,.2f}".format(total_receivables) }}</div></div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="stat-card {{ 'warning' if total_payables > 0 else 'success' }}"><div class="stat-icon"><i class="fas fa-truck-loading"></i></div>
+      <div><div class="stat-label">Payables (We Owe Suppliers)</div><div class="stat-value fs-16">GHS {{ "{:,.2f}".format(total_payables) }}</div></div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="stat-card {{ 'warning' if pending_cash > 0 else 'success' }}"><div class="stat-icon"><i class="fas fa-sack-dollar"></i></div>
+      <div><div class="stat-label">Cash Awaiting Handover</div><div class="stat-value fs-16">GHS {{ "{:,.2f}".format(pending_cash) }}</div></div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="stat-card success"><div class="stat-icon"><i class="fas fa-vault"></i></div>
+      <div><div class="stat-label">Verified Cash (Period)</div><div class="stat-value fs-16">GHS {{ "{:,.2f}".format(verified_cash) }}</div></div>
+    </div>
+  </div>
+</div>
+
+<div class="card mb-3">
+  <div class="card-header"><i class="fas fa-chart-area me-2"></i>Revenue vs Expenses — Last 6 Months</div>
+  <div class="card-body"><div style="height:260px"><canvas id="financeTrendChart"></canvas></div></div>
+</div>
+
+<div class="row g-3 mb-3">
+  <div class="col-md-4">
+    <div class="card h-100">
+      <div class="card-header"><i class="fas fa-chart-pie me-2"></i>Collections by Method</div>
+      <div class="card-body"><div style="height:200px"><canvas id="methodChart"></canvas></div></div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card h-100">
+      <div class="card-header"><i class="fas fa-receipt me-2"></i>Expenses by Category</div>
+      <div class="card-body p-0"><div class="table-responsive"><table class="table table-sm mb-0">
+        <thead><tr><th>Category</th><th class="text-end">Amount</th></tr></thead>
+        <tbody>
+          {% for cat, val in expenses_by_category %}
+          <tr><td class="fw-600 fs-13">{{ cat|replace('_',' ')|title }}</td><td class="text-end fw-700">GHS {{ "%.2f"|format(val) }}</td></tr>
+          {% else %}
+          <tr><td colspan="2" class="text-muted text-center py-3">No approved expenses in this period</td></tr>
+          {% endfor %}
+        </tbody>
+      </table></div></div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card h-100">
+      <div class="card-header"><i class="fas fa-calculator me-2"></i>P&amp;L Snapshot</div>
+      <div class="card-body">
+        <div class="d-flex justify-content-between mb-2"><span class="text-muted">Gross Revenue</span><span class="fw-600">GHS {{ "%.2f"|format(gross_revenue) }}</span></div>
+        <div class="d-flex justify-content-between mb-2"><span class="text-muted">Credit Notes</span><span class="fw-600 text-danger">- GHS {{ "%.2f"|format(total_credits) }}</span></div>
+        <div class="d-flex justify-content-between mb-2"><span class="text-muted">Net Revenue</span><span class="fw-700">GHS {{ "%.2f"|format(net_revenue) }}</span></div>
+        <hr>
+        <div class="d-flex justify-content-between mb-2"><span class="text-muted">Cost of Goods Sold</span><span class="fw-600 text-danger">- GHS {{ "%.2f"|format(cogs) }}</span></div>
+        <div class="d-flex justify-content-between mb-2"><span class="text-muted">Operating Expenses</span><span class="fw-600 text-danger">- GHS {{ "%.2f"|format(total_expenses) }}</span></div>
+        <hr>
+        <div class="d-flex justify-content-between fw-800 fs-15">
+          <span>Net Profit</span>
+          <span class="{{ 'text-success' if net_profit >= 0 else 'text-danger' }}">GHS {{ "%.2f"|format(net_profit) }}</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="row g-2">
+  <div class="col-md-3"><a href="{{ url_for('reports.debt_ageing') }}" class="btn btn-outline-secondary w-100"><i class="fas fa-hourglass-half me-1"></i>Debt Ageing</a></div>
+  <div class="col-md-3"><a href="{{ url_for('expenses.index') }}" class="btn btn-outline-secondary w-100"><i class="fas fa-receipt me-1"></i>Expenses</a></div>
+  <div class="col-md-3"><a href="{{ url_for('cash_decl.index') }}" class="btn btn-outline-secondary w-100"><i class="fas fa-cash-register me-1"></i>Cash Declarations</a></div>
+  <div class="col-md-3"><a href="{{ url_for('suppliers.index') }}" class="btn btn-outline-secondary w-100"><i class="fas fa-industry me-1"></i>Suppliers</a></div>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script>
+new Chart(document.getElementById('financeTrendChart'), {
+  type: 'bar',
+  data: {
+    labels: {{ trend_labels|tojson }},
+    datasets: [
+      { label: 'Revenue', data: {{ trend_revenue|tojson }}, backgroundColor: 'rgba(16,185,129,.7)', borderRadius: 4 },
+      { label: 'Expenses', data: {{ trend_expenses|tojson }}, backgroundColor: 'rgba(239,68,68,.7)', borderRadius: 4 }
+    ]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    scales: { y: { beginAtZero: true, grid: { color: document.documentElement.getAttribute('data-theme') === 'dark' ? 'rgba(255,255,255,.07)' : 'rgba(0,0,0,.06)' } }, x: { grid: { display: false } } },
+    plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 10.5 } } } }
+  }
+});
+
+const methodLabels = {{ by_method|map(attribute=0)|list|tojson }};
+const methodValues = {{ by_method|map(attribute=1)|list|tojson }};
+if (methodLabels.length) {
+  new Chart(document.getElementById('methodChart'), {
+    type: 'doughnut',
+    data: {
+      labels: methodLabels.map(m => m.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())),
+      datasets: [{ data: methodValues, backgroundColor: CHART_COLORS, borderWidth: 3,
+        borderColor: getComputedStyle(document.documentElement).getPropertyValue('--bg-card').trim() || '#fff',
+        borderRadius: 6, spacing: 3, hoverOffset: 6 }]
+    },
+    options: { responsive: true, maintainAspectRatio: false, cutout: '65%', plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 10.5 } } } } }
+  });
+}
+</script>
+{% endblock %}

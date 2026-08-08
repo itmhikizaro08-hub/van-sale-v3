@@ -39,6 +39,7 @@ ROLE_PERMISSIONS = {
         'sms':           ('all',  True,  True),
         'insights':      ('all',  False, False),
         'scheduled_orders': ('all', True, True),
+        'finance':       ('all',  False, False),
     },
     'manager': {
         'dashboard':     ('all',  False, True),
@@ -72,6 +73,7 @@ ROLE_PERMISSIONS = {
         'sms':           ('all',  True,  False),
         'insights':      ('all',  False, False),
         'scheduled_orders': ('all', True, True),
+        'finance':       ('all',  False, False),
     },
     'supervisor': {
         'dashboard':     ('team', False, False),
@@ -105,6 +107,7 @@ ROLE_PERMISSIONS = {
         'sms':           ('none', False, False),
         'insights':      ('none', False, False),
         'scheduled_orders': ('team', False, False),
+        'finance':       ('none', False, False),
     },
     'sales_rep': {
         'dashboard':     ('own',  False, False),
@@ -138,6 +141,7 @@ ROLE_PERMISSIONS = {
         'sms':           ('none', False, False),
         'insights':      ('none', False, False),
         'scheduled_orders': ('own', True, False),
+        'finance':       ('none', False, False),
     },
     'warehouse_manager': {
         'dashboard':     ('all',  False, False),
@@ -171,6 +175,7 @@ ROLE_PERMISSIONS = {
         'sms':           ('none', False, False),
         'insights':      ('none', False, False),
         'scheduled_orders': ('none', False, False),
+        'finance':       ('none', False, False),
     },
     'cashier': {
         'dashboard':     ('all',  False, False),
@@ -204,6 +209,7 @@ ROLE_PERMISSIONS = {
         'sms':           ('none', False, False),
         'insights':      ('none', False, False),
         'scheduled_orders': ('none', False, False),
+        'finance':       ('none', False, False),
     },
 }
 
@@ -492,6 +498,9 @@ class User(UserMixin, db.Model):
 
         # ── MONEY ────────────────────────────────────────────────────────
         money_items = []
+        if self.can_access('finance'):
+            money_items.append({'label': 'Finance Overview', 'icon': 'fas fa-chart-pie',
+                                 'url': 'finance.index', 'bp': 'finance'})
         if self.can_access('suppliers'):
             money_items.append({'label': 'Suppliers', 'icon': 'fas fa-industry',
                                  'url': 'suppliers.index', 'bp': 'suppliers'})

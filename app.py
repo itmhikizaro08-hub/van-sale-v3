@@ -81,6 +81,7 @@ def create_app():
     from routes.settings import settings_bp
     from routes.insights import insights_bp
     from routes.scheduled_orders import scheduled_orders_bp
+    from routes.finance import finance_bp
 
     app.register_blueprint(auth_bp, url_prefix='/auth')
     app.register_blueprint(dashboard_bp, url_prefix='/')
@@ -109,6 +110,7 @@ def create_app():
     app.register_blueprint(settings_bp, url_prefix='/settings')
     app.register_blueprint(insights_bp, url_prefix='/insights')
     app.register_blueprint(scheduled_orders_bp, url_prefix='/scheduled-orders')
+    app.register_blueprint(finance_bp, url_prefix='/finance')
 
     from routes.misc import misc_bp
     app.register_blueprint(misc_bp)
