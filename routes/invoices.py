@@ -134,8 +134,14 @@ def pdf(sale_id):
         'phone': s.company_phone or '',
         'email': s.company_email or '',
     }
+    # Net of applied credit notes — see _net_balances() above and view()'s
+    # comment. Without this the PDF would print a stale, overstated balance
+    # that contradicts the invoice view page for the same sale.
+    net = _net_balances([sale])[sale.id]
     try:
-        pdf_bytes = generate_invoice_pdf(sale, company)
+        pdf_bytes = generate_invoice_pdf(sale, company, net_balance_due=net['net_balance_due'],
+                                          net_payment_status=net['net_payment_status'],
+                                          credit_total=net['credit_total'])
         response = make_response(pdf_bytes)
         response.headers['Content-Type'] = 'application/pdf'
         response.headers['Content-Disposition'] = f'attachment; filename={sale.invoice_number}.pdf'

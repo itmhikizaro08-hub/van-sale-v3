@@ -8,7 +8,18 @@ from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, 
 from reportlab.lib.enums import TA_RIGHT, TA_CENTER, TA_LEFT
 
 
-def generate_invoice_pdf(sale, company: dict) -> bytes:
+def generate_invoice_pdf(sale, company: dict, net_balance_due=None, net_payment_status=None,
+                          credit_total=None) -> bytes:
+    """net_balance_due/net_payment_status/credit_total, when provided, come
+    from routes/invoices.py's _net_balances() — sale.balance_due and
+    sale.payment_status alone don't know about applied credit notes, so
+    using them directly here would print a stale, overstated balance that
+    contradicts what the invoice view page shows for the same sale (an
+    invoice a return has already settled would still print as UNPAID)."""
+    balance_due = sale.balance_due if net_balance_due is None else net_balance_due
+    payment_status = sale.payment_status if net_payment_status is None else net_payment_status
+    credit_total = credit_total or 0
+
     buffer = BytesIO()
     doc = SimpleDocTemplate(buffer, pagesize=A4,
                             rightMargin=15*mm, leftMargin=15*mm,
@@ -56,7 +67,7 @@ def generate_invoice_pdf(sale, company: dict) -> bytes:
                    f"{sale.customer.phone or ''}<br/>{sale.customer.address or ''}", normal),
          Paragraph(f"Date: {date_str}<br/>"
                    f"Payment: {sale.payment_method.replace('_',' ').title()}<br/>"
-                   f"Status: {sale.payment_status.upper()}", normal)]
+                   f"Status: {payment_status.upper()}", normal)]
     ]
     info_table = Table(info_data, colWidths=[90*mm, 90*mm])
     info_table.setStyle(TableStyle([
@@ -106,8 +117,12 @@ def generate_invoice_pdf(sale, company: dict) -> bytes:
         ['', f'Tax ({sale.tax_percent:.0f}%):', f'GHS {sale.tax_amount:.2f}'],
         ['', 'TOTAL:', f'GHS {sale.total_amount:.2f}'],
         ['', 'Amount Paid:', f'GHS {sale.amount_paid:.2f}'],
-        ['', 'Balance Due:', f'GHS {sale.balance_due:.2f}'],
     ]
+    if credit_total > 0:
+        totals_data.append(['', 'Credit Applied (Return):', f'- GHS {credit_total:.2f}'])
+    balance_row = len(totals_data)
+    totals_data.append(['', 'Balance Due:', f'GHS {balance_due:.2f}'])
+
     totals_table = Table(totals_data, colWidths=[90*mm, 50*mm, 40*mm])
     totals_table.setStyle(TableStyle([
         ('ALIGN', (1, 0), (-1, -1), 'RIGHT'),
@@ -115,8 +130,8 @@ def generate_invoice_pdf(sale, company: dict) -> bytes:
         ('FONTSIZE', (0, 0), (-1, -1), 9),
         ('BACKGROUND', (1, 3), (-1, 3), BRAND),
         ('TEXTCOLOR', (1, 3), (-1, 3), colors.white),
-        ('BACKGROUND', (1, 5), (-1, 5), colors.HexColor('#fef9c3')),
-        ('FONTNAME', (1, 5), (-1, 5), 'Helvetica-Bold'),
+        ('BACKGROUND', (1, balance_row), (-1, balance_row), colors.HexColor('#fef9c3')),
+        ('FONTNAME', (1, balance_row), (-1, balance_row), 'Helvetica-Bold'),
         ('TOPPADDING', (0, 0), (-1, -1), 4),
         ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
         ('LEFTPADDING', (1, 0), (-1, -1), 8),
