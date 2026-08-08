@@ -58,12 +58,12 @@ def profit_loss():
     # historical cost snapshot per sale item (unlike official_price for
     # tips), so this is an approximation that drifts if cost prices have
     # changed since the sale — acceptable for a trend report, not for audit.
-    # Also nets out approved-returned goods, the same way revenue already
-    # does via total_credits below — otherwise a fully-returned sale nets
-    # ~0 revenue but still eats its full original cost as a "loss". See
-    # services/returns_calc.py for why.
-    from services.returns_calc import net_cogs_by_sale
-    cogs = round(sum(net_cogs_by_sale(sales).values()), 2)
+    # Also nets out approved-returned goods, keyed off the same CreditNote
+    # period window total_credits below uses (not the original sale's), so
+    # returns not tied to a sale (or tied to a sale from an earlier period)
+    # also get relief. See services/returns_calc.py for why.
+    from services.returns_calc import net_cogs_for_period
+    cogs = net_cogs_for_period(sales, start, end_bound)
 
     # Credit notes reduce what was actually collected, same convention as
     # sales_report()'s net_total.

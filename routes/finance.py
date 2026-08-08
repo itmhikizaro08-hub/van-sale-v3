@@ -47,11 +47,12 @@ def index():
     net_revenue = round(gross_revenue - total_credits, 2)
 
     # COGS must drop for approved-returned goods the same way revenue already
-    # does via the credit note above — otherwise a fully-returned sale nets
-    # ~0 revenue but still eats its full original cost as a "loss". See
+    # does via the credit note above — keyed off the same CreditNote period
+    # window, not the original sale's, so returns not tied to a sale (or
+    # tied to a sale from an earlier period) also get relief. See
     # services/returns_calc.py for why.
-    from services.returns_calc import net_cogs_by_sale
-    cogs = round(sum(net_cogs_by_sale(sales).values()), 2)
+    from services.returns_calc import net_cogs_for_period
+    cogs = net_cogs_for_period(sales, start, end_bound)
 
     # ── Expenses ──────────────────────────────────────────────────────────
     expenses = Expense.query.filter(
