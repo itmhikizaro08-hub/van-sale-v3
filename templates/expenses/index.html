@@ -8,58 +8,197 @@
 </div>
 
 <div class="row g-3 mb-3">
-  <div class="col-6 col-md-4">
+  <div class="col-6 col-md-3">
     <div class="stat-card success"><div class="stat-icon"><i class="fas fa-receipt"></i></div>
-      <div><div class="stat-label">Total Approved</div><div class="stat-value">GHS {{ "%.2f"|format(total) }}</div></div>
+      <div><div class="stat-label">Total Approved</div><div class="stat-value fs-16">GHS {{ "{:,.2f}".format(total) }}</div></div>
     </div>
   </div>
-  <div class="col-6 col-md-4">
+  <div class="col-6 col-md-3">
+    <div class="stat-card info"><div class="stat-icon"><i class="fas fa-calendar-check"></i></div>
+      <div><div class="stat-label">This Month</div><div class="stat-value fs-16">GHS {{ "{:,.2f}".format(total_this_month) }}</div></div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
     <div class="stat-card {{ 'warning' if pending_count > 0 else 'success' }}"><div class="stat-icon"><i class="fas fa-clock"></i></div>
-      <div><div class="stat-label">Pending Approval</div><div class="stat-value">{{ pending_count }}</div></div>
+      <div><div class="stat-label">Pending Approval</div><div class="stat-value fs-16">{{ pending_count }}</div></div>
     </div>
   </div>
-  <div class="col-6 col-md-4">
+  <div class="col-6 col-md-3">
     <div class="stat-card danger"><div class="stat-icon"><i class="fas fa-times-circle"></i></div>
-      <div><div class="stat-label">Rejected</div><div class="stat-value">{{ rejected_count }}</div></div>
+      <div><div class="stat-label">Rejected</div><div class="stat-value fs-16">{{ rejected_count }}</div></div>
     </div>
   </div>
 </div>
 
 <div class="card mb-3"><div class="card-body py-2">
   <form method="GET" class="row g-2 align-items-end">
-    <div class="col-md-4"><label class="form-label">From</label><input type="date" name="start" class="form-control" value="{{ start }}"></div>
-    <div class="col-md-4"><label class="form-label">To</label><input type="date" name="end" class="form-control" value="{{ end }}"></div>
-    <div class="col-md-4"><button type="submit" class="btn btn-primary w-100"><i class="fas fa-filter me-1"></i>Filter</button></div>
+    <div class="col-6 col-md-3"><label class="form-label">From</label><input type="date" name="start" class="form-control" value="{{ start }}"></div>
+    <div class="col-6 col-md-3"><label class="form-label">To</label><input type="date" name="end" class="form-control" value="{{ end }}"></div>
+    <div class="col-6 col-md-3"><label class="form-label">Category</label>
+      <select name="category" class="form-select">
+        <option value="">All Categories</option>
+        {% for c in all_categories %}<option value="{{ c.key }}" {{ 'selected' if category_filter == c.key }}>{{ c.label }}</option>{% endfor %}
+      </select>
+    </div>
+    <div class="col-6 col-md-2"><label class="form-label">Van</label>
+      <select name="van_id" class="form-select">
+        <option value="">All Vans</option>
+        {% for v in vans %}<option value="{{ v.id }}" {{ 'selected' if van_filter == v.id|string }}>{{ v.van_number }}</option>{% endfor %}
+      </select>
+    </div>
+    <div class="col-6 col-md-1"><button type="submit" class="btn btn-primary w-100"><i class="fas fa-filter"></i></button></div>
   </form>
 </div></div>
 
+<div class="row g-3 mb-3">
+  <div class="col-md-8">
+    <div class="card h-100">
+      <div class="card-header"><i class="fas fa-chart-area me-2"></i>Approved Expenses — Last 6 Months</div>
+      <div class="card-body"><div style="height:220px"><canvas id="expTrendChart"></canvas></div></div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card h-100">
+      <div class="card-header"><i class="fas fa-chart-pie me-2"></i>By Category (This Period)</div>
+      <div class="card-body"><div style="height:220px"><canvas id="expCategoryChart"></canvas></div></div>
+    </div>
+  </div>
+</div>
+
 <div class="card"><div class="card-body p-0"><div class="table-responsive">
 <table class="table table-hover dt-table mb-0" id="expTable">
-  <thead><tr><th>Expense #</th><th>Category</th><th>Description</th><th>Van</th><th>Date</th><th class="text-end">Amount</th><th>Ref Note</th><th>Receipt</th><th>Status</th><th></th></tr></thead>
+  <thead><tr><th>Expense #</th><th>Category</th><th>Description</th><th>Van</th><th>Submitted By</th><th>Date</th><th class="text-end">Amount</th><th>Ref Note</th><th>Receipt</th><th>Status</th><th></th></tr></thead>
   <tbody>
     {% for e in expenses %}
     <tr>
       <td class="fw-600">{{ e.expense_number }}</td>
-      <td><span class="badge bg-secondary"><i class="fas {{ e.category_icon }} me-1"></i>{{ e.category|replace('_',' ')|title }}</span></td>
+      <td><span class="badge bg-secondary"><i class="fas {{ category_icons.get(e.category, e.category_icon) }} me-1"></i>{{ category_labels.get(e.category, e.category|replace('_',' ')|title) }}</span></td>
       <td class="fs-13">{{ e.description or '—' }}</td>
       <td class="fs-12">{{ e.van.van_number if e.van else '—' }}</td>
+      <td class="fs-12">{{ e.created_by.full_name if e.created_by else '—' }}</td>
       <td class="text-muted fs-12">{{ e.created_at.strftime('%d %b %Y') if e.created_at else '' }}</td>
       <td class="text-end fw-600">GHS {{ "%.2f"|format(e.amount) }}</td>
       <td>{% if e.reference_note %}<span class="ref-note-badge"><i class="fas fa-book me-1"></i>{{ e.reference_note[:20] }}</span>{% else %}<span class="text-muted fs-12">—</span>{% endif %}</td>
       <td>{% if e.receipt_image %}<a href="{{ url_for('misc.uploads', filename=e.receipt_image) }}" target="_blank" class="btn btn-icon btn-sm btn-outline-info" title="View receipt"><i class="fas fa-image"></i></a>{% else %}<span class="text-muted fs-12">—</span>{% endif %}</td>
       <td><span class="badge {{ e.status_badge }}">{{ e.status|title }}</span></td>
       <td>
-        {% if e.status == 'pending' and current_user.can_approve_module('expenses') %}
         <div class="d-flex gap-1">
+          {% if e.status == 'pending' and current_user.can_approve_module('expenses') %}
           <button class="btn btn-icon btn-sm btn-outline-success" data-action-url="{{ url_for('expenses.approve', expense_id=e.id) }}" data-confirm="Approve this expense?" data-success-msg="Expense approved."><i class="fas fa-check"></i></button>
           <button class="btn btn-icon btn-sm btn-outline-danger" data-action-url="{{ url_for('expenses.reject', expense_id=e.id) }}" data-confirm="Reject this expense?" data-success-msg="Expense rejected."><i class="fas fa-ban"></i></button>
+          {% endif %}
+          {% if e.status != 'void' and current_user.can_approve_module('expenses') %}
+          <a href="{{ url_for('expenses.edit', expense_id=e.id) }}" class="btn btn-icon btn-sm btn-outline-primary" title="Edit"><i class="fas fa-edit"></i></a>
+          {% endif %}
+          {% if e.status == 'approved' and current_user.can_approve_module('expenses') %}
+          <button class="btn btn-icon btn-sm btn-outline-secondary" data-action-url="{{ url_for('expenses.void', expense_id=e.id) }}" data-confirm="Void this approved expense? This removes it from all totals." data-success-msg="Expense voided."><i class="fas fa-ban"></i></button>
+          {% endif %}
         </div>
-        {% endif %}
       </td>
     </tr>
     {% endfor %}
   </tbody>
 </table>
 </div></div></div>
+
+{% if current_user.can_approve_module('expenses') %}
+<div class="card mt-3">
+  <div class="card-header"><i class="fas fa-tags me-2"></i>Expense Categories</div>
+  <div class="card-body">
+    <p class="text-muted fs-13 mb-3">Categories aren't limited to vehicle costs — add whatever fits your business (salary, rent, utilities, etc). Deactivating a category hides it from new expenses but keeps it on existing ones.</p>
+    <div class="table-responsive mb-3">
+      <table class="table table-sm mb-0">
+        <thead><tr><th>Icon</th><th>Category</th><th>Status</th><th class="text-end">Actions</th></tr></thead>
+        <tbody>
+          {% for c in all_categories %}
+          <tr>
+            <td><i class="fas {{ c.icon }}"></i></td>
+            <td class="fw-600">{{ c.label }}</td>
+            <td><span class="badge {{ 'bg-success' if c.is_active else 'bg-secondary' }}">{{ 'Active' if c.is_active else 'Inactive' }}</span></td>
+            <td class="text-end">
+              <div class="d-flex gap-1 justify-content-end">
+                <button type="button" class="btn btn-icon btn-sm btn-outline-primary" title="Edit"
+                  onclick="openCatEditModal({{ c.id }}, '{{ c.label|replace("'", "\\'") }}', '{{ c.icon }}')"><i class="fas fa-edit"></i></button>
+                <button class="btn btn-icon btn-sm btn-outline-secondary" title="{{ 'Deactivate' if c.is_active else 'Activate' }}"
+                  data-action-url="{{ url_for('expenses.categories_toggle', cat_id=c.id) }}"
+                  data-confirm="{{ 'Deactivate' if c.is_active else 'Activate' }} category '{{ c.label }}'?"
+                  data-success-msg="Category updated."><i class="fas {{ 'fa-eye-slash' if c.is_active else 'fa-eye' }}"></i></button>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <form method="POST" action="{{ url_for('expenses.categories_add') }}" class="row g-2 align-items-end">
+      <div class="col-md-5"><label class="form-label">New Category Name</label><input type="text" name="label" class="form-control" placeholder="e.g. Rent, Utilities, Marketing" required></div>
+      <div class="col-md-4"><label class="form-label">Icon (Font Awesome class, optional)</label><input type="text" name="icon" class="form-control" placeholder="fa-receipt"></div>
+      <div class="col-md-3"><button type="submit" class="btn btn-primary w-100"><i class="fas fa-plus me-1"></i>Add Category</button></div>
+    </form>
+  </div>
+</div>
+
+<!-- Category edit modal -->
+<div class="modal fade" id="catEditModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <form method="POST" id="catEditForm">
+        <div class="modal-header">
+          <h5 class="modal-title">Edit Category</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <div class="mb-3"><label class="form-label">Category Name</label><input type="text" name="label" id="catEditLabel" class="form-control" required></div>
+          <div class="mb-2"><label class="form-label">Icon (Font Awesome class)</label><input type="text" name="icon" id="catEditIcon" class="form-control"></div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-primary"><i class="fas fa-check me-1"></i>Save</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endif %}
 {% endblock %}
-{% block extra_js %}<script>$(document).ready(() => initDataTable('#expTable', {order:[[4,'desc']]}));</script>{% endblock %}
+{% block extra_js %}
+<script>
+$(document).ready(() => initDataTable('#expTable', {order:[[5,'desc']]}));
+
+new Chart(document.getElementById('expTrendChart'), {
+  type: 'bar',
+  data: { labels: {{ trend_labels|tojson }}, datasets: [{ label: 'Approved Expenses', data: {{ trend_values|tojson }}, backgroundColor: 'rgba(239,68,68,.7)', borderRadius: 4 }] },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    scales: { y: { beginAtZero: true, grid: { color: document.documentElement.getAttribute('data-theme') === 'dark' ? 'rgba(255,255,255,.07)' : 'rgba(0,0,0,.06)' } }, x: { grid: { display: false } } },
+    plugins: { legend: { display: false } }
+  }
+});
+
+const catLabels = {{ by_category|map(attribute=0)|list|tojson }};
+const catValues = {{ by_category|map(attribute=1)|list|tojson }};
+const catLabelMap = {{ category_labels|tojson }};
+if (catLabels.length) {
+  new Chart(document.getElementById('expCategoryChart'), {
+    type: 'doughnut',
+    data: {
+      labels: catLabels.map(k => catLabelMap[k] || k.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())),
+      datasets: [{ data: catValues, backgroundColor: CHART_COLORS, borderWidth: 3,
+        borderColor: getComputedStyle(document.documentElement).getPropertyValue('--bg-card').trim() || '#fff',
+        borderRadius: 6, spacing: 3, hoverOffset: 6 }]
+    },
+    options: { responsive: true, maintainAspectRatio: false, cutout: '65%', plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 10.5 } } } } }
+  });
+}
+
+{% if current_user.can_approve_module('expenses') %}
+const catEditModal = new bootstrap.Modal(document.getElementById('catEditModal'));
+function openCatEditModal(id, label, icon) {
+  document.getElementById('catEditForm').action = `/expenses/categories/${id}/edit`;
+  document.getElementById('catEditLabel').value = label;
+  document.getElementById('catEditIcon').value = icon;
+  catEditModal.show();
+}
+{% endif %}
+</script>
+{% endblock %}

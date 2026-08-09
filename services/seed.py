@@ -10,6 +10,7 @@ def seed_defaults():
     """Seed default admin user and reference data on first run."""
     from models.user import User
     from models.product import Category
+    from models.expense import ExpenseCategory
     from werkzeug.security import generate_password_hash
 
     if not User.query.filter_by(username='admin').first():
@@ -51,5 +52,19 @@ def seed_defaults():
     for cat_name in default_categories:
         if not Category.query.filter_by(name=cat_name).first():
             db.session.add(Category(name=cat_name))
+
+    # These 5 used to be a hardcoded list in routes/expenses.py before
+    # expense categories became admin-editable — seeded here once so
+    # upgrading doesn't change any existing expense's category value.
+    default_expense_categories = [
+        ('fuel', 'Fuel', 'fa-gas-pump'),
+        ('vehicle_repair', 'Vehicle Repair', 'fa-wrench'),
+        ('salary', 'Salary', 'fa-users'),
+        ('office', 'Office', 'fa-building'),
+        ('miscellaneous', 'Miscellaneous', 'fa-receipt'),
+    ]
+    for key, label, icon in default_expense_categories:
+        if not ExpenseCategory.query.filter_by(key=key).first():
+            db.session.add(ExpenseCategory(key=key, label=label, icon=icon))
 
     db.session.commit()
