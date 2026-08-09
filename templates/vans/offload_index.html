@@ -178,8 +178,8 @@
 <script>
 $(document).ready(() => {
   if (document.getElementById('myOffloadsTable')) initDataTable('#myOffloadsTable', {order:[[1,'desc']]});
-  if (document.getElementById('pendingOffloadsTable')) initDataTable('#pendingOffloadsTable');
-  if (document.getElementById('recentOffloadsTable')) initDataTable('#recentOffloadsTable');
+  if (document.getElementById('pendingOffloadsTable')) initDataTable('#pendingOffloadsTable', {order:[[0,'desc']]});
+  if (document.getElementById('recentOffloadsTable')) initDataTable('#recentOffloadsTable', {order:[[0,'desc']]});
 });
 
 function offloadAll() {
