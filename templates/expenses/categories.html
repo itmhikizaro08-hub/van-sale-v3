@@ -7,38 +7,86 @@
     <h1 class="page-title">Expense Categories</h1>
     <p class="page-subtitle">Add whatever fits your business. Deactivating a category hides it from new expenses but keeps it on existing ones — categories with transactions are never deleted.</p>
   </div>
-  <a href="{{ url_for('expenses.index') }}" class="btn btn-outline-secondary btn-sm"><i class="fas fa-arrow-left me-1"></i>Back to Expenses</a>
+  <div class="d-flex gap-2 flex-wrap">
+    <a href="{{ url_for('expenses.categories_export_excel') }}" class="btn btn-outline-success btn-sm"><i class="fas fa-file-excel me-1"></i>Excel</a>
+    <a href="{{ url_for('expenses.index') }}" class="btn btn-outline-secondary btn-sm"><i class="fas fa-arrow-left me-1"></i>Back to Expenses</a>
+  </div>
 </div>
 
-<div class="card mb-3">
-  <div class="card-body p-0"><div class="table-responsive">
-    <table class="table table-hover mb-0">
-      <thead><tr><th>Icon</th><th>Category</th><th class="text-end">Expenses</th><th class="text-end">Total Spent</th><th>Status</th><th class="text-end">Actions</th></tr></thead>
-      <tbody>
-        {% for c in all_categories %}
-        <tr>
-          <td><i class="fas {{ c.icon }}"></i></td>
-          <td class="fw-600">{{ c.label }}</td>
-          <td class="text-end">{{ cat_stats.get(c.key, {}).get('count', 0) }}</td>
-          <td class="text-end fw-600">GHS {{ "%.2f"|format(cat_stats.get(c.key, {}).get('total', 0)) }}</td>
-          <td><span class="badge {{ 'bg-success' if c.is_active else 'bg-secondary' }}">{{ 'Active' if c.is_active else 'Inactive' }}</span></td>
-          <td class="text-end">
-            <div class="d-flex gap-1 justify-content-end">
-              <button type="button" class="btn btn-icon btn-sm btn-outline-primary" title="Edit"
-                onclick="openCatEditModal({{ c.id }}, '{{ c.label|replace("'", "\\'") }}', '{{ c.icon }}')"><i class="fas fa-edit"></i></button>
-              <button class="btn btn-icon btn-sm btn-outline-secondary" title="{{ 'Deactivate' if c.is_active else 'Activate' }}"
-                data-action-url="{{ url_for('expenses.categories_toggle', cat_id=c.id) }}"
-                data-confirm="{{ 'Deactivate' if c.is_active else 'Activate' }} category '{{ c.label }}'?"
-                data-success-msg="Category updated."><i class="fas {{ 'fa-eye-slash' if c.is_active else 'fa-eye' }}"></i></button>
-            </div>
-          </td>
-        </tr>
-        {% else %}
-        <tr><td colspan="6" class="text-muted text-center py-4">No categories yet</td></tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div></div>
+<div class="row g-3 mb-3">
+  <div class="col-6 col-md-3">
+    <div class="stat-card primary"><div class="stat-icon"><i class="fas fa-tags"></i></div>
+      <div><div class="stat-label">Total Categories</div><div class="stat-value">{{ total_categories }}</div></div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="stat-card success"><div class="stat-icon"><i class="fas fa-check-circle"></i></div>
+      <div><div class="stat-label">Active</div><div class="stat-value">{{ active_count }}</div></div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="stat-card {{ 'success' if inactive_count == 0 else 'warning' }}"><div class="stat-icon"><i class="fas fa-eye-slash"></i></div>
+      <div><div class="stat-label">Inactive</div><div class="stat-value">{{ inactive_count }}</div></div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="stat-card info"><div class="stat-icon"><i class="fas fa-coins"></i></div>
+      <div><div class="stat-label">Total Spent (All-Time)</div><div class="stat-value fs-16">GHS {{ "{:,.2f}".format(total_spent_all) }}</div></div>
+    </div>
+  </div>
+</div>
+
+<div class="row g-3 mb-3">
+  <div class="col-md-8">
+    <div class="card h-100">
+      <div class="card-header d-flex align-items-center justify-content-between">
+        <span><i class="fas fa-tags me-2"></i>Categories</span>
+        <div class="btn-group btn-group-sm">
+          <a href="{{ url_for('expenses.categories') }}" class="btn btn-outline-secondary {{ 'active' if not status_filter }}">All</a>
+          <a href="{{ url_for('expenses.categories', status='active') }}" class="btn btn-outline-secondary {{ 'active' if status_filter == 'active' }}">Active</a>
+          <a href="{{ url_for('expenses.categories', status='inactive') }}" class="btn btn-outline-secondary {{ 'active' if status_filter == 'inactive' }}">Inactive</a>
+        </div>
+      </div>
+      <div class="card-body p-0"><div class="table-responsive">
+        <table class="table table-hover dt-table mb-0" id="catTable">
+          <thead><tr><th>Icon</th><th>Category</th><th class="text-end">Expenses</th><th class="text-end">Total Spent</th><th class="text-end">% of Spend</th><th>Last Used</th><th>Status</th><th class="text-end">Actions</th></tr></thead>
+          <tbody>
+            {% for c in all_categories %}
+            {% set total = cat_stats.get(c.key, {}).get('total', 0) %}
+            <tr>
+              <td><i class="fas {{ c.icon }} fs-14"></i></td>
+              <td class="fw-600">{{ c.label }}</td>
+              <td class="text-end">{{ cat_stats.get(c.key, {}).get('count', 0) }}</td>
+              <td class="text-end fw-600">GHS {{ "%.2f"|format(total) }}</td>
+              <td class="text-end fs-12">{{ "%.1f"|format(total / total_spent_all * 100) if total_spent_all > 0 else "0.0" }}%</td>
+              <td class="text-muted fs-12">{{ last_used.get(c.key).strftime('%d %b %Y') if last_used.get(c.key) else '—' }}</td>
+              <td><span class="badge {{ 'bg-success' if c.is_active else 'bg-secondary' }}">{{ 'Active' if c.is_active else 'Inactive' }}</span></td>
+              <td class="text-end">
+                <div class="d-flex gap-1 justify-content-end">
+                  <a href="{{ url_for('expenses.index', category=c.key) }}" class="btn btn-icon btn-sm btn-outline-secondary" title="View Expenses"><i class="fas fa-eye"></i></a>
+                  <button type="button" class="btn btn-icon btn-sm btn-outline-primary" title="Edit"
+                    onclick="openCatEditModal({{ c.id }}, '{{ c.label|replace("'", "\\'") }}', '{{ c.icon }}')"><i class="fas fa-edit"></i></button>
+                  <button class="btn btn-icon btn-sm btn-outline-secondary" title="{{ 'Deactivate' if c.is_active else 'Activate' }}"
+                    data-action-url="{{ url_for('expenses.categories_toggle', cat_id=c.id) }}"
+                    data-confirm="{{ 'Deactivate' if c.is_active else 'Activate' }} category '{{ c.label }}'?"
+                    data-success-msg="Category updated."><i class="fas {{ 'fa-eye-slash' if c.is_active else 'fa-eye' }}"></i></button>
+                </div>
+              </td>
+            </tr>
+            {% else %}
+            <tr><td colspan="8" class="text-muted text-center py-4">No categories found</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div></div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card h-100">
+      <div class="card-header"><i class="fas fa-chart-pie me-2"></i>Spend Distribution</div>
+      <div class="card-body"><div style="height:260px"><canvas id="catSpendChart"></canvas></div></div>
+    </div>
+  </div>
 </div>
 
 <div class="card">
@@ -46,7 +94,15 @@
   <div class="card-body">
     <form method="POST" action="{{ url_for('expenses.categories_add') }}" class="row g-2 align-items-end">
       <div class="col-md-5"><label class="form-label">New Category Name</label><input type="text" name="label" class="form-control" placeholder="e.g. Rent, Utilities, Marketing" required></div>
-      <div class="col-md-4"><label class="form-label">Icon (Font Awesome class, optional)</label><input type="text" name="icon" class="form-control" placeholder="fa-receipt"></div>
+      <div class="col-md-4">
+        <label class="form-label">Icon</label>
+        <div class="d-flex align-items-center gap-2">
+          <i class="fas fa-receipt fs-18" id="addIconPreview" style="width:24px"></i>
+          <select name="icon" id="addIconSelect" class="form-select" onchange="document.getElementById('addIconPreview').className = 'fas ' + this.value + ' fs-18'">
+            {% for icon in icon_choices %}<option value="{{ icon }}">{{ icon }}</option>{% endfor %}
+          </select>
+        </div>
+      </div>
       <div class="col-md-3"><button type="submit" class="btn btn-primary w-100"><i class="fas fa-plus me-1"></i>Add Category</button></div>
     </form>
   </div>
@@ -63,7 +119,15 @@
         </div>
         <div class="modal-body">
           <div class="mb-3"><label class="form-label">Category Name</label><input type="text" name="label" id="catEditLabel" class="form-control" required></div>
-          <div class="mb-2"><label class="form-label">Icon (Font Awesome class)</label><input type="text" name="icon" id="catEditIcon" class="form-control"></div>
+          <div class="mb-2">
+            <label class="form-label">Icon</label>
+            <div class="d-flex align-items-center gap-2">
+              <i class="fas fa-receipt fs-18" id="catEditIconPreview" style="width:24px"></i>
+              <select name="icon" id="catEditIcon" class="form-select" onchange="document.getElementById('catEditIconPreview').className = 'fas ' + this.value + ' fs-18'">
+                {% for icon in icon_choices %}<option value="{{ icon }}">{{ icon }}</option>{% endfor %}
+              </select>
+            </div>
+          </div>
         </div>
         <div class="modal-footer">
           <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
@@ -76,12 +140,50 @@
 {% endblock %}
 {% block extra_js %}
 <script>
+$(document).ready(() => initDataTable('#catTable', {order:[[3,'desc']], columnDefs:[{orderable:false, targets:[7]}]}));
+
 const catEditModal = new bootstrap.Modal(document.getElementById('catEditModal'));
 function openCatEditModal(id, label, icon) {
   document.getElementById('catEditForm').action = `/expenses/categories/${id}/edit`;
   document.getElementById('catEditLabel').value = label;
-  document.getElementById('catEditIcon').value = icon;
+  const sel = document.getElementById('catEditIcon');
+  sel.value = icon;
+  if (!sel.value) { // icon not in the curated list — add it so it's not silently lost
+    const opt = document.createElement('option');
+    opt.value = icon; opt.textContent = icon;
+    sel.appendChild(opt);
+    sel.value = icon;
+  }
+  document.getElementById('catEditIconPreview').className = 'fas ' + icon + ' fs-18';
   catEditModal.show();
+}
+
+const spendLabels = {{ spend_chart|map(attribute=0)|list|tojson }};
+const spendValues = {{ spend_chart|map(attribute=1)|list|tojson }};
+const catKeys = {{ all_categories|map(attribute='key')|list|tojson }};
+const catLabels = {{ all_categories|map(attribute='label')|list|tojson }};
+const catLabelMap = catKeys.reduce((m, k, i) => (m[k] = catLabels[i], m), {});
+if (spendLabels.length) {
+  new Chart(document.getElementById('catSpendChart'), {
+    type: 'doughnut',
+    data: {
+      labels: spendLabels.map(k => catLabelMap[k] || k),
+      datasets: [{ data: spendValues, backgroundColor: CHART_COLORS, borderWidth: 3,
+        borderColor: getComputedStyle(document.documentElement).getPropertyValue('--bg-card').trim() || '#fff',
+        borderRadius: 6, spacing: 3, hoverOffset: 6 }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false, cutout: '65%',
+      plugins: {
+        legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 10.5 } } },
+        tooltip: { callbacks: { label: ctx => {
+          const total = ctx.dataset.data.reduce((a,b) => a+b, 0);
+          const pct = total ? ((ctx.raw / total) * 100).toFixed(1) : 0;
+          return `${ctx.label}: GHS ${ctx.raw.toLocaleString()} (${pct}%)`;
+        }}}
+      }
+    }
+  });
 }
 </script>
 {% endblock %}

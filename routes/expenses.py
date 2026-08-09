@@ -157,6 +157,41 @@ def index():
         today=datetime.utcnow().strftime('%Y-%m-%d'), **filters)
 
 
+CATEGORY_ICON_CHOICES = [
+    'fa-receipt', 'fa-gas-pump', 'fa-wrench', 'fa-oil-can', 'fa-users', 'fa-building',
+    'fa-truck', 'fa-utensils', 'fa-car', 'fa-bus', 'fa-plane', 'fa-hotel', 'fa-house',
+    'fa-money-bill', 'fa-credit-card', 'fa-mobile-screen', 'fa-phone', 'fa-wifi',
+    'fa-bolt', 'fa-tools', 'fa-briefcase', 'fa-boxes-stacked', 'fa-shopping-cart',
+    'fa-shirt', 'fa-stethoscope', 'fa-graduation-cap', 'fa-gift', 'fa-newspaper',
+    'fa-print', 'fa-paint-roller', 'fa-broom', 'fa-shield', 'fa-tag',
+]
+
+
+def _category_stats():
+    """All-time {key: {count, total}} across every expense, regardless of
+    status for `count` but only approved amounts contribute to `total` —
+    same convention as the rest of the module (a pending/rejected expense
+    hasn't actually cost the company anything yet)."""
+    stats = {}
+    for e in Expense.query.all():
+        s = stats.setdefault(e.category, {'count': 0, 'total': 0.0})
+        s['count'] += 1
+        if e.status == 'approved':
+            s['total'] += e.amount
+    for s in stats.values():
+        s['total'] = round(s['total'], 2)
+    return stats
+
+
+def _category_last_used():
+    """{key: most recent expense_date} across every non-void expense,
+    regardless of approval status — reflects last activity, not last spend."""
+    rows = db.session.query(Expense.category, func.max(Expense.expense_date)).filter(
+        Expense.status != 'void'
+    ).group_by(Expense.category).all()
+    return {k: v for k, v in rows}
+
+
 @expenses_bp.route('/categories')
 @login_required
 def categories():
@@ -164,21 +199,59 @@ def categories():
         flash('Permission denied.', 'danger')
         return redirect(url_for('expenses.index'))
 
+    status_filter = request.args.get('status', '')
+    q = ExpenseCategory.query
+    if status_filter == 'active':
+        q = q.filter_by(is_active=True)
+    elif status_filter == 'inactive':
+        q = q.filter_by(is_active=False)
+    all_categories = q.order_by(ExpenseCategory.label).all()
+
+    cat_stats = _category_stats()
+    last_used = _category_last_used()
+    total_spent_all = round(sum(s['total'] for s in cat_stats.values()), 2)
+
+    total_categories = ExpenseCategory.query.count()
+    active_count = ExpenseCategory.query.filter_by(is_active=True).count()
+    inactive_count = total_categories - active_count
+
+    spend_chart = sorted(
+        [(c.key, cat_stats.get(c.key, {}).get('total', 0)) for c in all_categories if cat_stats.get(c.key, {}).get('total', 0) > 0],
+        key=lambda x: -x[1]
+    )
+
+    return render_template('expenses/categories.html', all_categories=all_categories, cat_stats=cat_stats,
+        last_used=last_used, total_spent_all=total_spent_all, total_categories=total_categories,
+        active_count=active_count, inactive_count=inactive_count, status_filter=status_filter,
+        spend_chart=spend_chart, icon_choices=CATEGORY_ICON_CHOICES)
+
+
+@expenses_bp.route('/categories/export/excel')
+@login_required
+def categories_export_excel():
+    if not current_user.can_approve_module('expenses'):
+        flash('Permission denied.', 'danger')
+        return redirect(url_for('expenses.categories'))
+    import pandas as pd, io
     all_categories = ExpenseCategory.query.order_by(ExpenseCategory.label).all()
-
-    # All-time count + total spent per category (a management overview, not
-    # a filtered report — Expense Reports' "by category" view already
-    # covers the date-filtered version of this).
-    cat_stats = {}
-    for e in Expense.query.all():
-        s = cat_stats.setdefault(e.category, {'count': 0, 'total': 0.0})
-        s['count'] += 1
-        if e.status == 'approved':
-            s['total'] += e.amount
-    for s in cat_stats.values():
-        s['total'] = round(s['total'], 2)
-
-    return render_template('expenses/categories.html', all_categories=all_categories, cat_stats=cat_stats)
+    cat_stats = _category_stats()
+    last_used = _category_last_used()
+    data = [{
+        'Category': c.label,
+        'Status': 'Active' if c.is_active else 'Inactive',
+        'Expenses': cat_stats.get(c.key, {}).get('count', 0),
+        'Total Spent (GHS)': cat_stats.get(c.key, {}).get('total', 0),
+        'Last Used': last_used.get(c.key).strftime('%Y-%m-%d') if last_used.get(c.key) else '',
+    } for c in all_categories]
+    df = pd.DataFrame(data)
+    buf = io.BytesIO()
+    with pd.ExcelWriter(buf, engine='openpyxl') as w:
+        df.to_excel(w, index=False, sheet_name='Categories')
+    buf.seek(0)
+    response = make_response(buf.read())
+    response.headers['Content-Type'] = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    response.headers['Content-Disposition'] = 'attachment; filename=expense_categories.xlsx'
+    return response
 
 
 @expenses_bp.route('/add', methods=['GET', 'POST'])
