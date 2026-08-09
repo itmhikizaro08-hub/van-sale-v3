@@ -1,0 +1,120 @@
+{% extends 'base.html' %}
+{% block title %}Expense Reports{% endblock %}
+{% block breadcrumb %}<li class="breadcrumb-item"><a href="{{ url_for('expenses.index') }}">Expenses</a></li><li class="breadcrumb-item active">Reports</li>{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title">Expense Reports</h1>
+    <p class="page-subtitle">{{ start }} to {{ end }}</p>
+  </div>
+  <div class="d-flex gap-2 flex-wrap">
+    <a href="{{ url_for('expenses.reports_export_excel', **request.args) }}" class="btn btn-outline-success btn-sm"><i class="fas fa-file-excel me-1"></i>Excel</a>
+    <a href="{{ url_for('expenses.reports_export_pdf', **request.args) }}" target="_blank" class="btn btn-outline-danger btn-sm"><i class="fas fa-file-pdf me-1"></i>PDF</a>
+    <a href="{{ url_for('expenses.index') }}" class="btn btn-outline-secondary btn-sm"><i class="fas fa-arrow-left me-1"></i>Back</a>
+  </div>
+</div>
+
+<div class="card mb-3"><div class="card-body py-3">
+  <form method="GET" class="row g-2 align-items-end">
+    <div class="col-6 col-md-3"><label class="form-label">Report</label>
+      <select name="report_type" class="form-select form-select-sm" onchange="this.form.submit()">
+        {% for key, label in report_types %}<option value="{{ key }}" {{ 'selected' if report_type == key }}>{{ label }}</option>{% endfor %}
+      </select>
+    </div>
+    <div class="col-6 col-md-2"><label class="form-label">Category</label>
+      <select name="category" class="form-select form-select-sm">
+        <option value="">All</option>
+        {% for key, label in category_labels.items() %}<option value="{{ key }}" {{ 'selected' if category == key }}>{{ label }}</option>{% endfor %}
+      </select>
+    </div>
+    <div class="col-6 col-md-2"><label class="form-label">From</label><input type="date" name="start" class="form-control form-control-sm" value="{{ start }}"></div>
+    <div class="col-6 col-md-2"><label class="form-label">To</label><input type="date" name="end" class="form-control form-control-sm" value="{{ end }}"></div>
+    <div class="col-6 col-md-1"><button type="submit" class="btn btn-primary btn-sm w-100"><i class="fas fa-filter"></i></button></div>
+  </form>
+  <div class="d-flex gap-2 mt-2 flex-wrap">
+    <a href="{{ url_for('expenses.reports', report_type='by_category', category='fuel', start=start, end=end) }}" class="btn btn-outline-secondary btn-sm"><i class="fas fa-gas-pump me-1"></i>Fuel Report</a>
+    <a href="{{ url_for('expenses.reports', report_type='by_category', category='vehicle_maintenance', start=start, end=end) }}" class="btn btn-outline-secondary btn-sm"><i class="fas fa-oil-can me-1"></i>Vehicle Maintenance Report</a>
+  </div>
+</div></div>
+
+{% if report_type in ('daily', 'monthly') %}
+<div class="card">
+  <div class="card-header"><i class="fas fa-chart-area me-2"></i>{{ report_types|selectattr('0','equalto',report_type)|map(attribute=1)|first }}</div>
+  <div class="card-body"><div style="height:280px"><canvas id="reportChart"></canvas></div></div>
+  <div class="table-responsive"><table class="table table-sm mb-0">
+    <thead><tr><th>Period</th><th class="text-end">Total (GHS)</th></tr></thead>
+    <tbody>
+      {% for label, value in data.pairs %}
+      <tr><td>{{ label }}</td><td class="text-end fw-600">{{ "%.2f"|format(value) }}</td></tr>
+      {% else %}
+      <tr><td colspan="2" class="text-muted text-center py-3">No data in this period</td></tr>
+      {% endfor %}
+    </tbody>
+  </table></div>
+</div>
+
+{% elif report_type == 'approved_vs_rejected' %}
+<div class="row g-3 mb-3">
+  <div class="col-md-6">
+    <div class="stat-card success"><div class="stat-icon"><i class="fas fa-check-circle"></i></div>
+      <div><div class="stat-label">Approved</div><div class="stat-value">{{ data.approved_count }} · GHS {{ "{:,.2f}".format(data.approved_total) }}</div></div>
+    </div>
+  </div>
+  <div class="col-md-6">
+    <div class="stat-card danger"><div class="stat-icon"><i class="fas fa-times-circle"></i></div>
+      <div><div class="stat-label">Rejected</div><div class="stat-value">{{ data.rejected_count }} · GHS {{ "{:,.2f}".format(data.rejected_total) }}</div></div>
+    </div>
+  </div>
+</div>
+<div class="card"><div class="card-body"><div style="height:260px"><canvas id="reportChart"></canvas></div></div></div>
+
+{% else %}
+<div class="row g-3">
+  <div class="col-md-5">
+    <div class="card h-100"><div class="card-body"><div style="height:280px"><canvas id="reportChart"></canvas></div></div></div>
+  </div>
+  <div class="col-md-7">
+    <div class="card h-100"><div class="card-body p-0"><div class="table-responsive"><table class="table table-sm mb-0">
+      <thead><tr><th>{{ 'Employee' if report_type == 'by_employee' else 'Category' if report_type == 'by_category' else 'Payment Method' }}</th><th class="text-end">Count</th><th class="text-end">Total (GHS)</th></tr></thead>
+      <tbody>
+        {% for r in data.rows %}
+        <tr><td class="fw-600">{{ category_labels.get(r.key, r.key|replace('_',' ')|title) }}</td><td class="text-end">{{ r.count }}</td><td class="text-end fw-700">{{ "%.2f"|format(r.total) }}</td></tr>
+        {% else %}
+        <tr><td colspan="3" class="text-muted text-center py-3">No data in this period</td></tr>
+        {% endfor %}
+      </tbody>
+    </table></div></div></div>
+  </div>
+</div>
+{% endif %}
+{% endblock %}
+{% block extra_js %}
+<script>
+{% if report_type in ('daily', 'monthly') %}
+new Chart(document.getElementById('reportChart'), {
+  type: 'bar',
+  data: { labels: {{ data.labels|tojson }}, datasets: [{ label: 'Total', data: {{ data.totals|tojson }}, backgroundColor: 'rgba(37,99,235,.7)', borderRadius: 4 }] },
+  options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true } }, plugins: { legend: { display: false } } }
+});
+{% elif report_type == 'approved_vs_rejected' %}
+new Chart(document.getElementById('reportChart'), {
+  type: 'doughnut',
+  data: { labels: ['Approved', 'Rejected'], datasets: [{ data: [{{ data.approved_total }}, {{ data.rejected_total }}], backgroundColor: ['#10b981', '#ef4444'], borderWidth: 3,
+    borderColor: getComputedStyle(document.documentElement).getPropertyValue('--bg-card').trim() || '#fff', borderRadius: 6, spacing: 3 }] },
+  options: { responsive: true, maintainAspectRatio: false, cutout: '65%', plugins: { legend: { position: 'bottom' } } }
+});
+{% else %}
+const catLabelMap = {{ category_labels|tojson }};
+const rowLabels = {{ data.rows|map(attribute='key')|list|tojson }}.map(k => catLabelMap[k] || k.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()));
+const rowValues = {{ data.rows|map(attribute='total')|list|tojson }};
+if (rowLabels.length) {
+  new Chart(document.getElementById('reportChart'), {
+    type: 'doughnut',
+    data: { labels: rowLabels, datasets: [{ data: rowValues, backgroundColor: CHART_COLORS, borderWidth: 3,
+      borderColor: getComputedStyle(document.documentElement).getPropertyValue('--bg-card').trim() || '#fff', borderRadius: 6, spacing: 3 }] },
+    options: { responsive: true, maintainAspectRatio: false, cutout: '65%', plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 10.5 } } } } }
+  });
+}
+{% endif %}
+</script>
+{% endblock %}

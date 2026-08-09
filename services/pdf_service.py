@@ -151,6 +151,247 @@ def generate_invoice_pdf(sale, company: dict, net_balance_due=None, net_payment_
     return buffer.getvalue()
 
 
+def generate_expenses_list_pdf(expenses, company: dict, start: str, end: str) -> bytes:
+    """Filtered expense listing (Export PDF from the Expenses table)."""
+    buffer = BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=A4,
+                            rightMargin=12*mm, leftMargin=12*mm,
+                            topMargin=15*mm, bottomMargin=15*mm)
+
+    BRAND = colors.HexColor('#2563EB')
+    LIGHT_GRAY = colors.HexColor('#f1f5f9')
+
+    title_style = ParagraphStyle('title', fontSize=22, textColor=BRAND, spaceAfter=2,
+                                  fontName='Helvetica-Bold')
+    sub_style = ParagraphStyle('sub', fontSize=9, textColor=colors.HexColor('#64748b'))
+
+    story = []
+    header_data = [
+        [Paragraph(company['name'], title_style),
+         Paragraph('<b>EXPENSES REPORT</b>', ParagraphStyle('exp', fontSize=16, textColor=BRAND,
+                                                              alignment=TA_RIGHT, fontName='Helvetica-Bold'))],
+        [Paragraph(f"{company.get('address','')}<br/>{company.get('phone','')}", sub_style),
+         Paragraph(f'{start} to {end}', ParagraphStyle('period', fontSize=11,
+                                                          alignment=TA_RIGHT, fontName='Helvetica-Bold'))]
+    ]
+    header_table = Table(header_data, colWidths=[100*mm, 76*mm])
+    header_table.setStyle(TableStyle([('VALIGN', (0, 0), (-1, -1), 'TOP'), ('BOTTOMPADDING', (0, 0), (-1, -1), 6)]))
+    story.append(header_table)
+    story.append(HRFlowable(width='100%', thickness=1.5, color=BRAND))
+    story.append(Spacer(1, 6*mm))
+
+    col_headers = ['Expense #', 'Date', 'Category', 'Submitted By', 'Amount', 'Status']
+    rows = [col_headers]
+    total = 0.0
+    for e in expenses:
+        rows.append([
+            e.expense_number,
+            e.expense_date.strftime('%d %b %Y') if e.expense_date else '',
+            e.category.replace('_', ' ').title(),
+            e.created_by.full_name if e.created_by else '',
+            f'GHS {e.amount:.2f}',
+            e.status.title()
+        ])
+        if e.status != 'void':
+            total += e.amount
+    if len(rows) == 1:
+        rows.append(['No expenses in this period.', '', '', '', '', ''])
+
+    table = Table(rows, colWidths=[30*mm, 24*mm, 30*mm, 40*mm, 26*mm, 26*mm])
+    table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), BRAND),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, 0), 9),
+        ('FONTSIZE', (0, 1), (-1, -1), 8.5),
+        ('ALIGN', (4, 0), (4, -1), 'RIGHT'),
+        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, LIGHT_GRAY]),
+        ('GRID', (0, 0), (-1, -1), 0.3, colors.HexColor('#cbd5e1')),
+        ('TOPPADDING', (0, 0), (-1, -1), 5),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 5),
+        ('LEFTPADDING', (0, 0), (-1, -1), 5),
+    ]))
+    story.append(table)
+    story.append(Spacer(1, 6*mm))
+    story.append(Paragraph(f'<b>Total (excl. voided): GHS {total:.2f}</b>',
+                            ParagraphStyle('tot', fontSize=11, alignment=TA_RIGHT)))
+
+    doc.build(story)
+    return buffer.getvalue()
+
+
+def generate_expense_detail_pdf(expense, logs, company: dict) -> bytes:
+    """Single expense's full details + approval history — the 'Print
+    Expense' button on the Expense Details page."""
+    buffer = BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=A4,
+                            rightMargin=15*mm, leftMargin=15*mm,
+                            topMargin=15*mm, bottomMargin=15*mm)
+
+    BRAND = colors.HexColor('#2563EB')
+    DARK = colors.HexColor('#1e293b')
+    LIGHT_GRAY = colors.HexColor('#f1f5f9')
+
+    title_style = ParagraphStyle('title', fontSize=22, textColor=BRAND, spaceAfter=2, fontName='Helvetica-Bold')
+    sub_style = ParagraphStyle('sub', fontSize=9, textColor=colors.HexColor('#64748b'))
+    heading_style = ParagraphStyle('heading', fontSize=11, textColor=DARK, fontName='Helvetica-Bold', spaceAfter=4)
+    normal = ParagraphStyle('normal2', fontSize=9, textColor=DARK)
+
+    story = []
+    header_data = [
+        [Paragraph(company['name'], title_style),
+         Paragraph('<b>EXPENSE</b>', ParagraphStyle('exp2', fontSize=18, textColor=BRAND,
+                                                       alignment=TA_RIGHT, fontName='Helvetica-Bold'))],
+        [Paragraph(f"{company.get('address','')}<br/>{company.get('phone','')}", sub_style),
+         Paragraph(f'<b>{expense.expense_number}</b>', ParagraphStyle('expnum', fontSize=12,
+                                                                        alignment=TA_RIGHT, fontName='Helvetica-Bold'))]
+    ]
+    header_table = Table(header_data, colWidths=[100*mm, 80*mm])
+    header_table.setStyle(TableStyle([('VALIGN', (0, 0), (-1, -1), 'TOP'), ('BOTTOMPADDING', (0, 0), (-1, -1), 6)]))
+    story.append(header_table)
+    story.append(HRFlowable(width='100%', thickness=1.5, color=BRAND))
+    story.append(Spacer(1, 6*mm))
+
+    info_data = [
+        [Paragraph('<b>EXPENSE DETAILS</b>', heading_style), Paragraph('<b>AMOUNT</b>', heading_style)],
+        [Paragraph(
+            f"Category: {expense.category.replace('_',' ').title()}<br/>"
+            f"Date: {expense.expense_date.strftime('%d %B %Y') if expense.expense_date else ''}<br/>"
+            f"Payment Method: {expense.payment_method_label}<br/>"
+            f"Submitted By: {expense.created_by.full_name if expense.created_by else ''}<br/>"
+            f"Status: {expense.status.upper()}", normal),
+         Paragraph(f"GHS {expense.amount:.2f}", ParagraphStyle('amt', fontSize=16,
+                                                                  fontName='Helvetica-Bold', textColor=DARK))]
+    ]
+    info_table = Table(info_data, colWidths=[110*mm, 70*mm])
+    info_table.setStyle(TableStyle([
+        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+        ('BACKGROUND', (0, 0), (-1, 0), LIGHT_GRAY),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 6), ('TOPPADDING', (0, 0), (-1, -1), 6),
+        ('LEFTPADDING', (0, 0), (-1, -1), 8),
+    ]))
+    story.append(info_table)
+    story.append(Spacer(1, 6*mm))
+
+    if expense.description:
+        story.append(Paragraph(f'<b>Description:</b> {expense.description}', normal))
+        story.append(Spacer(1, 3*mm))
+    if expense.reference_note:
+        story.append(Paragraph(f'<b>Notes:</b> {expense.reference_note}', normal))
+        story.append(Spacer(1, 3*mm))
+    if expense.status == 'approved' and expense.approval_note:
+        story.append(Paragraph(f'<b>Approval Note:</b> {expense.approval_note}', normal))
+        story.append(Spacer(1, 3*mm))
+    if expense.status == 'rejected' and expense.rejection_reason:
+        story.append(Paragraph(f'<b>Rejection Reason:</b> {expense.rejection_reason}', normal))
+        story.append(Spacer(1, 3*mm))
+    story.append(Spacer(1, 4*mm))
+
+    story.append(Paragraph('<b>APPROVAL HISTORY</b>', heading_style))
+    log_headers = ['Date', 'Action', 'By', 'Note']
+    log_rows = [log_headers]
+    for l in logs:
+        log_rows.append([
+            l.created_at.strftime('%d %b %Y, %H:%M') if l.created_at else '',
+            l.action_label,
+            l.actor.full_name if l.actor else '',
+            (l.note or '')[:60]
+        ])
+    if not logs:
+        log_rows.append(['No history recorded.', '', '', ''])
+
+    log_table = Table(log_rows, colWidths=[35*mm, 30*mm, 45*mm, 70*mm])
+    log_table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), BRAND),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, 0), 9),
+        ('FONTSIZE', (0, 1), (-1, -1), 8),
+        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, LIGHT_GRAY]),
+        ('GRID', (0, 0), (-1, -1), 0.3, colors.HexColor('#cbd5e1')),
+        ('TOPPADDING', (0, 0), (-1, -1), 4), ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+        ('LEFTPADDING', (0, 0), (-1, -1), 5),
+    ]))
+    story.append(log_table)
+
+    doc.build(story)
+    return buffer.getvalue()
+
+
+def generate_expense_report_pdf(report_label: str, data: dict, company: dict, start: str, end: str) -> bytes:
+    """Generic renderer for the Expense Reports page's export — `data` is
+    whatever routes/expenses.py's _report_data() produced (either a
+    {labels, values} trend or a {rows: [...]} breakdown)."""
+    buffer = BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=A4,
+                            rightMargin=15*mm, leftMargin=15*mm,
+                            topMargin=15*mm, bottomMargin=15*mm)
+
+    BRAND = colors.HexColor('#2563EB')
+    LIGHT_GRAY = colors.HexColor('#f1f5f9')
+
+    title_style = ParagraphStyle('title', fontSize=22, textColor=BRAND, spaceAfter=2, fontName='Helvetica-Bold')
+    sub_style = ParagraphStyle('sub', fontSize=9, textColor=colors.HexColor('#64748b'))
+
+    story = []
+    header_data = [
+        [Paragraph(company['name'], title_style),
+         Paragraph(f'<b>{report_label.upper()}</b>', ParagraphStyle('rep', fontSize=14, textColor=BRAND,
+                                                                       alignment=TA_RIGHT, fontName='Helvetica-Bold'))],
+        [Paragraph(f"{company.get('address','')}<br/>{company.get('phone','')}", sub_style),
+         Paragraph(f'{start} to {end}', ParagraphStyle('period2', fontSize=11,
+                                                          alignment=TA_RIGHT, fontName='Helvetica-Bold'))]
+    ]
+    header_table = Table(header_data, colWidths=[100*mm, 80*mm])
+    header_table.setStyle(TableStyle([('VALIGN', (0, 0), (-1, -1), 'TOP'), ('BOTTOMPADDING', (0, 0), (-1, -1), 6)]))
+    story.append(header_table)
+    story.append(HRFlowable(width='100%', thickness=1.5, color=BRAND))
+    story.append(Spacer(1, 6*mm))
+
+    if 'rows' in data:
+        rows = [['Item', 'Count', 'Total (GHS)']]
+        grand_total = 0.0
+        for r in data['rows']:
+            rows.append([r['key'].replace('_', ' ').title(), str(r['count']), f"{r['total']:.2f}"])
+            grand_total += r['total']
+        if len(rows) == 1:
+            rows.append(['No data in this period.', '', ''])
+        rows.append(['TOTAL', '', f'{grand_total:.2f}'])
+        col_widths = [100*mm, 30*mm, 50*mm]
+    elif 'approved_total' in data:
+        rows = [
+            ['Status', 'Count', 'Total (GHS)'],
+            ['Approved', str(data['approved_count']), f"{data['approved_total']:.2f}"],
+            ['Rejected', str(data['rejected_count']), f"{data['rejected_total']:.2f}"],
+        ]
+        col_widths = [100*mm, 30*mm, 50*mm]
+    else:
+        rows = [['Period', 'Total (GHS)']]
+        for l, v in zip(data.get('labels', []), data.get('totals', [])):
+            rows.append([l, f'{v:.2f}'])
+        if len(rows) == 1:
+            rows.append(['No data in this period.', ''])
+        col_widths = [110*mm, 70*mm]
+
+    table = Table(rows, colWidths=col_widths)
+    table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), BRAND),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, 0), 9),
+        ('FONTSIZE', (0, 1), (-1, -1), 8.5),
+        ('ALIGN', (1, 0), (-1, -1), 'RIGHT'),
+        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, LIGHT_GRAY]),
+        ('GRID', (0, 0), (-1, -1), 0.3, colors.HexColor('#cbd5e1')),
+        ('TOPPADDING', (0, 0), (-1, -1), 5), ('BOTTOMPADDING', (0, 0), (-1, -1), 5),
+        ('LEFTPADDING', (0, 0), (-1, -1), 5),
+    ]))
+    story.append(table)
+
+    doc.build(story)
+    return buffer.getvalue()
+
+
 def generate_van_stock_statement_pdf(van, rep, product, company: dict, start: str, end: str,
                                        current_stock: list, current_total_qty: float,
                                        current_total_value: float, rows: list,

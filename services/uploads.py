@@ -10,15 +10,17 @@ log = logging.getLogger(__name__)
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
 
 
-def save_upload(file_storage, subfolder):
+def save_upload(file_storage, subfolder, extra_extensions=()):
     """Validate and save an uploaded image under UPLOAD_FOLDER/<subfolder>/.
     Returns the relative path (e.g. 'logos/20260101_abc.png') to store in the
-    DB, or None if no file / invalid extension."""
+    DB, or None if no file / invalid extension. `extra_extensions` widens the
+    allow-list for callers that accept more than images (e.g. PDF receipts)
+    without loosening it for every other caller (logos, avatars)."""
     if not file_storage or not file_storage.filename:
         return None
 
     ext = file_storage.filename.rsplit('.', 1)[-1].lower() if '.' in file_storage.filename else ''
-    if ext not in ALLOWED_EXTENSIONS:
+    if ext not in ALLOWED_EXTENSIONS and ext not in extra_extensions:
         return None
 
     filename = secure_filename(file_storage.filename)

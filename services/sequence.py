@@ -21,9 +21,16 @@ def next_payment_number():
 
 
 def next_expense_number():
-    last = Expense.query.order_by(Expense.id.desc()).first()
-    n = (last.id + 1) if last else 1
-    return f'EXP-{n:05d}'
+    """EXP-<year>-<seq>, sequence reset per calendar year (counts only
+    expenses already created THIS year, so last year's numbering doesn't
+    push this year's sequence up). Existing pre-upgrade rows keep their old
+    EXP-00001-style numbers untouched — this only affects new expenses."""
+    from datetime import datetime
+    year = datetime.utcnow().year
+    count_this_year = Expense.query.filter(
+        Expense.expense_number.like(f'EXP-{year}-%')
+    ).count()
+    return f'EXP-{year}-{count_this_year + 1:04d}'
 
 
 def next_loading_sheet_number():

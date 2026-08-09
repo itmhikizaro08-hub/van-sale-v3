@@ -3,95 +3,158 @@
 {% block breadcrumb %}<li class="breadcrumb-item active">Expenses</li>{% endblock %}
 {% block content %}
 <div class="page-header">
-  <div><h1 class="page-title">Expenses</h1></div>
-  {% if current_user.can_write('expenses') %}<a href="{{ url_for('expenses.add') }}" class="btn btn-primary"><i class="fas fa-plus me-1"></i>Add Expense</a>{% endif %}
+  <div>
+    <h1 class="page-title">Expenses</h1>
+    <p class="page-subtitle">{{ start }} to {{ end }} — track, approve, and report on company spend.</p>
+  </div>
+  <div class="d-flex gap-2 flex-wrap">
+    <a href="{{ url_for('expenses.reports') }}" class="btn btn-outline-secondary btn-sm"><i class="fas fa-chart-bar me-1"></i>Reports</a>
+    <a href="{{ url_for('expenses.export_excel', **request.args) }}" class="btn btn-outline-success btn-sm"><i class="fas fa-file-excel me-1"></i>Excel</a>
+    <a href="{{ url_for('expenses.export_pdf', **request.args) }}" target="_blank" class="btn btn-outline-danger btn-sm"><i class="fas fa-file-pdf me-1"></i>PDF</a>
+    <button onclick="window.print()" class="btn btn-outline-secondary btn-sm d-none d-md-inline-block"><i class="fas fa-print me-1"></i>Print</button>
+    {% if current_user.can_write('expenses') %}<button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addExpenseModal"><i class="fas fa-plus me-1"></i>Add Expense</button>{% endif %}
+  </div>
 </div>
 
+<!-- Dashboard cards -->
 <div class="row g-3 mb-3">
-  <div class="col-6 col-md-3">
-    <div class="stat-card success"><div class="stat-icon"><i class="fas fa-receipt"></i></div>
-      <div><div class="stat-label">Total Approved</div><div class="stat-value fs-16">GHS {{ "{:,.2f}".format(total) }}</div></div>
+  <div class="col-6 col-md-4 col-xl">
+    <div class="stat-card info"><div class="stat-icon"><i class="fas fa-wallet"></i></div>
+      <div><div class="stat-label">Total Expenses</div><div class="stat-value fs-16">GHS {{ "{:,.2f}".format(total_expenses) }}</div></div>
     </div>
   </div>
-  <div class="col-6 col-md-3">
-    <div class="stat-card info"><div class="stat-icon"><i class="fas fa-calendar-check"></i></div>
+  <div class="col-6 col-md-4 col-xl">
+    <div class="stat-card success"><div class="stat-icon"><i class="fas fa-receipt"></i></div>
+      <div><div class="stat-label">Total Approved</div><div class="stat-value fs-16">GHS {{ "{:,.2f}".format(total_approved) }}</div></div>
+    </div>
+  </div>
+  <div class="col-6 col-md-4 col-xl">
+    <div class="stat-card {{ 'warning' if pending_count > 0 else 'success' }}"><div class="stat-icon"><i class="fas fa-clock"></i></div>
+      <div><div class="stat-label">Pending Approval</div><div class="stat-value fs-16">{{ pending_count }} · GHS {{ "{:,.2f}".format(pending_total) }}</div></div>
+    </div>
+  </div>
+  <div class="col-6 col-md-4 col-xl">
+    <div class="stat-card danger"><div class="stat-icon"><i class="fas fa-times-circle"></i></div>
+      <div><div class="stat-label">Rejected</div><div class="stat-value fs-16">{{ rejected_count }} · GHS {{ "{:,.2f}".format(rejected_total) }}</div></div>
+    </div>
+  </div>
+  <div class="col-6 col-md-4 col-xl">
+    <div class="stat-card primary"><div class="stat-icon"><i class="fas fa-calendar-check"></i></div>
       <div><div class="stat-label">This Month</div><div class="stat-value fs-16">GHS {{ "{:,.2f}".format(total_this_month) }}</div></div>
     </div>
   </div>
-  <div class="col-6 col-md-3">
-    <div class="stat-card {{ 'warning' if pending_count > 0 else 'success' }}"><div class="stat-icon"><i class="fas fa-clock"></i></div>
-      <div><div class="stat-label">Pending Approval</div><div class="stat-value fs-16">{{ pending_count }}</div></div>
-    </div>
-  </div>
-  <div class="col-6 col-md-3">
-    <div class="stat-card danger"><div class="stat-icon"><i class="fas fa-times-circle"></i></div>
-      <div><div class="stat-label">Rejected</div><div class="stat-value fs-16">{{ rejected_count }}</div></div>
-    </div>
-  </div>
 </div>
 
-<div class="card mb-3"><div class="card-body py-2">
-  <form method="GET" class="row g-2 align-items-end">
-    <div class="col-6 col-md-3"><label class="form-label">From</label><input type="date" name="start" class="form-control" value="{{ start }}"></div>
-    <div class="col-6 col-md-3"><label class="form-label">To</label><input type="date" name="end" class="form-control" value="{{ end }}"></div>
-    <div class="col-6 col-md-3"><label class="form-label">Category</label>
-      <select name="category" class="form-select">
+<!-- Advanced filters -->
+<div class="card mb-3"><div class="card-body py-3">
+  <form method="GET" class="row g-2 align-items-end" id="filterForm">
+    <input type="hidden" name="granularity" value="{{ granularity }}">
+    <div class="col-6 col-md-2"><label class="form-label">From</label><input type="date" name="start" class="form-control form-control-sm" value="{{ start }}"></div>
+    <div class="col-6 col-md-2"><label class="form-label">To</label><input type="date" name="end" class="form-control form-control-sm" value="{{ end }}"></div>
+    <div class="col-6 col-md-2"><label class="form-label">Category</label>
+      <select name="category" class="form-select form-select-sm">
         <option value="">All Categories</option>
-        {% for c in all_categories %}<option value="{{ c.key }}" {{ 'selected' if category_filter == c.key }}>{{ c.label }}</option>{% endfor %}
+        {% for c in all_categories %}<option value="{{ c.key }}" {{ 'selected' if category == c.key }}>{{ c.label }}</option>{% endfor %}
       </select>
     </div>
-    <div class="col-6 col-md-2"><label class="form-label">Van</label>
-      <select name="van_id" class="form-select">
-        <option value="">All Vans</option>
-        {% for v in vans %}<option value="{{ v.id }}" {{ 'selected' if van_filter == v.id|string }}>{{ v.van_number }}</option>{% endfor %}
+    <div class="col-6 col-md-2"><label class="form-label">Submitted By</label>
+      <select name="submitted_by" class="form-select form-select-sm">
+        <option value="">Everyone</option>
+        {% for u in submitters %}<option value="{{ u.id }}" {{ 'selected' if submitted_by == u.id }}>{{ u.full_name }}</option>{% endfor %}
       </select>
     </div>
-    <div class="col-6 col-md-1"><button type="submit" class="btn btn-primary w-100"><i class="fas fa-filter"></i></button></div>
+    <div class="col-6 col-md-2"><label class="form-label">Status</label>
+      <select name="status" class="form-select form-select-sm">
+        <option value="">All</option>
+        <option value="pending" {{ 'selected' if status == 'pending' }}>Pending</option>
+        <option value="approved" {{ 'selected' if status == 'approved' }}>Approved</option>
+        <option value="rejected" {{ 'selected' if status == 'rejected' }}>Rejected</option>
+        <option value="void" {{ 'selected' if status == 'void' }}>Void</option>
+      </select>
+    </div>
+    <div class="col-6 col-md-2"><label class="form-label">Payment Method</label>
+      <select name="payment_method" class="form-select form-select-sm">
+        <option value="">All Methods</option>
+        {% for key, label in payment_methods %}<option value="{{ key }}" {{ 'selected' if payment_method == key }}>{{ label }}</option>{% endfor %}
+      </select>
+    </div>
+    <div class="col-12 d-flex gap-2 mt-2">
+      <button type="submit" class="btn btn-primary btn-sm"><i class="fas fa-filter me-1"></i>Apply Filters</button>
+      <a href="{{ url_for('expenses.index') }}" class="btn btn-outline-secondary btn-sm"><i class="fas fa-rotate-left me-1"></i>Reset Filters</a>
+    </div>
   </form>
 </div></div>
 
+<!-- Charts -->
+<div class="card mb-3">
+  <div class="card-header d-flex align-items-center justify-content-between">
+    <span><i class="fas fa-chart-area me-2"></i>Expense Trend (Approved)</span>
+    <div class="btn-group btn-group-sm">
+      <button type="button" class="btn btn-outline-secondary {{ 'active' if granularity == 'daily' }}" onclick="setGranularity('daily')">Daily</button>
+      <button type="button" class="btn btn-outline-secondary {{ 'active' if granularity == 'weekly' }}" onclick="setGranularity('weekly')">Weekly</button>
+      <button type="button" class="btn btn-outline-secondary {{ 'active' if granularity == 'monthly' }}" onclick="setGranularity('monthly')">Monthly</button>
+    </div>
+  </div>
+  <div class="card-body"><div style="height:240px"><canvas id="expTrendChart"></canvas></div></div>
+</div>
+
 <div class="row g-3 mb-3">
-  <div class="col-md-8">
+  <div class="col-md-4">
     <div class="card h-100">
-      <div class="card-header"><i class="fas fa-chart-area me-2"></i>Approved Expenses — Last 6 Months</div>
-      <div class="card-body"><div style="height:220px"><canvas id="expTrendChart"></canvas></div></div>
+      <div class="card-header"><i class="fas fa-chart-pie me-2"></i>By Category</div>
+      <div class="card-body"><div style="height:220px"><canvas id="expCategoryChart"></canvas></div></div>
     </div>
   </div>
   <div class="col-md-4">
     <div class="card h-100">
-      <div class="card-header"><i class="fas fa-chart-pie me-2"></i>By Category (This Period)</div>
-      <div class="card-body"><div style="height:220px"><canvas id="expCategoryChart"></canvas></div></div>
+      <div class="card-header"><i class="fas fa-tasks me-2"></i>By Status</div>
+      <div class="card-body"><div style="height:220px"><canvas id="expStatusChart"></canvas></div></div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card h-100">
+      <div class="card-header"><i class="fas fa-money-check-alt me-2"></i>By Payment Method</div>
+      <div class="card-body"><div style="height:220px"><canvas id="expMethodChart"></canvas></div></div>
     </div>
   </div>
 </div>
 
+<!-- Expense table -->
 <div class="card"><div class="card-body p-0"><div class="table-responsive">
 <table class="table table-hover dt-table mb-0" id="expTable">
-  <thead><tr><th>Expense #</th><th>Category</th><th>Description</th><th>Van</th><th>Submitted By</th><th>Date</th><th class="text-end">Amount</th><th>Ref Note</th><th>Receipt</th><th>Status</th><th></th></tr></thead>
+  <thead><tr>
+    <th>Expense #</th><th>Date</th><th>Category</th><th>Description</th><th class="text-end">Amount</th>
+    <th>Submitted By</th><th>Payment Method</th><th>Receipt</th><th>Status</th><th>Approved By</th><th>Approval Date</th><th></th>
+  </tr></thead>
   <tbody>
     {% for e in expenses %}
     <tr>
-      <td class="fw-600">{{ e.expense_number }}</td>
+      <td class="fw-600"><a href="{{ url_for('expenses.view', expense_id=e.id) }}">{{ e.expense_number }}</a></td>
+      <td class="text-muted fs-12">{{ e.expense_date.strftime('%d %b %Y') if e.expense_date else '' }}</td>
       <td><span class="badge bg-secondary"><i class="fas {{ category_icons.get(e.category, e.category_icon) }} me-1"></i>{{ category_labels.get(e.category, e.category|replace('_',' ')|title) }}</span></td>
       <td class="fs-13">{{ e.description or '—' }}</td>
-      <td class="fs-12">{{ e.van.van_number if e.van else '—' }}</td>
-      <td class="fs-12">{{ e.created_by.full_name if e.created_by else '—' }}</td>
-      <td class="text-muted fs-12">{{ e.created_at.strftime('%d %b %Y') if e.created_at else '' }}</td>
       <td class="text-end fw-600">GHS {{ "%.2f"|format(e.amount) }}</td>
-      <td>{% if e.reference_note %}<span class="ref-note-badge"><i class="fas fa-book me-1"></i>{{ e.reference_note[:20] }}</span>{% else %}<span class="text-muted fs-12">—</span>{% endif %}</td>
-      <td>{% if e.receipt_image %}<a href="{{ url_for('misc.uploads', filename=e.receipt_image) }}" target="_blank" class="btn btn-icon btn-sm btn-outline-info" title="View receipt"><i class="fas fa-image"></i></a>{% else %}<span class="text-muted fs-12">—</span>{% endif %}</td>
+      <td class="fs-12">{{ e.created_by.full_name if e.created_by else '—' }}</td>
+      <td class="fs-12">{{ e.payment_method_label }}</td>
+      <td>{% if e.receipt_image %}<a href="{{ url_for('misc.uploads', filename=e.receipt_image) }}" target="_blank" class="btn btn-icon btn-sm btn-outline-info" title="View receipt"><i class="fas {{ 'fa-file-pdf' if e.receipt_is_pdf else 'fa-image' }}"></i></a>{% else %}<span class="text-muted fs-12">—</span>{% endif %}</td>
       <td><span class="badge {{ e.status_badge }}">{{ e.status|title }}</span></td>
+      <td class="fs-12">{{ e.approved_by.full_name if e.approved_by else '—' }}</td>
+      <td class="text-muted fs-12">{{ e.approved_at.strftime('%d %b %Y') if e.approved_at else '—' }}</td>
       <td>
         <div class="d-flex gap-1">
+          <a href="{{ url_for('expenses.view', expense_id=e.id) }}" class="btn btn-icon btn-sm btn-outline-secondary" title="View"><i class="fas fa-eye"></i></a>
           {% if e.status == 'pending' and current_user.can_approve_module('expenses') %}
-          <button class="btn btn-icon btn-sm btn-outline-success" data-action-url="{{ url_for('expenses.approve', expense_id=e.id) }}" data-confirm="Approve this expense?" data-success-msg="Expense approved."><i class="fas fa-check"></i></button>
-          <button class="btn btn-icon btn-sm btn-outline-danger" data-action-url="{{ url_for('expenses.reject', expense_id=e.id) }}" data-confirm="Reject this expense?" data-success-msg="Expense rejected."><i class="fas fa-ban"></i></button>
+          <button class="btn btn-icon btn-sm btn-outline-success" onclick="openApprove({{ e.id }}, '{{ e.expense_number }}')" title="Approve"><i class="fas fa-check"></i></button>
+          <button class="btn btn-icon btn-sm btn-outline-danger" onclick="openReject({{ e.id }}, '{{ e.expense_number }}')" title="Reject"><i class="fas fa-ban"></i></button>
           {% endif %}
           {% if e.status != 'void' and current_user.can_approve_module('expenses') %}
           <a href="{{ url_for('expenses.edit', expense_id=e.id) }}" class="btn btn-icon btn-sm btn-outline-primary" title="Edit"><i class="fas fa-edit"></i></a>
           {% endif %}
           {% if e.status == 'approved' and current_user.can_approve_module('expenses') %}
-          <button class="btn btn-icon btn-sm btn-outline-secondary" data-action-url="{{ url_for('expenses.void', expense_id=e.id) }}" data-confirm="Void this approved expense? This removes it from all totals." data-success-msg="Expense voided."><i class="fas fa-ban"></i></button>
+          <button class="btn btn-icon btn-sm btn-outline-secondary" data-action-url="{{ url_for('expenses.void', expense_id=e.id) }}" data-confirm="Void this approved expense? This removes it from all totals." data-success-msg="Expense voided."><i class="fas fa-undo"></i></button>
+          {% endif %}
+          {% if e.status in ('rejected', 'void') and current_user.role == 'admin' %}
+          <button class="btn btn-icon btn-sm btn-outline-danger" data-action-url="{{ url_for('expenses.delete', expense_id=e.id) }}" data-confirm="Permanently delete expense {{ e.expense_number }}? This cannot be undone." data-success-msg="Expense deleted."><i class="fas fa-trash"></i></button>
           {% endif %}
         </div>
       </td>
@@ -105,15 +168,17 @@
 <div class="card mt-3">
   <div class="card-header"><i class="fas fa-tags me-2"></i>Expense Categories</div>
   <div class="card-body">
-    <p class="text-muted fs-13 mb-3">Categories aren't limited to vehicle costs — add whatever fits your business (salary, rent, utilities, etc). Deactivating a category hides it from new expenses but keeps it on existing ones.</p>
+    <p class="text-muted fs-13 mb-3">Add whatever fits your business. Deactivating a category hides it from new expenses but keeps it on existing ones — categories with transactions are never deleted.</p>
     <div class="table-responsive mb-3">
       <table class="table table-sm mb-0">
-        <thead><tr><th>Icon</th><th>Category</th><th>Status</th><th class="text-end">Actions</th></tr></thead>
+        <thead><tr><th>Icon</th><th>Category</th><th class="text-end">Expenses</th><th class="text-end">Total Spent</th><th>Status</th><th class="text-end">Actions</th></tr></thead>
         <tbody>
           {% for c in all_categories %}
           <tr>
             <td><i class="fas {{ c.icon }}"></i></td>
             <td class="fw-600">{{ c.label }}</td>
+            <td class="text-end">{{ cat_stats.get(c.key, {}).get('count', 0) }}</td>
+            <td class="text-end fw-600">GHS {{ "%.2f"|format(cat_stats.get(c.key, {}).get('total', 0)) }}</td>
             <td><span class="badge {{ 'bg-success' if c.is_active else 'bg-secondary' }}">{{ 'Active' if c.is_active else 'Inactive' }}</span></td>
             <td class="text-end">
               <div class="d-flex gap-1 justify-content-end">
@@ -160,14 +225,93 @@
   </div>
 </div>
 {% endif %}
+
+{% if current_user.can_write('expenses') %}
+<!-- Add Expense modal -->
+<div class="modal fade" id="addExpenseModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <form method="POST" action="{{ url_for('expenses.add') }}" enctype="multipart/form-data">
+        <div class="modal-header">
+          <h5 class="modal-title"><i class="fas fa-plus me-2"></i>Add Expense</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <div class="row g-3">
+            <div class="col-md-6"><label class="form-label">Expense Date *</label><input type="date" name="expense_date" class="form-control" value="{{ today }}" required></div>
+            <div class="col-md-6"><label class="form-label">Category *</label>
+              <select name="category" class="form-select" required>
+                {% for c in categories %}<option value="{{ c.key }}">{{ c.label }}</option>{% endfor %}
+              </select>
+            </div>
+            <div class="col-md-6"><label class="form-label">Amount (GHS) *</label><div class="input-group"><span class="input-group-text">GHS</span><input type="number" name="amount" class="form-control" step="0.01" min="0.01" required></div></div>
+            <div class="col-md-6"><label class="form-label">Payment Method *</label>
+              <select name="payment_method" class="form-select" required>
+                {% for key, label in payment_methods %}<option value="{{ key }}">{{ label }}</option>{% endfor %}
+              </select>
+            </div>
+            <div class="col-12"><label class="form-label">Description</label><textarea name="description" class="form-control" rows="2" placeholder="What was this expense for?"></textarea></div>
+            <div class="col-12"><label class="form-label"><i class="fas fa-book text-info me-1"></i>Notes</label><input type="text" name="reference_note" class="form-control" placeholder="e.g. Receipt #45, cross-reference to physical records"></div>
+            <div class="col-12"><label class="form-label"><i class="fas fa-camera text-info me-1"></i>Receipt (image or PDF)</label><input type="file" name="receipt_image" class="form-control" accept="image/*,.pdf"></div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-primary"><i class="fas fa-save me-1"></i>Submit Expense</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Approve modal -->
+<div class="modal fade" id="approveModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header"><h5 class="modal-title">Approve Expense <span id="apprExpNum"></span></h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+      <div class="modal-body">
+        <label class="form-label">Approval Note (optional)</label>
+        <textarea id="apprNote" class="form-control" rows="2" placeholder="Any context for the record"></textarea>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-success" onclick="submitApprove()"><i class="fas fa-check me-1"></i>Approve</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Reject modal -->
+<div class="modal fade" id="rejectModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header"><h5 class="modal-title">Reject Expense <span id="rejExpNum"></span></h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+      <div class="modal-body">
+        <label class="form-label">Rejection Reason <span class="text-danger">*</span></label>
+        <textarea id="rejReason" class="form-control" rows="2" placeholder="Required — explain why this is being rejected" required></textarea>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-danger" onclick="submitReject()"><i class="fas fa-ban me-1"></i>Reject</button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}
 {% endblock %}
 {% block extra_js %}
 <script>
-$(document).ready(() => initDataTable('#expTable', {order:[[5,'desc']]}));
+$(document).ready(() => initDataTable('#expTable', {order:[[1,'desc']]}));
+
+function setGranularity(g) {
+  const form = document.getElementById('filterForm');
+  form.granularity.value = g;
+  form.submit();
+}
 
 new Chart(document.getElementById('expTrendChart'), {
   type: 'bar',
-  data: { labels: {{ trend_labels|tojson }}, datasets: [{ label: 'Approved Expenses', data: {{ trend_values|tojson }}, backgroundColor: 'rgba(239,68,68,.7)', borderRadius: 4 }] },
+  data: { labels: {{ trend_labels|tojson }}, datasets: [{ label: 'Approved Expenses', data: {{ trend_values|tojson }}, backgroundColor: 'rgba(37,99,235,.7)', borderRadius: 4 }] },
   options: {
     responsive: true, maintainAspectRatio: false,
     scales: { y: { beginAtZero: true, grid: { color: document.documentElement.getAttribute('data-theme') === 'dark' ? 'rgba(255,255,255,.07)' : 'rgba(0,0,0,.06)' } }, x: { grid: { display: false } } },
@@ -175,21 +319,39 @@ new Chart(document.getElementById('expTrendChart'), {
   }
 });
 
-const catLabels = {{ by_category|map(attribute=0)|list|tojson }};
-const catValues = {{ by_category|map(attribute=1)|list|tojson }};
-const catLabelMap = {{ category_labels|tojson }};
-if (catLabels.length) {
-  new Chart(document.getElementById('expCategoryChart'), {
+function doughnut(canvasId, labels, values) {
+  if (!labels.length) return;
+  new Chart(document.getElementById(canvasId), {
     type: 'doughnut',
-    data: {
-      labels: catLabels.map(k => catLabelMap[k] || k.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())),
-      datasets: [{ data: catValues, backgroundColor: CHART_COLORS, borderWidth: 3,
-        borderColor: getComputedStyle(document.documentElement).getPropertyValue('--bg-card').trim() || '#fff',
-        borderRadius: 6, spacing: 3, hoverOffset: 6 }]
-    },
-    options: { responsive: true, maintainAspectRatio: false, cutout: '65%', plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 10.5 } } } } }
+    data: { labels, datasets: [{ data: values, backgroundColor: CHART_COLORS, borderWidth: 3,
+      borderColor: getComputedStyle(document.documentElement).getPropertyValue('--bg-card').trim() || '#fff',
+      borderRadius: 6, spacing: 3, hoverOffset: 6 }] },
+    options: {
+      responsive: true, maintainAspectRatio: false, cutout: '65%',
+      plugins: {
+        legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 10.5 } } },
+        tooltip: { callbacks: { label: ctx => {
+          const total = ctx.dataset.data.reduce((a,b) => a+b, 0);
+          const pct = total ? ((ctx.raw / total) * 100).toFixed(1) : 0;
+          return `${ctx.label}: GHS ${ctx.raw.toLocaleString()} (${pct}%)`;
+        }}}
+      }
+    }
   });
 }
+
+const catLabelMap = {{ category_labels|tojson }};
+doughnut('expCategoryChart',
+  {{ by_category|map(attribute=0)|list|tojson }}.map(k => catLabelMap[k] || k.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())),
+  {{ by_category|map(attribute=1)|list|tojson }});
+
+doughnut('expStatusChart', ['Approved', 'Pending', 'Rejected'],
+  [{{ status_counts.approved }}, {{ status_counts.pending }}, {{ status_counts.rejected }}]);
+
+const methodLabelMap = {{ payment_methods|tojson }}.reduce((m, [k, l]) => (m[k] = l, m), {});
+doughnut('expMethodChart',
+  {{ by_method|map(attribute=0)|list|tojson }}.map(k => methodLabelMap[k] || k),
+  {{ by_method|map(attribute=1)|list|tojson }});
 
 {% if current_user.can_approve_module('expenses') %}
 const catEditModal = new bootstrap.Modal(document.getElementById('catEditModal'));
@@ -198,6 +360,39 @@ function openCatEditModal(id, label, icon) {
   document.getElementById('catEditLabel').value = label;
   document.getElementById('catEditIcon').value = icon;
   catEditModal.show();
+}
+
+let apprId = null, rejId = null;
+const approveModal = new bootstrap.Modal(document.getElementById('approveModal'));
+const rejectModal = new bootstrap.Modal(document.getElementById('rejectModal'));
+
+function openApprove(id, num) {
+  apprId = id;
+  document.getElementById('apprExpNum').textContent = num;
+  document.getElementById('apprNote').value = '';
+  approveModal.show();
+}
+function openReject(id, num) {
+  rejId = id;
+  document.getElementById('rejExpNum').textContent = num;
+  document.getElementById('rejReason').value = '';
+  rejectModal.show();
+}
+async function submitApprove() {
+  try {
+    const res = await apiCall(`/expenses/${apprId}/approve`, 'POST', { note: document.getElementById('apprNote').value });
+    if (res.success) { Toast.show('Expense approved.', 'success'); approveModal.hide(); setTimeout(() => location.reload(), 700); }
+    else Toast.show(res.error || 'Action failed.', 'danger');
+  } catch { Toast.show('Network error.', 'danger'); }
+}
+async function submitReject() {
+  const reason = document.getElementById('rejReason').value.trim();
+  if (!reason) { Toast.show('A rejection reason is required.', 'danger'); return; }
+  try {
+    const res = await apiCall(`/expenses/${rejId}/reject`, 'POST', { reason });
+    if (res.success) { Toast.show('Expense rejected.', 'success'); rejectModal.hide(); setTimeout(() => location.reload(), 700); }
+    else Toast.show(res.error || 'Action failed.', 'danger');
+  } catch { Toast.show('Network error.', 'danger'); }
 }
 {% endif %}
 </script>

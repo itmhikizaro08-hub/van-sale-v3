@@ -39,6 +39,16 @@ def run_migrations(db):
         # ── Reference note on expenses ──────────────────────────────────────
         _add_column_if_missing(conn, engine, 'expenses', 'reference_note', 'VARCHAR(255)')
 
+        # ── Expense module upgrade: payment method, approval detail, edit
+        # tracking (van_id/van intentionally NOT touched here — the column
+        # stays for any pre-existing rows, just unmapped in the model now) ──
+        _add_column_if_missing(conn, engine, 'expenses', 'payment_method',  "VARCHAR(20) DEFAULT 'cash'")
+        _add_column_if_missing(conn, engine, 'expenses', 'approved_at',     'TIMESTAMP')
+        _add_column_if_missing(conn, engine, 'expenses', 'approval_note',  'TEXT')
+        _add_column_if_missing(conn, engine, 'expenses', 'rejection_reason', 'TEXT')
+        _add_column_if_missing(conn, engine, 'expenses', 'updated_by_id',  'INTEGER')
+        _add_column_if_missing(conn, engine, 'expenses', 'updated_at',     'TIMESTAMP')
+
         # ── Supplier attribution on stock-in movements ──────────────────────
         _add_column_if_missing(conn, engine, 'inventory_movements', 'supplier_id', 'INTEGER')
         _add_column_if_missing(conn, engine, 'inventory_movements', 'reference_note', 'VARCHAR(255)')

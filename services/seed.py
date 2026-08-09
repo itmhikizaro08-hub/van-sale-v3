@@ -59,8 +59,11 @@ def seed_defaults():
     default_expense_categories = [
         ('fuel', 'Fuel', 'fa-gas-pump'),
         ('vehicle_repair', 'Vehicle Repair', 'fa-wrench'),
+        ('vehicle_maintenance', 'Vehicle Maintenance', 'fa-oil-can'),
         ('salary', 'Salary', 'fa-users'),
         ('office', 'Office', 'fa-building'),
+        ('transport', 'Transport', 'fa-truck'),
+        ('food', 'Food', 'fa-utensils'),
         ('miscellaneous', 'Miscellaneous', 'fa-receipt'),
     ]
     for key, label, icon in default_expense_categories:
