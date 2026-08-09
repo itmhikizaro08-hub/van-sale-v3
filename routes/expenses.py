@@ -144,17 +144,6 @@ def index():
     category_icons = {c.key: c.icon for c in all_categories}
     category_labels = {c.key: c.label for c in all_categories}
 
-    # Per-category stats for the category-management card (count + total
-    # spent), computed once here rather than N+1 queries per row.
-    cat_stats = {}
-    for e in expenses:
-        s = cat_stats.setdefault(e.category, {'count': 0, 'total': 0.0})
-        s['count'] += 1
-        if e.status == 'approved':
-            s['total'] += e.amount
-    for s in cat_stats.values():
-        s['total'] = round(s['total'], 2)
-
     return render_template('expenses/index.html', expenses=expenses,
         total_expenses=total_expenses, total_approved=total_approved,
         pending_count=pending_count, pending_total=pending_total,
@@ -164,8 +153,32 @@ def index():
         trend_labels=trend_labels, trend_values=trend_values, granularity=granularity,
         all_categories=all_categories, categories=_active_categories(),
         category_icons=category_icons, category_labels=category_labels,
-        cat_stats=cat_stats, submitters=_submitters(), payment_methods=PAYMENT_METHODS,
+        submitters=_submitters(), payment_methods=PAYMENT_METHODS,
         today=datetime.utcnow().strftime('%Y-%m-%d'), **filters)
+
+
+@expenses_bp.route('/categories')
+@login_required
+def categories():
+    if not current_user.can_approve_module('expenses'):
+        flash('Permission denied.', 'danger')
+        return redirect(url_for('expenses.index'))
+
+    all_categories = ExpenseCategory.query.order_by(ExpenseCategory.label).all()
+
+    # All-time count + total spent per category (a management overview, not
+    # a filtered report — Expense Reports' "by category" view already
+    # covers the date-filtered version of this).
+    cat_stats = {}
+    for e in Expense.query.all():
+        s = cat_stats.setdefault(e.category, {'count': 0, 'total': 0.0})
+        s['count'] += 1
+        if e.status == 'approved':
+            s['total'] += e.amount
+    for s in cat_stats.values():
+        s['total'] = round(s['total'], 2)
+
+    return render_template('expenses/categories.html', all_categories=all_categories, cat_stats=cat_stats)
 
 
 @expenses_bp.route('/add', methods=['GET', 'POST'])
@@ -369,20 +382,20 @@ def delete(expense_id):
 def categories_add():
     if not current_user.can_approve_module('expenses'):
         flash('Permission denied.', 'danger')
-        return redirect(url_for('expenses.index'))
+        return redirect(url_for('expenses.categories'))
     label = (request.form.get('label') or '').strip()
     if not label:
         flash('Enter a category name.', 'danger')
-        return redirect(url_for('expenses.index'))
+        return redirect(url_for('expenses.categories'))
     icon = (request.form.get('icon') or '').strip() or 'fa-receipt'
     key = _slugify(label)
     if ExpenseCategory.query.filter_by(key=key).first():
         flash(f'A category named "{label}" already exists.', 'warning')
-        return redirect(url_for('expenses.index'))
+        return redirect(url_for('expenses.categories'))
     db.session.add(ExpenseCategory(key=key, label=label, icon=icon))
     db.session.commit()
     flash(f'Category "{label}" added.', 'success')
-    return redirect(url_for('expenses.index'))
+    return redirect(url_for('expenses.categories'))
 
 
 @expenses_bp.route('/categories/<int:cat_id>/edit', methods=['POST'])
@@ -390,17 +403,17 @@ def categories_add():
 def categories_edit(cat_id):
     if not current_user.can_approve_module('expenses'):
         flash('Permission denied.', 'danger')
-        return redirect(url_for('expenses.index'))
+        return redirect(url_for('expenses.categories'))
     cat = ExpenseCategory.query.get_or_404(cat_id)
     label = (request.form.get('label') or '').strip()
     if not label:
         flash('Enter a category name.', 'danger')
-        return redirect(url_for('expenses.index'))
+        return redirect(url_for('expenses.categories'))
     cat.label = label
     cat.icon = (request.form.get('icon') or '').strip() or cat.icon
     db.session.commit()
     flash(f'Category updated to "{label}".', 'success')
-    return redirect(url_for('expenses.index'))
+    return redirect(url_for('expenses.categories'))
 
 
 @expenses_bp.route('/categories/<int:cat_id>/toggle', methods=['POST'])
